@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T01:49:04.796Z",
+  "localDate": "2026-10-30",
+  "scope": "native provider reasoning settings",
+  "observedError": {
+    "at": "2026-10-30T01:40:16.424Z",
+    "method": "thread/settings/update",
+    "code": -32602,
+    "message": "An existing native thread cannot switch CLI engines; start a new thread.",
+    "originalRequestParametersAvailable": false
+  },
+  "launch": {
+    "pid": 77530,
+    "sourceGeneration": "2ff3f106ecce5f7f9619c7af6a34cf12e446c28650a12897fe4e0fa6483df540",
+    "updatedFrontendLoaded": false
+  },
+  "targetedTests": {
+    "passed": 32,
+    "failed": 0,
+    "skipped": 0,
+    "nativeChecks": [
+      "effort-only update on selected provider model",
+      "actual settings notification acknowledges xhigh",
+      "next upstream request retains model and xhigh",
+      "cold resume retains model and xhigh",
+      "CLI/native mixed model envelopes remain rejected"
+    ]
+  },
+  "build": {
+    "typeScript": true,
+    "esmModules": 159,
+    "relativeImportsVerified": 362
+  },
+  "desktopRestarted": false,
+  "globalConfigModified": false,
+  "realModelInferenceCalls": 0,
+  "realWindowAcceptance": "pending user-coordinated reload and test",
+  "sourceSha256": {
+    "gateway/router.mts": "a0a144c701e47f5683857c92f271b51cfaa20a5e3f2f152f5b7de77c936d2b0b",
+    "tests/gateway-router-test.mjs": "58508b9a4daee187ae6238d2efbd514c9a51394ad12df841d4a4faed2f41aba7",
+    "tests/copilot-provider-native-test.mjs": "4ee90319d930e28f1a83c13a27edad2e22b975da0478cafac8c709b4c01e9025"
+  }
+}

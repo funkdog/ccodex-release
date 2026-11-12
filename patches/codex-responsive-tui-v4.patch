@@ -1,0 +1,1389 @@
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index 044f3d71fdf6a8e7ec3efc6afd2f19a202d3119a..b06128786534169811954018c2a323af4b5ae61b 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -218,6 +218,7 @@ mod plugin_mentions;
+ mod replay_filter;
+ mod resize_reflow;
+ mod safety_buffering;
++mod scrollback;
+ mod session_lifecycle;
+ mod side;
+ mod startup_prompts;
+@@ -1292,7 +1293,9 @@ See the Codex keymap documentation for supported actions and examples."
+             self.handle_draw_pre_render(tui)?;
+         }
+ 
+-        if self.overlay.is_some() {
++        if self.scrollback_overlay_active() {
++            self.handle_scrollback_event(tui, app_server, event).await?;
++        } else if self.overlay.is_some() {
+             let _ = self.handle_backtrack_overlay_event(tui, event).await?;
+         } else {
+             match event {
+@@ -1300,19 +1303,12 @@ See the Codex keymap documentation for supported actions and examples."
+                     self.handle_key_event(tui, app_server, key_event).await;
+                 }
+                 TuiEvent::Paste(pasted) => {
+-                    // Many terminals convert newlines to \r when pasting (e.g., iTerm2),
+-                    // but tui-textarea expects \n. Normalize CR to LF.
+-                    // [tui-textarea]: https://github.com/rhysd/tui-textarea/blob/4d18622eeac13b309e0ff6a55a46ac6706da68cf/src/textarea.rs#L782-L783
+-                    // [iTerm2]: https://github.com/gnachman/iTerm2/blob/5d0c0d9f68523cbd0494dad5422998964a2ecd8d/sources/iTermPasteHelper.m#L206-L216
+-                    let pasted = pasted.replace("\r", "\n");
+-                    self.chat_widget.handle_paste(pasted);
++                    self.handle_terminal_paste(pasted);
+                 }
+                 TuiEvent::Mouse(mouse) => {
+                     if matches!(mouse.kind, crossterm::event::MouseEventKind::ScrollUp) {
+-                        self.open_transcript_overlay(tui);
+-                        let _ = self
+-                            .handle_backtrack_overlay_event(tui, TuiEvent::Mouse(mouse))
+-                            .await?;
++                        self.open_scrollback_overlay(tui);
++                        self.handle_scrollback_mouse(tui, mouse)?;
+                     } else {
+                         self.chat_widget.handle_mouse_event(mouse);
+                     }
+diff --git a/codex-rs/tui/src/app/input.rs b/codex-rs/tui/src/app/input.rs
+index 942056197f7127f58d9938ef8f6afc15add4c602..cccb159414d434d191c700b02f28a3af24a3e402 100644
+--- a/codex-rs/tui/src/app/input.rs
++++ b/codex-rs/tui/src/app/input.rs
+@@ -6,7 +6,28 @@
+ use super::*;
+ use crate::app_backtrack::SIDE_EDIT_PREVIOUS_UNAVAILABLE_MESSAGE;
+ 
++#[derive(Debug, Eq, PartialEq)]
++enum TerminalPaste {
++    ClipboardImage,
++    Text(String),
++}
++
++fn classify_terminal_paste(pasted: String) -> TerminalPaste {
++    if pasted.is_empty() {
++        TerminalPaste::ClipboardImage
++    } else {
++        TerminalPaste::Text(pasted.replace('\r', "\n"))
++    }
++}
++
+ impl App {
++    pub(super) fn handle_terminal_paste(&mut self, pasted: String) {
++        match classify_terminal_paste(pasted) {
++            TerminalPaste::ClipboardImage => self.chat_widget.paste_image_from_clipboard(),
++            TerminalPaste::Text(text) => self.chat_widget.handle_paste(text),
++        }
++    }
++
+     pub(super) async fn launch_external_editor(&mut self, tui: &mut tui::Tui) {
+         let editor_cmd = match external_editor::resolve_editor_command() {
+             Ok(cmd) => cmd,
+@@ -287,6 +308,25 @@ impl App {
+ #[cfg(test)]
+ mod tests {
+     use super::super::test_support::make_test_app;
++    use super::TerminalPaste;
++    use super::classify_terminal_paste;
++    use pretty_assertions::assert_eq;
++
++    #[test]
++    fn terminal_paste_routes_empty_payload_to_clipboard_image() {
++        assert_eq!(
++            classify_terminal_paste(String::new()),
++            TerminalPaste::ClipboardImage
++        );
++    }
++
++    #[test]
++    fn terminal_paste_normalizes_text_newlines() {
++        assert_eq!(
++            classify_terminal_paste("first\r\nsecond\rthird".to_string()),
++            TerminalPaste::Text("first\n\nsecond\nthird".to_string())
++        );
++    }
+ 
+     #[tokio::test]
+     async fn app_keymap_shortcuts_are_disabled_while_keymap_view_is_active() {
+diff --git a/codex-rs/tui/src/app/scrollback.rs b/codex-rs/tui/src/app/scrollback.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e184bd96f4c57054bb0c8be6dc645c61b20f1fd
+--- /dev/null
++++ b/codex-rs/tui/src/app/scrollback.rs
+@@ -0,0 +1,237 @@
++//! Mouse-driven transcript scrollback integrated with the live composer.
++//!
++//! Normal Codex rendering commits completed transcript cells to terminal scrollback and keeps only
++//! the live cell plus composer in the inline viewport. While mouse capture is enabled for native
++//! composer selection, wheel events cannot ask the terminal emulator to move that scrollback. This
++//! module provides an embedded transcript view instead: scrolling up enters the alternate buffer,
++//! renders transcript history above the real composer, and returns to the inline view automatically
++//! after scrolling back to the bottom. Keyboard and paste events continue to target the composer.
++
++use super::*;
++
++impl App {
++    pub(super) fn scrollback_overlay_active(&self) -> bool {
++        self.overlay.as_ref().is_some_and(Overlay::is_scrollback)
++    }
++
++    pub(super) fn open_scrollback_overlay(&mut self, tui: &mut tui::Tui) {
++        let _ = tui.enter_scrollback_screen();
++        self.overlay = Some(Overlay::new_scrollback(
++            self.transcript_cells.clone(),
++            self.keymap.pager.clone(),
++        ));
++        tui.frame_requester().schedule_frame();
++    }
++
++    pub(super) async fn handle_scrollback_event(
++        &mut self,
++        tui: &mut tui::Tui,
++        app_server: &mut AppServerSession,
++        event: TuiEvent,
++    ) -> Result<()> {
++        match event {
++            TuiEvent::Key(KeyEvent {
++                code: KeyCode::Esc,
++                kind: KeyEventKind::Press | KeyEventKind::Repeat,
++                ..
++            }) => self.close_transcript_overlay(tui),
++            TuiEvent::Key(key_event) => self.handle_key_event(tui, app_server, key_event).await,
++            TuiEvent::Paste(pasted) => self.handle_terminal_paste(pasted),
++            TuiEvent::Mouse(mouse) => {
++                if matches!(
++                    mouse.kind,
++                    crossterm::event::MouseEventKind::ScrollUp
++                        | crossterm::event::MouseEventKind::ScrollDown
++                ) {
++                    self.handle_scrollback_mouse(tui, mouse)?;
++                } else {
++                    self.chat_widget.handle_mouse_event(mouse);
++                }
++            }
++            TuiEvent::Draw | TuiEvent::Resize => {
++                self.chat_widget.maybe_post_pending_notification(tui);
++                if self
++                    .chat_widget
++                    .handle_paste_burst_tick(tui.frame_requester())
++                {
++                    return Ok(());
++                }
++                self.chat_widget.pre_draw_tick();
++                self.render_scrollback_frame(tui)?;
++                if self.chat_widget.external_editor_state() == ExternalEditorState::Requested {
++                    self.chat_widget
++                        .set_external_editor_state(ExternalEditorState::Active);
++                    self.app_event_tx.send(AppEvent::LaunchExternalEditor);
++                }
++            }
++        }
++        Ok(())
++    }
++
++    pub(super) fn handle_scrollback_mouse(
++        &mut self,
++        tui: &mut tui::Tui,
++        mouse: crossterm::event::MouseEvent,
++    ) -> Result<()> {
++        let terminal_size = tui.terminal.size()?;
++        let full_area = Rect::new(0, 0, terminal_size.width, terminal_size.height);
++        let composer_height = self
++            .chat_widget
++            .composer_as_renderable()
++            .desired_height(full_area.width);
++        let (_, history_area) = scrollback_areas(full_area, composer_height);
++        let Some(Overlay::Transcript(transcript)) = &mut self.overlay else {
++            return Ok(());
++        };
++        if transcript.handle_scrollback_mouse(history_area, mouse) {
++            tui.frame_requester()
++                .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL);
++        }
++        let returned_to_bottom = matches!(mouse.kind, crossterm::event::MouseEventKind::ScrollDown)
++            && transcript.is_scrolled_to_bottom_in(history_area);
++        if returned_to_bottom {
++            self.close_transcript_overlay(tui);
++        }
++        Ok(())
++    }
++
++    fn render_scrollback_frame(&mut self, tui: &mut tui::Tui) -> Result<()> {
++        let active_key = self.chat_widget.active_cell_transcript_key();
++        let chat_widget = &self.chat_widget;
++        let composer = chat_widget.composer_as_renderable();
++        let composer_height = composer.desired_height(tui.terminal.size()?.width);
++        let Some(Overlay::Transcript(transcript)) = &mut self.overlay else {
++            return Ok(());
++        };
++
++        tui.draw(u16::MAX, |frame| {
++            let (composer_area, history_area) = scrollback_areas(frame.area(), composer_height);
++            transcript.sync_live_tail(history_area.width.max(1), active_key, |width| {
++                chat_widget.active_cell_transcript_hyperlink_lines(width)
++            });
++            transcript.render_scrollback(history_area, frame.buffer);
++            composer.render(composer_area, frame.buffer);
++            chat_widget.note_rendered_width(composer_area.width);
++            if let Some((x, y)) = composer.cursor_pos(composer_area) {
++                frame.set_cursor_style(composer.cursor_style(composer_area));
++                frame.set_cursor_position((x, y));
++            }
++        })?;
++        if active_key.is_some_and(|key| key.animation_tick.is_some())
++            && transcript.is_scrolled_to_bottom()
++        {
++            tui.frame_requester()
++                .schedule_frame_in(std::time::Duration::from_millis(50));
++        }
++        Ok(())
++    }
++}
++
++fn scrollback_areas(area: Rect, desired_composer_height: u16) -> (Rect, Rect) {
++    let composer_height = desired_composer_height.min(area.height);
++    let history_height = area.height.saturating_sub(composer_height);
++    let history_area = Rect::new(area.x, area.y, area.width, history_height);
++    let composer_area = Rect::new(
++        area.x,
++        area.y.saturating_add(history_height),
++        area.width,
++        composer_height,
++    );
++    (composer_area, history_area)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::app_event_sender::AppEventSender;
++    use crate::bottom_pane::ChatComposer;
++    use crate::history_cell::AgentMessageCell;
++    use crate::history_cell::new_user_prompt;
++    use crate::pager_overlay::TranscriptOverlay;
++    use insta::assert_snapshot;
++    use pretty_assertions::assert_eq;
++    use ratatui::Terminal;
++    use ratatui::backend::TestBackend;
++    use std::sync::Arc;
++    use tokio::sync::mpsc::unbounded_channel;
++
++    #[test]
++    fn composer_stays_pinned_to_bottom_while_history_uses_remaining_rows() {
++        let area = Rect::new(3, 5, 80, 24);
++        let (composer, history) = scrollback_areas(area, 6);
++
++        assert_eq!(history, Rect::new(3, 5, 80, 18));
++        assert_eq!(composer, Rect::new(3, 23, 80, 6));
++        assert_eq!(composer.bottom(), area.bottom());
++    }
++
++    #[test]
++    fn embedded_scrollback_keeps_live_composer_and_omits_pager_chrome() {
++        let cells: Vec<Arc<dyn HistoryCell>> = vec![
++            Arc::new(new_user_prompt(
++                "Show me the earlier context".to_string(),
++                Vec::new(),
++                Vec::new(),
++                Vec::new(),
++            )),
++            Arc::new(AgentMessageCell::new(
++                (1..=14)
++                    .map(|line| Line::from(format!("history line {line:02}")))
++                    .collect(),
++                /*is_first_line*/ true,
++            )),
++        ];
++        let mut transcript =
++            TranscriptOverlay::new_scrollback(cells, RuntimeKeymap::defaults().pager);
++        let (tx, _rx) = unbounded_channel::<AppEvent>();
++        let mut composer = ChatComposer::new(
++            /*has_input_focus*/ true,
++            AppEventSender::new(tx),
++            /*enhanced_keys_supported*/ true,
++            "Ask Codex to do anything".to_string(),
++            /*disable_paste_burst*/ false,
++        );
++        composer.set_text_content(
++            "composer remains editable".to_string(),
++            Vec::new(),
++            Vec::new(),
++        );
++        composer.set_status_line_enabled(/*enabled*/ true);
++        composer.set_status_line(Some(Line::from(
++            "gpt-5.6-sol xhigh · Context 123K/258K (47.7%) · Cache 88.4%",
++        )));
++
++        let mut terminal = Terminal::new(TestBackend::new(50, 18)).expect("terminal");
++        terminal
++            .draw(|frame| {
++                let composer_height = composer.desired_height(frame.area().width);
++                let (composer_area, history_area) = scrollback_areas(frame.area(), composer_height);
++                transcript.render_scrollback(history_area, frame.buffer_mut());
++                composer.render(composer_area, frame.buffer_mut());
++            })
++            .expect("initial draw");
++        let (_, history_area) = scrollback_areas(
++            Rect::new(0, 0, 50, 18),
++            composer.desired_height(/*width*/ 50),
++        );
++        transcript.handle_scrollback_mouse(
++            history_area,
++            crossterm::event::MouseEvent {
++                kind: crossterm::event::MouseEventKind::ScrollUp,
++                column: 4,
++                row: 4,
++                modifiers: KeyModifiers::NONE,
++            },
++        );
++        terminal
++            .draw(|frame| {
++                let composer_height = composer.desired_height(frame.area().width);
++                let (composer_area, history_area) = scrollback_areas(frame.area(), composer_height);
++                transcript.render_scrollback(history_area, frame.buffer_mut());
++                composer.render(composer_area, frame.buffer_mut());
++            })
++            .expect("scrolled draw");
++
++        assert_snapshot!(terminal.backend());
++    }
++}
+diff --git a/codex-rs/tui/src/app/snapshots/codex_tui__app__scrollback__tests__embedded_scrollback_keeps_live_composer_and_omits_pager_chrome.snap b/codex-rs/tui/src/app/snapshots/codex_tui__app__scrollback__tests__embedded_scrollback_keeps_live_composer_and_omits_pager_chrome.snap
+new file mode 100644
+index 0000000000000000000000000000000000000000..214ba55ac14a5e0394b60ef2894a9c99e8d3a44c
+--- /dev/null
++++ b/codex-rs/tui/src/app/snapshots/codex_tui__app__scrollback__tests__embedded_scrollback_keeps_live_composer_and_omits_pager_chrome.snap
+@@ -0,0 +1,22 @@
++---
++source: tui/src/app/scrollback.rs
++expression: terminal.backend()
++---
++"                                                  "
++"                                                  "
++"• history line 01                                 "
++"  history line 02                                 "
++"  history line 03                                 "
++"  history line 04                                 "
++"  history line 05                                 "
++"  history line 06                                 "
++"  history line 07                                 "
++"  history line 08                                 "
++"  history line 09                                 "
++"  history line 10                                 "
++"  history line 11                                 "
++"                                                  "
++"› composer remains editable                       "
++"                                                  "
++"  gpt-5.6-sol xhigh · Context 123K/258K (47.7%)   "
++"  Cache 88.4%                                     "
+diff --git a/codex-rs/tui/src/app_backtrack.rs b/codex-rs/tui/src/app_backtrack.rs
+index f4114a3f90b0457a780c793eb4fd3f101a56a2e3..7be43e96dbf698944ecc5c6ea515ab653ed3eb1d 100644
+--- a/codex-rs/tui/src/app_backtrack.rs
++++ b/codex-rs/tui/src/app_backtrack.rs
+@@ -203,7 +203,12 @@ impl App {
+ 
+     /// Close transcript overlay and restore normal UI.
+     pub(crate) fn close_transcript_overlay(&mut self, tui: &mut tui::Tui) {
+-        let _ = tui.leave_alt_screen();
++        let was_scrollback = self.overlay.as_ref().is_some_and(Overlay::is_scrollback);
++        if was_scrollback {
++            let _ = tui.leave_scrollback_screen();
++        } else {
++            let _ = tui.leave_alt_screen();
++        }
+         let was_backtrack = self.backtrack.overlay_preview_active;
+         if !self.deferred_history_lines.is_empty() {
+             let lines = std::mem::take(&mut self.deferred_history_lines);
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer.rs b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+index 5f4b07323f7c993eaaa0031af1e33bef57704e23..b73f5edba7ab9f890c74a15cb6d614b66171abef 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+@@ -213,6 +213,7 @@ use super::footer::FooterKeyHints;
+ use super::footer::FooterMode;
+ use super::footer::FooterProps;
+ use super::footer::GoalStatusIndicator;
++use super::footer::StatusLineLayout;
+ use super::footer::SummaryLeft;
+ use super::footer::can_show_left_with_context;
+ use super::footer::context_window_line;
+@@ -230,6 +231,7 @@ use super::footer::render_footer_line;
+ use super::footer::reset_mode_after_activity;
+ use super::footer::side_conversation_context_line;
+ use super::footer::single_line_footer_layout;
++use super::footer::status_line_layout;
+ use super::footer::status_line_right_indicator_line;
+ use super::footer::toggle_shortcut_mode;
+ use super::footer::uses_passive_footer_status_layout;
+@@ -895,9 +897,7 @@ impl ChatComposer {
+         textarea_right_reserve: u16,
+     ) -> [Rect; 4] {
+         let footer_props = self.footer_props();
+-        let footer_hint_height = self
+-            .custom_footer_height()
+-            .unwrap_or_else(|| footer_height(&footer_props));
++        let footer_hint_height = self.footer_hint_height(area.width, &footer_props);
+         let footer_spacing = Self::footer_spacing(footer_hint_height);
+         let footer_total_height = footer_hint_height + footer_spacing;
+         let popup_constraint = match &self.popups.active {
+@@ -3753,6 +3753,58 @@ impl ChatComposer {
+             .map(|items| if items.is_empty() { 0 } else { 1 })
+     }
+ 
++    fn footer_hint_height(&self, width: u16, footer_props: &FooterProps) -> u16 {
++        if let Some(height) = self.custom_footer_height() {
++            return height;
++        }
++
++        self.passive_status_line_layout(Rect::new(0, 0, width, u16::MAX), footer_props)
++            .map(|layout| layout.height().max(1))
++            .unwrap_or_else(|| footer_height(footer_props))
++    }
++
++    fn passive_status_line_layout(
++        &self,
++        area: Rect,
++        footer_props: &FooterProps,
++    ) -> Option<StatusLineLayout> {
++        if !uses_passive_footer_status_layout(footer_props)
++            || self.footer.flash_visible()
++            || self.footer.hint_override.is_some()
++        {
++            return None;
++        }
++
++        let show_cycle_hint =
++            !footer_props.is_task_running && self.footer.collaboration_mode_indicator.is_some();
++        let mut left = passive_footer_status_line(footer_props);
++        let transition_active = self
++            .effort_status_line_transition
++            .as_ref()
++            .is_some_and(|transition| !transition.is_finished());
++        if let Some(transition) = self
++            .effort_status_line_transition
++            .as_ref()
++            .filter(|transition| !transition.is_finished())
++        {
++            left = transition.render_line(
++                left.as_ref(),
++                area.width.saturating_sub(FOOTER_INDENT_COLS as u16),
++            );
++        }
++        let right = if let Some(label) = self.footer.side_conversation_context_label.as_ref() {
++            Some(side_conversation_context_line(label))
++        } else if let Some(line) = self.shell_mode_footer_line() {
++            Some(line)
++        } else if transition_active {
++            None
++        } else {
++            self.mode_indicator_line(show_cycle_hint)
++        };
++
++        Some(status_line_layout(area, left, right))
++    }
++
+     pub(crate) fn sync_popups(&mut self) {
+         self.sync_slash_command_elements();
+         if self.history_search.is_some() {
+@@ -4402,9 +4454,7 @@ impl ChatComposer {
+         textarea_right_reserve: u16,
+     ) -> u16 {
+         let footer_props = self.footer_props();
+-        let footer_hint_height = self
+-            .custom_footer_height()
+-            .unwrap_or_else(|| footer_height(&footer_props));
++        let footer_hint_height = self.footer_hint_height(width, &footer_props);
+         let footer_spacing = Self::footer_spacing(footer_hint_height);
+         let footer_total_height = footer_hint_height + footer_spacing;
+         const COLS_WITH_MARGIN: u16 = LIVE_PREFIX_COLS + 1;
+@@ -4481,9 +4531,7 @@ impl ChatComposer {
+                     | FooterMode::ShortcutOverlay
+                     | FooterMode::EscHint => false,
+                 };
+-                let custom_height = self.custom_footer_height();
+-                let footer_hint_height =
+-                    custom_height.unwrap_or_else(|| footer_height(&footer_props));
++                let footer_hint_height = self.footer_hint_height(area.width, &footer_props);
+                 let footer_spacing = Self::footer_spacing(footer_hint_height);
+                 let hint_rect = if footer_spacing > 0 && footer_hint_height > 0 {
+                     let [_, hint_rect] = Layout::vertical([
+@@ -4512,6 +4560,8 @@ impl ChatComposer {
+                     let available_width =
+                         hint_rect.width.saturating_sub(FOOTER_INDENT_COLS as u16) as usize;
+                     let status_line_active = uses_passive_footer_status_layout(&footer_props);
++                    let responsive_status_line_layout =
++                        self.passive_status_line_layout(hint_rect, &footer_props);
+                     let combined_status_line = if status_line_active {
+                         passive_footer_status_line(&footer_props)
+                     } else {
+@@ -4630,13 +4680,14 @@ impl ChatComposer {
+                             | FooterMode::ShortcutOverlay => None,
+                         }
+                     };
+-                    let show_right = if matches!(
+-                        footer_props.mode,
+-                        FooterMode::EscHint
+-                            | FooterMode::HistorySearch
+-                            | FooterMode::QuitShortcutReminder
+-                            | FooterMode::ShortcutOverlay
+-                    ) {
++                    let show_right = if responsive_status_line_layout.is_some()
++                        || matches!(
++                            footer_props.mode,
++                            FooterMode::EscHint
++                                | FooterMode::HistorySearch
++                                | FooterMode::QuitShortcutReminder
++                                | FooterMode::ShortcutOverlay
++                        ) {
+                         false
+                     } else {
+                         single_line_layout
+@@ -4685,6 +4736,8 @@ impl ChatComposer {
+                         }
+                     } else if let Some(items) = active_footer_hint_override {
+                         render_footer_hint_items(hint_rect, buf, items);
++                    } else if let Some(layout) = &responsive_status_line_layout {
++                        layout.render(hint_rect, buf);
+                     } else if status_line_active {
+                         if let Some(line) = truncated_status_line {
+                             render_footer_line(hint_rect, buf, line);
+@@ -5061,7 +5114,7 @@ mod tests {
+         );
+         setup(&mut composer);
+         let footer_props = composer.footer_props();
+-        let footer_lines = footer_height(&footer_props);
++        let footer_lines = composer.footer_hint_height(width, &footer_props);
+         let footer_spacing = ChatComposer::footer_spacing(footer_lines);
+         let height = footer_lines + footer_spacing + 8;
+         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+@@ -5236,6 +5289,22 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn footer_status_line_wraps_without_losing_fields_on_narrow_terminals() {
++        snapshot_composer_state_with_width(
++            "footer_status_line_wraps_without_losing_fields",
++            /*width*/ 42,
++            /*enhanced_keys_supported*/ true,
++            |composer| {
++                composer.set_status_line_enabled(/*enabled*/ true);
++                composer.set_status_line(Some(Line::from(
++                    "gpt-5.6-sol xhigh · Context 123K/258K (47.7%) · Cache 88.4% · Context long (258K) · 456K used",
++                )));
++                composer.set_collaboration_mode_indicator(Some(CollaborationModeIndicator::Plan));
++            },
++        );
++    }
++
+     #[test]
+     fn shell_command_cursor_uses_absorbed_prefix() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+diff --git a/codex-rs/tui/src/bottom_pane/footer.rs b/codex-rs/tui/src/bottom_pane/footer.rs
+index c6f89bc34b5fd589ebd83abfcb7f51ec78335047..317fb3ce129b2ee894029c672b64be81ecb718f9 100644
+--- a/codex-rs/tui/src/bottom_pane/footer.rs
++++ b/codex-rs/tui/src/bottom_pane/footer.rs
+@@ -46,6 +46,7 @@ use crate::key_hint::KeyBinding;
+ use crate::render::line_utils::prefix_lines;
+ use crate::status::format_tokens_compact;
+ use crate::ui_consts::FOOTER_INDENT_COLS;
++use crate::wrapping::word_wrap_lines;
+ use crossterm::event::KeyCode;
+ use ratatui::buffer::Buffer;
+ use ratatui::layout::Rect;
+@@ -103,6 +104,140 @@ pub(crate) enum GoalStatusIndicator {
+ 
+ const MODE_CYCLE_HINT: &str = "shift+tab to cycle";
+ const FOOTER_CONTEXT_GAP_COLS: u16 = 1;
++const STATUS_ITEM_SEPARATOR: &str = " · ";
++
++/// Width-aware layout for the configurable status line and its right-side indicators.
++///
++/// Wide terminals retain the familiar left/right alignment. When both sides no longer fit, the
++/// complete contents are combined and wrapped instead of truncating configured status fields.
++#[derive(Clone, Debug)]
++pub(crate) enum StatusLineLayout {
++    Single {
++        left: Option<Line<'static>>,
++        right: Option<Line<'static>>,
++    },
++    Wrapped(Vec<Line<'static>>),
++}
++
++impl StatusLineLayout {
++    pub(crate) fn height(&self) -> u16 {
++        match self {
++            Self::Single { .. } => 1,
++            Self::Wrapped(lines) => lines.len().try_into().unwrap_or(u16::MAX),
++        }
++    }
++
++    pub(crate) fn render(&self, area: Rect, buf: &mut Buffer) {
++        match self {
++            Self::Single { left, right } => {
++                if let Some(line) = left {
++                    render_footer_line(area, buf, line.clone());
++                }
++                if let Some(line) = right {
++                    render_context_right(area, buf, line);
++                }
++            }
++            Self::Wrapped(lines) => render_footer_lines(area, buf, lines.clone()),
++        }
++    }
++}
++
++pub(crate) fn status_line_layout(
++    area: Rect,
++    left: Option<Line<'static>>,
++    right: Option<Line<'static>>,
++) -> StatusLineLayout {
++    let available_width = area.width.saturating_sub(FOOTER_INDENT_COLS as u16);
++    let left_width = left.as_ref().map(Line::width).unwrap_or(0) as u16;
++    let right_width = right.as_ref().map(Line::width).unwrap_or(0) as u16;
++    let left_fits = left_width <= available_width;
++    let right_fits = right_width <= available_width;
++    let sides_fit = can_show_left_with_context(area, left_width, right_width);
++
++    if available_width > 0 && left_fits && right_fits && sides_fit {
++        return StatusLineLayout::Single { left, right };
++    }
++
++    let mut combined = left.unwrap_or_default();
++    if let Some(right) = right {
++        if !combined.spans.is_empty() {
++            combined.push_span(" · ".dim());
++        }
++        combined.spans.extend(right.spans);
++    }
++    let lines = if available_width == 0 || combined.spans.is_empty() {
++        Vec::new()
++    } else {
++        wrap_status_line(combined, usize::from(available_width))
++    };
++    StatusLineLayout::Wrapped(lines)
++}
++
++fn wrap_status_line(line: Line<'static>, width: usize) -> Vec<Line<'static>> {
++    let mut rows = Vec::new();
++    let mut current = Line::default();
++    for item in split_status_line_items(line) {
++        let item_width = item.width();
++        if current.spans.is_empty() {
++            if item_width <= width {
++                current = item;
++            } else {
++                let mut wrapped = word_wrap_lines([item], width);
++                if let Some(last) = wrapped.pop() {
++                    rows.extend(wrapped);
++                    current = last;
++                }
++            }
++            continue;
++        }
++
++        if current.width() + STATUS_ITEM_SEPARATOR.chars().count() + item_width <= width {
++            current.push_span(STATUS_ITEM_SEPARATOR.dim());
++            current.spans.extend(item.spans);
++            continue;
++        }
++
++        rows.push(std::mem::take(&mut current));
++        if item_width <= width {
++            current = item;
++        } else {
++            let mut wrapped = word_wrap_lines([item], width);
++            if let Some(last) = wrapped.pop() {
++                rows.extend(wrapped);
++                current = last;
++            }
++        }
++    }
++    if !current.spans.is_empty() {
++        rows.push(current);
++    }
++    rows
++}
++
++fn split_status_line_items(line: Line<'static>) -> Vec<Line<'static>> {
++    let mut items = Vec::new();
++    let mut current = Vec::new();
++    for span in line.spans {
++        let style = span.style;
++        let mut content = span.content.into_owned();
++        while let Some(index) = content.find(STATUS_ITEM_SEPARATOR) {
++            if index > 0 {
++                current.push(Span::styled(content[..index].to_string(), style));
++            }
++            if !current.is_empty() {
++                items.push(Line::from(std::mem::take(&mut current)));
++            }
++            content = content[index + STATUS_ITEM_SEPARATOR.len()..].to_string();
++        }
++        if !content.is_empty() {
++            current.push(Span::styled(content, style));
++        }
++    }
++    if !current.is_empty() {
++        items.push(Line::from(current));
++    }
++    items
++}
+ 
+ #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ pub(crate) struct FooterKeyHints {
+@@ -246,8 +381,12 @@ pub(crate) fn footer_height(props: &FooterProps) -> u16 {
+ 
+ /// Render a single precomputed footer line.
+ pub(crate) fn render_footer_line(area: Rect, buf: &mut Buffer, line: Line<'static>) {
++    render_footer_lines(area, buf, vec![line]);
++}
++
++fn render_footer_lines(area: Rect, buf: &mut Buffer, lines: Vec<Line<'static>>) {
+     Paragraph::new(prefix_lines(
+-        vec![line],
++        lines,
+         " ".repeat(FOOTER_INDENT_COLS).into(),
+         " ".repeat(FOOTER_INDENT_COLS).into(),
+     ))
+@@ -1332,6 +1471,22 @@ mod tests {
+                     | FooterMode::EscHint => false,
+                 };
+                 let status_line_active = uses_passive_footer_status_layout(props);
++                if status_line_active
++                    && matches!(
++                        props.mode,
++                        FooterMode::ComposerEmpty | FooterMode::ComposerHasDraft
++                    )
++                {
++                    let right = status_line_right_indicator_line(
++                        collaboration_mode_indicator,
++                        /*goal_status_indicator*/ None,
++                        ide_context_active,
++                        show_cycle_hint,
++                    );
++                    status_line_layout(area, passive_footer_status_line(props), right)
++                        .render(area, f.buffer_mut());
++                    return;
++                }
+                 let passive_status_line = if status_line_active {
+                     passive_footer_status_line(props)
+                 } else {
+@@ -1496,7 +1651,12 @@ mod tests {
+         collaboration_mode_indicator: Option<CollaborationModeIndicator>,
+         context_line: Line<'static>,
+     ) {
+-        let height = footer_height(props).max(1);
++        let height = footer_test_height(
++            width,
++            props,
++            collaboration_mode_indicator,
++            /*ide_context_active*/ false,
++        );
+         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+         draw_footer_frame(
+             &mut terminal,
+@@ -1515,7 +1675,12 @@ mod tests {
+         collaboration_mode_indicator: Option<CollaborationModeIndicator>,
+         context_line: Line<'static>,
+     ) -> String {
+-        let height = footer_height(props).max(1);
++        let height = footer_test_height(
++            width,
++            props,
++            collaboration_mode_indicator,
++            /*ide_context_active*/ false,
++        );
+         let mut terminal = Terminal::new(VT100Backend::new(width, height)).expect("terminal");
+         draw_footer_frame(
+             &mut terminal,
+@@ -1535,7 +1700,12 @@ mod tests {
+         collaboration_mode_indicator: Option<CollaborationModeIndicator>,
+         ide_context_active: bool,
+     ) {
+-        let height = footer_height(props).max(1);
++        let height = footer_test_height(
++            width,
++            props,
++            collaboration_mode_indicator,
++            ide_context_active,
++        );
+         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+         draw_footer_frame(
+             &mut terminal,
+@@ -1548,6 +1718,35 @@ mod tests {
+         assert_snapshot!(name, terminal.backend());
+     }
+ 
++    fn footer_test_height(
++        width: u16,
++        props: &FooterProps,
++        collaboration_mode_indicator: Option<CollaborationModeIndicator>,
++        ide_context_active: bool,
++    ) -> u16 {
++        if uses_passive_footer_status_layout(props)
++            && matches!(
++                props.mode,
++                FooterMode::ComposerEmpty | FooterMode::ComposerHasDraft
++            )
++        {
++            let right = status_line_right_indicator_line(
++                collaboration_mode_indicator,
++                /*goal_status_indicator*/ None,
++                ide_context_active,
++                /*show_cycle_hint*/ !props.is_task_running,
++            );
++            return status_line_layout(
++                Rect::new(0, 0, width, u16::MAX),
++                passive_footer_status_line(props),
++                right,
++            )
++            .height()
++            .max(1);
++        }
++        footer_height(props).max(1)
++    }
++
+     #[test]
+     fn footer_snapshots() {
+         snapshot_footer(
+@@ -1945,7 +2144,8 @@ mod tests {
+             is_wsl: false,
+             quit_shortcut_key: key_hint::ctrl(KeyCode::Char('c')),
+             status_line_value: Some(Line::from(
+-                "Status line content that should truncate before the mode indicator".to_string(),
++                "Status line content that should wrap completely before the mode indicator"
++                    .to_string(),
+             )),
+             status_line_enabled: true,
+             key_hints: FooterKeyHints::default_bindings(),
+@@ -1953,7 +2153,7 @@ mod tests {
+         };
+ 
+         snapshot_footer_with_mode_indicator_and_context(
+-            "footer_status_line_truncated_with_gap",
++            "footer_status_line_wrapped_with_mode_indicator",
+             /*width*/ 40,
+             &props,
+             Some(CollaborationModeIndicator::Plan),
+@@ -1996,7 +2196,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn footer_status_line_truncates_to_keep_mode_indicator() {
++    fn footer_status_line_wraps_to_keep_all_content_and_mode_indicator() {
+         let props = FooterProps {
+             mode: FooterMode::ComposerEmpty,
+             esc_backtrack_hint: false,
+@@ -2026,14 +2226,11 @@ mod tests {
+             collapsed.contains("Plan mode"),
+             "mode indicator should remain visible"
+         );
+-        assert!(
+-            !collapsed.contains("shift+tab to cycle"),
+-            "compact mode indicator should be used when space is tight"
+-        );
+-        assert!(
+-            screen.contains('…'),
+-            "status line should be truncated with ellipsis to keep mode indicator"
+-        );
++        assert!(collapsed.contains("shift+tab to cycle"));
++        assert!(collapsed.contains(
++            "Status line content that is definitely too long to fit alongside the mode label"
++        ));
++        assert!(!screen.contains('…'));
+     }
+ 
+     #[test]
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_status_line_wraps_without_losing_fields.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_status_line_wraps_without_losing_fields.snap
+new file mode 100644
+index 0000000000000000000000000000000000000000..342b6a2da9452b127be95fee3fa923149865936a
+--- /dev/null
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_status_line_wraps_without_losing_fields.snap
+@@ -0,0 +1,16 @@
++---
++source: tui/src/bottom_pane/chat_composer.rs
++expression: terminal.backend()
++---
++"                                          "
++"› Ask Codex to do anything                "
++"                                          "
++"                                          "
++"                                          "
++"                                          "
++"                                          "
++"                                          "
++"  gpt-5.6-sol xhigh                       "
++"  Context 123K/258K (47.7%) · Cache 88.4% "
++"  Context long (258K) · 456K used         "
++"  Plan mode (shift+tab to cycle)          "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_truncated_with_gap.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_truncated_with_gap.snap
+deleted file mode 100644
+index cef1531fd6e4164fa48305fd8c085354089dc515..0000000000000000000000000000000000000000
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_truncated_with_gap.snap
++++ /dev/null
+@@ -1,5 +0,0 @@
+----
+-source: tui/src/bottom_pane/footer.rs
+-expression: terminal.backend()
+----
+-"  Status line content that … Plan mode  "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_wrapped_with_mode_indicator.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_wrapped_with_mode_indicator.snap
+new file mode 100644
+index 0000000000000000000000000000000000000000..3f38aa7c91c0953798ae7435e162f60f8a0f008d
+--- /dev/null
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_wrapped_with_mode_indicator.snap
+@@ -0,0 +1,7 @@
++---
++source: tui/src/bottom_pane/footer.rs
++expression: terminal.backend()
++---
++"  Status line content that should wrap  "
++"  completely before the mode indicator  "
++"  Plan mode (shift+tab to cycle)        "
+diff --git a/codex-rs/tui/src/chatwidget/interaction.rs b/codex-rs/tui/src/chatwidget/interaction.rs
+index 57fc6fe31632866d439ddec3a8c9feddbce7fc63..5846c93d771864b39908d5b4d340c6ad1d2a78e7 100644
+--- a/codex-rs/tui/src/chatwidget/interaction.rs
++++ b/codex-rs/tui/src/chatwidget/interaction.rs
+@@ -94,23 +94,7 @@ impl ChatWidget {
+             } if modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+                 && c.eq_ignore_ascii_case(&'v') =>
+             {
+-                match paste_image_to_temp_png() {
+-                    Ok((path, info)) => {
+-                        tracing::debug!(
+-                            "pasted image size={}x{} format={}",
+-                            info.width,
+-                            info.height,
+-                            info.encoded_format.label()
+-                        );
+-                        self.attach_image(path);
+-                    }
+-                    Err(err) => {
+-                        tracing::warn!("failed to paste image: {err}");
+-                        self.add_to_history(history_cell::new_error_event(format!(
+-                            "Failed to paste image: {err}",
+-                        )));
+-                    }
+-                }
++                self.paste_image_from_clipboard();
+                 return;
+             }
+             other if other.kind == KeyEventKind::Press => {
+@@ -204,6 +188,31 @@ impl ChatWidget {
+         }
+     }
+ 
++    /// Attach the image currently held by the platform clipboard.
++    ///
++    /// Besides the explicit image-paste keybinding, the app-level paste router calls this when a
++    /// terminal reports an empty bracketed-paste payload. Windows Terminal uses that empty payload
++    /// for bitmap clipboard contents, so handling it in the native TUI avoids a nested ConPTY proxy.
++    pub(crate) fn paste_image_from_clipboard(&mut self) {
++        match paste_image_to_temp_png() {
++            Ok((path, info)) => {
++                tracing::debug!(
++                    "pasted image size={}x{} format={}",
++                    info.width,
++                    info.height,
++                    info.encoded_format.label()
++                );
++                self.attach_image(path);
++            }
++            Err(err) => {
++                tracing::warn!("failed to paste image: {err}");
++                self.add_to_history(history_cell::new_error_event(format!(
++                    "Failed to paste image: {err}",
++                )));
++            }
++        }
++    }
++
+     pub(crate) fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) {
+         if self.bottom_pane.handle_mouse_event(event) {
+             self.bottom_pane.clear_quit_shortcut_hint();
+diff --git a/codex-rs/tui/src/chatwidget/rendering.rs b/codex-rs/tui/src/chatwidget/rendering.rs
+index 44aef7050d6153eb8c183580a0788a77174524ea..654c706b7cc64c250eabe02c4cb714aa63a9893a 100644
+--- a/codex-rs/tui/src/chatwidget/rendering.rs
++++ b/codex-rs/tui/src/chatwidget/rendering.rs
+@@ -3,6 +3,14 @@
+ use super::*;
+ 
+ impl ChatWidget {
++    pub(crate) fn composer_as_renderable(&self) -> RenderableItem<'_> {
++        self.bottom_pane
++            .as_renderable_with_composer_right_reserve(self.ambient_pet_wrap_reserved_cols())
++            .inset(Insets::tlbr(
++                /*top*/ 1, /*left*/ 0, /*bottom*/ 0, /*right*/ 0,
++            ))
++    }
++
+     pub(crate) fn as_renderable(&self) -> RenderableItem<'_> {
+         let active_cell_right_reserve = self.ambient_pet_wrap_reserved_cols();
+         let active_cell_renderable = match &self.transcript.active_cell {
+@@ -46,14 +54,7 @@ impl ChatWidget {
+                 })),
+             );
+         }
+-        flex.push(
+-            /*flex*/ 0,
+-            self.bottom_pane
+-                .as_renderable_with_composer_right_reserve(active_cell_right_reserve)
+-                .inset(Insets::tlbr(
+-                    /*top*/ 1, /*left*/ 0, /*bottom*/ 0, /*right*/ 0,
+-                )),
+-        );
++        flex.push(/*flex*/ 0, self.composer_as_renderable());
+         RenderableItem::Owned(Box::new(flex))
+     }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__side_context_label_shows_parent_status.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__side_context_label_shows_parent_status.snap
+index 0427c3926c031e9984c37ced20ad207e4b304aee..dc3ca5ffe6650cb850c0cfd91f7357f460663a63 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__side_context_label_shows_parent_status.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__side_context_label_shows_parent_status.snap
+@@ -6,4 +6,5 @@ expression: terminal.backend()
+ "                                                                                "
+ "› Check recently modified functions for compatibility                           "
+ "                                                                                "
+-"  gpt-5.6-sol def… Side from main thread · main needs input · Ctrl+C to return  "
++"  gpt-5.6-sol default · C:\tmp\project · Side from main thread                  "
++"  main needs input · Ctrl+C to return                                           "
+diff --git a/codex-rs/tui/src/pager_overlay.rs b/codex-rs/tui/src/pager_overlay.rs
+index e1de5733cc6a3744e25baa3ca70b259605e2701b..b522f4a3102b3480b28c4b145dcdb6473f7dfd70 100644
+--- a/codex-rs/tui/src/pager_overlay.rs
++++ b/codex-rs/tui/src/pager_overlay.rs
+@@ -57,11 +57,25 @@ pub(crate) enum Overlay {
+     Static(StaticOverlay),
+ }
+ 
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++enum TranscriptPresentation {
++    Pager,
++    EmbeddedScrollback,
++}
++
+ impl Overlay {
+     pub(crate) fn new_transcript(cells: Vec<Arc<dyn HistoryCell>>, keymap: PagerKeymap) -> Self {
+         Self::Transcript(TranscriptOverlay::new(cells, keymap))
+     }
+ 
++    pub(crate) fn new_scrollback(cells: Vec<Arc<dyn HistoryCell>>, keymap: PagerKeymap) -> Self {
++        Self::Transcript(TranscriptOverlay::new_scrollback(cells, keymap))
++    }
++
++    pub(crate) fn is_scrollback(&self) -> bool {
++        matches!(self, Self::Transcript(overlay) if overlay.is_scrollback())
++    }
++
+     pub(crate) fn new_static_with_lines(
+         lines: Vec<Line<'static>>,
+         title: String,
+@@ -161,6 +175,20 @@ impl PagerView {
+         Clear.render(area, buf);
+         self.render_header(area, buf);
+         let content_area = self.content_area(area);
++        let content_height = self.prepare_content_render(content_area);
++
++        self.render_content(content_area, buf);
++
++        self.render_bottom_bar(area, content_area, buf, content_height);
++    }
++
++    fn render_scrollback(&mut self, area: Rect, buf: &mut Buffer) {
++        Clear.render(area, buf);
++        self.prepare_content_render(area);
++        self.render_visible_content(area, buf);
++    }
++
++    fn prepare_content_render(&mut self, content_area: Rect) -> usize {
+         self.update_last_content_height(content_area.height);
+         let content_height = self.content_height(content_area.width);
+         self.last_rendered_height = Some(content_height);
+@@ -172,10 +200,7 @@ impl PagerView {
+         self.scroll_offset = self
+             .scroll_offset
+             .min(content_height.saturating_sub(content_area.height as usize));
+-
+-        self.render_content(content_area, buf);
+-
+-        self.render_bottom_bar(area, content_area, buf, content_height);
++        content_height
+     }
+ 
+     fn render_header(&self, area: Rect, buf: &mut Buffer) {
+@@ -187,39 +212,48 @@ impl PagerView {
+     }
+ 
+     fn render_content(&self, area: Rect, buf: &mut Buffer) {
+-        let mut y = -(self.scroll_offset as isize);
++        let drawn_bottom = self.render_visible_content(area, buf);
++
++        for y in drawn_bottom..area.bottom() {
++            if area.width == 0 {
++                break;
++            }
++            buf[(area.x, y)] = Cell::from('~');
++            for x in area.x + 1..area.right() {
++                buf[(x, y)] = Cell::from(' ');
++            }
++        }
++    }
++
++    fn render_visible_content(&self, area: Rect, buf: &mut Buffer) -> u16 {
++        let area_top = area.y as isize;
++        let area_bottom = area.bottom() as isize;
++        let mut y = area_top.saturating_sub(self.scroll_offset as isize);
+         let mut drawn_bottom = area.y;
+         for renderable in &self.renderables {
+             let top = y;
+             let height = renderable.desired_height(area.width) as isize;
+             y += height;
+             let bottom = y;
+-            if bottom < area.y as isize {
++            if bottom < area_top {
+                 continue;
+             }
+-            if top > area.y as isize + area.height as isize {
++            if top > area_bottom {
+                 break;
+             }
+-            if top < 0 {
+-                let drawn = render_offset_content(area, buf, &**renderable, (-top) as u16);
++            if top < area_top {
++                let offset = area_top.saturating_sub(top) as u16;
++                let drawn = render_offset_content(area, buf, &**renderable, offset);
+                 drawn_bottom = drawn_bottom.max(area.y + drawn);
+             } else {
+-                let draw_height = (height as u16).min(area.height.saturating_sub(top as u16));
+-                let draw_area = Rect::new(area.x, area.y + top as u16, area.width, draw_height);
++                let row_offset = top.saturating_sub(area_top) as u16;
++                let draw_height = (height as u16).min(area.height.saturating_sub(row_offset));
++                let draw_area = Rect::new(area.x, top as u16, area.width, draw_height);
+                 renderable.render(draw_area, buf);
+                 drawn_bottom = drawn_bottom.max(draw_area.y.saturating_add(draw_area.height));
+             }
+         }
+-
+-        for y in drawn_bottom..area.bottom() {
+-            if area.width == 0 {
+-                break;
+-            }
+-            buf[(area.x, y)] = Cell::from('~');
+-            for x in area.x + 1..area.right() {
+-                buf[(x, y)] = Cell::from(' ');
+-            }
+-        }
++        drawn_bottom
+     }
+ 
+     fn render_bottom_bar(
+@@ -295,8 +329,7 @@ impl PagerView {
+         Ok(())
+     }
+ 
+-    fn handle_mouse_event(&mut self, viewport_area: Rect, event: MouseEvent) -> bool {
+-        let content_area = self.content_area(viewport_area);
++    fn handle_mouse_event(&mut self, content_area: Rect, event: MouseEvent) -> bool {
+         let max_scroll = self
+             .content_height(content_area.width)
+             .saturating_sub(content_area.height as usize);
+@@ -306,13 +339,23 @@ impl PagerView {
+                 self.scroll_offset = self.scroll_offset.saturating_sub(MOUSE_SCROLL_ROWS);
+             }
+             MouseEventKind::ScrollDown => {
+-                self.scroll_offset = self.scroll_offset.saturating_add(MOUSE_SCROLL_ROWS);
++                self.scroll_offset = self
++                    .scroll_offset
++                    .saturating_add(MOUSE_SCROLL_ROWS)
++                    .min(max_scroll);
+             }
+             _ => return false,
+         }
+         true
+     }
+ 
++    fn is_scrolled_to_bottom_in(&self, content_area: Rect) -> bool {
++        let max_scroll = self
++            .content_height(content_area.width)
++            .saturating_sub(content_area.height as usize);
++        self.scroll_offset >= max_scroll
++    }
++
+     /// Returns the height of one page in content rows.
+     ///
+     /// Prefers the last rendered content height (excluding header/footer chrome);
+@@ -475,6 +518,7 @@ pub(crate) struct TranscriptOverlay {
+     /// Cache key for the render-only live tail appended after committed cells.
+     live_tail_key: Option<LiveTailKey>,
+     is_done: bool,
++    presentation: TranscriptPresentation,
+ }
+ 
+ /// Cache key for the active-cell "live tail" appended to the transcript overlay.
+@@ -498,6 +542,25 @@ impl TranscriptOverlay {
+     /// This overlay does not own the "active cell"; callers may optionally append a live tail via
+     /// `sync_live_tail` during draws to reflect in-flight activity.
+     pub(crate) fn new(transcript_cells: Vec<Arc<dyn HistoryCell>>, keymap: PagerKeymap) -> Self {
++        Self::with_presentation(transcript_cells, keymap, TranscriptPresentation::Pager)
++    }
++
++    pub(crate) fn new_scrollback(
++        transcript_cells: Vec<Arc<dyn HistoryCell>>,
++        keymap: PagerKeymap,
++    ) -> Self {
++        Self::with_presentation(
++            transcript_cells,
++            keymap,
++            TranscriptPresentation::EmbeddedScrollback,
++        )
++    }
++
++    fn with_presentation(
++        transcript_cells: Vec<Arc<dyn HistoryCell>>,
++        keymap: PagerKeymap,
++        presentation: TranscriptPresentation,
++    ) -> Self {
+         Self {
+             view: PagerView::new(
+                 Self::render_cells(&transcript_cells, /*highlight_cell*/ None),
+@@ -509,9 +572,14 @@ impl TranscriptOverlay {
+             highlight_cell: None,
+             live_tail_key: None,
+             is_done: false,
++            presentation,
+         }
+     }
+ 
++    pub(crate) fn is_scrollback(&self) -> bool {
++        self.presentation == TranscriptPresentation::EmbeddedScrollback
++    }
++
+     fn render_cells(
+         cells: &[Arc<dyn HistoryCell>],
+         highlight_cell: Option<usize>,
+@@ -808,6 +876,18 @@ impl TranscriptOverlay {
+         self.view.render(top, buf);
+         self.render_hints(bottom, buf);
+     }
++
++    pub(crate) fn render_scrollback(&mut self, area: Rect, buf: &mut Buffer) {
++        self.view.render_scrollback(area, buf);
++    }
++
++    pub(crate) fn handle_scrollback_mouse(&mut self, area: Rect, event: MouseEvent) -> bool {
++        self.view.handle_mouse_event(area, event)
++    }
++
++    pub(crate) fn is_scrolled_to_bottom_in(&self, area: Rect) -> bool {
++        self.view.is_scrolled_to_bottom_in(area)
++    }
+ }
+ 
+ impl TranscriptOverlay {
+@@ -823,10 +903,11 @@ impl TranscriptOverlay {
+                 other => self.view.handle_key_event(tui, other),
+             },
+             TuiEvent::Mouse(mouse) => {
+-                if self
+-                    .view
+-                    .handle_mouse_event(tui.terminal.viewport_area, mouse)
+-                {
++                let full_area = tui.terminal.viewport_area;
++                let top_height = full_area.height.saturating_sub(3);
++                let pager_area = Rect::new(full_area.x, full_area.y, full_area.width, top_height);
++                let content_area = self.view.content_area(pager_area);
++                if self.view.handle_mouse_event(content_area, mouse) {
+                     tui.frame_requester()
+                         .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL);
+                 }
+@@ -1655,7 +1736,8 @@ mod tests {
+     #[test]
+     fn pager_view_mouse_wheel_scrolls_from_bottom_and_round_trips() {
+         let mut pv = pager_view(vec![paragraph_block("a", /*lines*/ 20)], "T", usize::MAX);
+-        let area = Rect::new(0, 0, 20, 8);
++        let pager_area = Rect::new(0, 0, 20, 8);
++        let content_area = pv.content_area(pager_area);
+         let scroll_up = MouseEvent {
+             kind: MouseEventKind::ScrollUp,
+             column: 4,
+@@ -1667,13 +1749,13 @@ mod tests {
+             ..scroll_up
+         };
+ 
+-        assert!(pv.handle_mouse_event(area, scroll_up));
++        assert!(pv.handle_mouse_event(content_area, scroll_up));
+         let max_scroll = pv
+-            .content_height(pv.content_area(area).width)
+-            .saturating_sub(pv.content_area(area).height as usize);
++            .content_height(content_area.width)
++            .saturating_sub(content_area.height as usize);
+         assert_eq!(pv.scroll_offset, max_scroll - MOUSE_SCROLL_ROWS);
+ 
+-        assert!(pv.handle_mouse_event(area, scroll_down));
++        assert!(pv.handle_mouse_event(content_area, scroll_down));
+         assert_eq!(pv.scroll_offset, max_scroll);
+     }
+ }
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index 7df20dbac2fe8c77d1b5965a2a066bf97cb9ab5f..b89b029dd7182029f30751fdee1b7d4fa84ef85d 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -174,6 +174,20 @@ mod tests {
+         );
+     }
+ 
++    #[tokio::test(flavor = "current_thread")]
++    async fn inline_scrollback_restores_saved_composer_viewport() {
++        let mut tui = crate::tui::test_support::make_test_tui().expect("test tui");
++        tui.set_alt_screen_enabled(/*enabled*/ false);
++        let composer_viewport = Rect::new(0, 18, 80, 6);
++        tui.terminal.set_viewport_area(composer_viewport);
++
++        tui.enter_scrollback_screen().expect("save viewport");
++        tui.terminal.set_viewport_area(Rect::new(0, 0, 80, 24));
++        tui.leave_scrollback_screen().expect("restore viewport");
++
++        assert_eq!(tui.terminal.viewport_area, composer_viewport);
++    }
++
+     #[tokio::test(flavor = "current_thread", start_paused = true)]
+     async fn inserting_history_lines_schedules_a_draw() {
+         let mut tui = crate::tui::test_support::make_test_tui().expect("test tui");
+@@ -775,6 +789,21 @@ impl Tui {
+         Ok(())
+     }
+ 
++    /// Prepare a full-height scrollback view while preserving the normal inline viewport.
++    ///
++    /// When alternate-screen rendering is enabled this delegates to the normal alternate buffer.
++    /// With `tui.alternate_screen = "never"`, the next full-height draw expands inline instead, so
++    /// we explicitly save the current composer viewport for restoration when scrolling ends.
++    pub fn enter_scrollback_screen(&mut self) -> Result<()> {
++        if self.alt_screen_enabled {
++            return self.enter_alt_screen();
++        }
++        if self.alt_saved_viewport.is_none() {
++            self.alt_saved_viewport = Some(self.terminal.viewport_area);
++        }
++        Ok(())
++    }
++
+     /// Leave alternate screen and restore the previously saved inline viewport, if any.
+     pub fn leave_alt_screen(&mut self) -> Result<()> {
+         if !self.alt_screen_enabled {
+@@ -790,6 +819,18 @@ impl Tui {
+         Ok(())
+     }
+ 
++    /// Restore the inline composer viewport saved by [`Self::enter_scrollback_screen`].
++    pub fn leave_scrollback_screen(&mut self) -> Result<()> {
++        if self.alt_screen_enabled {
++            return self.leave_alt_screen();
++        }
++        if let Some(saved) = self.alt_saved_viewport.take() {
++            self.terminal.set_viewport_area(saved);
++            self.terminal.clear()?;
++        }
++        Ok(())
++    }
++
+     pub fn insert_history_lines(&mut self, lines: Vec<Line<'static>>) {
+         self.insert_history_lines_with_wrap_policy(lines, HistoryLineWrapPolicy::PreWrap);
+     }

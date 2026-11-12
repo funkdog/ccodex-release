@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-29T03:34:31.373969+00:00",
+  "scope": "macOS local shortcut; current Desktop not restarted or injected",
+  "launcher": "~/Applications/MyCodex.app",
+  "officialApplication": "/Applications/ChatGPT.app",
+  "binarySha256": "7105d0da74f7cb05f0c88280bb05c497eb15ac22768e24be1ef91f349da6a423",
+  "build": {
+    "nativeSwift": true,
+    "adHocSignatureVerified": true,
+    "plistVerified": true,
+    "bundleBytes": 254392
+  },
+  "tests": {
+    "startupCasesPassed": 26,
+    "sourceInventoryCasesPassed": 3
+  },
+  "moduleCheck": {
+    "modules": 137,
+    "relativeImportsVerified": 280
+  },
+  "installedBinaryCheck": {
+    "application": "/Applications/ChatGPT.app",
+    "instanceId": "current-mac",
+    "checkOnly": true,
+    "launchPerformed": false,
+    "action": "needs-quit",
+    "message": "ChatGPT 当前未通过这个增强入口启动，或接入配置已变化。请在合适时用 ⌘Q 完全退出，再点击 MyCodex。以后直接从 MyCodex 启动即可；当前会话没有被中断。"
+  },
+  "dockPinnedCount": 1,
+  "desktopPidUnchanged": 56599,
+  "loginItemInstalled": false,
+  "globalEnvironmentChanged": false,
+  "currentHostUiAcceptanceComplete": false,
+  "sourceAudit": {
+    "passed": true,
+    "files": 80,
+    "findings": []
+  },
+  "preparedMatchesCurrentSource": true
+}

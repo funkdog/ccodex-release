@@ -1,0 +1,1814 @@
+diff --git a/codex-rs/tui/src/app/event_dispatch.rs b/codex-rs/tui/src/app/event_dispatch.rs
+index 2984e70..078d66b 100644
+--- a/codex-rs/tui/src/app/event_dispatch.rs
++++ b/codex-rs/tui/src/app/event_dispatch.rs
+@@ -1070,6 +1070,9 @@ impl App {
+                 self.sync_active_thread_reasoning_setting(app_server, effort)
+                     .await;
+             }
++            AppEvent::ReplayReasoningEffortAnimation(effort) => {
++                self.chat_widget.replay_reasoning_effort_animation(&effort);
++            }
+             AppEvent::UpdateModel(model) => {
+                 self.chat_widget.set_model(&model);
+                 self.sync_active_thread_model_setting(app_server, model)
+diff --git a/codex-rs/tui/src/app_event.rs b/codex-rs/tui/src/app_event.rs
+index 893b846..644add2 100644
+--- a/codex-rs/tui/src/app_event.rs
++++ b/codex-rs/tui/src/app_event.rs
+@@ -754,6 +754,9 @@ pub(crate) enum AppEvent {
+     /// Update the current reasoning effort in the running app and widget.
+     UpdateReasoningEffort(Option<ReasoningEffort>),
+ 
++    /// Replay the one-shot animation for an explicitly selected reasoning effort.
++    ReplayReasoningEffortAnimation(ReasoningEffort),
++
+     /// Update the current model slug in the running app and widget.
+     UpdateModel(String),
+ 
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer.rs b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+index b73f5ed..b2b4d49 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+@@ -121,11 +121,12 @@
+ //! - `Down` on the last row clears selection and returns control to the textarea.
+ //! - `Delete`/`Backspace` remove the selected remote image row.
+ //!
+-//! Placeholder numbering is unified across remote and local images:
++//! Remote and local images use different presentation labels:
+ //!
+ //! - Remote rows occupy `[Image #1]..[Image #M]`.
+-//! - Local placeholders are offset after that range (`[Image #M+1]..`).
+-//! - Deleting a remote row relabels local placeholders to keep numbering contiguous.
++//! - Local placeholders render as `[📷 filename]`; duplicate filenames add `· N`.
++//! - The submission boundary remaps local placeholders to `[Image #M+1]..` so the model-facing
++//!   protocol remains contiguous even though the editable composer uses filename labels.
+ //!
+ //! # Non-bracketed Paste Bursts
+ //!
+@@ -712,23 +713,47 @@ impl ChatComposer {
+             && !is_baseline
+             && animations_enabled
+         {
+-            let style = IgnitionStyle::random(self.effort_animation_style);
+-            self.effort_ignition = Some(EffortIgnition::new(tier, style));
+-            self.effort_animation_style = Some(style);
+-            if self.footer.status_line_enabled
+-                && !self.footer.plan_mode_nudge_visible
+-                && let Some(previous) = passive_footer_status_line(&self.footer_props())
+-            {
+-                self.effort_status_line_transition =
+-                    Some(EffortStatusLineTransition::new(tier, previous));
+-            }
+-            if let Some(frame_requester) = &self.frame_requester {
+-                frame_requester.schedule_frame();
+-            }
++            self.start_reasoning_effort_animation(tier);
++        }
++        true
++    }
++
++    pub(crate) fn replay_reasoning_effort_animation(
++        &mut self,
++        effort: &ReasoningEffort,
++        animations_enabled: bool,
++    ) -> bool {
++        let Some(tier) = EffortTier::from_effort(Some(effort)) else {
++            return false;
++        };
++        if !animations_enabled {
++            return false;
+         }
++
++        self.effort_tier = Some(tier);
++        self.effort_observed = true;
++        self.effort_ignition = None;
++        self.effort_status_line_transition = None;
++        self.start_reasoning_effort_animation(tier);
+         true
+     }
+ 
++    fn start_reasoning_effort_animation(&mut self, tier: EffortTier) {
++        let style = IgnitionStyle::random(self.effort_animation_style);
++        self.effort_ignition = Some(EffortIgnition::new(tier, style));
++        self.effort_animation_style = Some(style);
++        if self.footer.status_line_enabled
++            && !self.footer.plan_mode_nudge_visible
++            && let Some(previous) = passive_footer_status_line(&self.footer_props())
++        {
++            self.effort_status_line_transition =
++                Some(EffortStatusLineTransition::new(tier, previous));
++        }
++        if let Some(frame_requester) = &self.frame_requester {
++            frame_requester.schedule_frame();
++        }
++    }
++
+     /// Establishes the current tier without retaining or starting a one-shot effect.
+     pub(crate) fn set_active_reasoning_effort_baseline(
+         &mut self,
+@@ -1188,9 +1213,8 @@ impl ChatComposer {
+ 
+     /// Replace the composer content with text from an external editor.
+     /// Clears pending paste placeholders and keeps only attachments whose
+-    /// placeholder labels still appear in the new text. Image placeholders
+-    /// are renumbered to `[Image #M+1]..[Image #N]` (where `M` is the number of
+-    /// remote images). Cursor is placed at the end after rebuilding elements.
++    /// filename labels still appear in the new text. Duplicate filenames are
++    /// resuffixed in attachment order. Cursor is placed at the end after rebuilding elements.
+     pub(crate) fn apply_external_edit(&mut self, text: String) {
+         self.draft.pending_pastes.clear();
+         let (text, _) = self.imported_text_for_textarea(text, Vec::new());
+@@ -1258,8 +1282,7 @@ impl ChatComposer {
+             self.draft.textarea.insert_str(&text[idx..]);
+         }
+ 
+-        // Keep local image placeholders normalized in attachment order after the
+-        // remote-image prefix.
++        // Keep local image filename placeholders normalized in attachment order.
+         self.attachments
+             .relabel_local_images(&mut self.draft.textarea);
+         self.draft
+@@ -6408,7 +6431,7 @@ mod tests {
+ 
+         let path = PathBuf::from("example.png");
+         composer.attach_image(path.clone());
+-        let placeholder = local_image_label_text(/*label_number*/ 1);
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         composer.clear_for_ctrl_c();
+         assert!(composer.is_empty());
+@@ -6441,7 +6464,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn clear_for_ctrl_c_preserves_remote_offset_image_labels() {
++    fn clear_for_ctrl_c_preserves_filename_image_labels_with_remote_images() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -6462,10 +6485,10 @@ mod tests {
+         composer.set_text_content(text, text_elements, vec![local_image_path.clone()]);
+         let expected_text = composer.current_text();
+         let expected_elements = composer.text_elements();
+-        assert_eq!(expected_text, "[Image #2] draft");
++        assert_eq!(expected_text, "[📷 local-draft.png] draft");
+         assert_eq!(
+             expected_elements[0].placeholder(&expected_text),
+-            Some("[Image #2]")
++            Some("[📷 local-draft.png]")
+         );
+ 
+         assert_eq!(composer.clear_for_ctrl_c(), Some(expected_text.clone()));
+@@ -6483,7 +6506,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn apply_history_entry_preserves_local_placeholders_after_remote_prefix() {
++    fn apply_history_entry_upgrades_local_placeholders_after_remote_prefix() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -6508,12 +6531,12 @@ mod tests {
+         ));
+ 
+         let restored_text = composer.current_text();
+-        assert_eq!(restored_text, "[Image #2] draft");
++        assert_eq!(restored_text, "[📷 local-draft.png] draft");
+         let restored_elements = composer.text_elements();
+         assert_eq!(restored_elements.len(), 1);
+         assert_eq!(
+             restored_elements[0].placeholder(&restored_text),
+-            Some("[Image #2]")
++            Some("[📷 local-draft.png]")
+         );
+         assert_eq!(composer.local_image_paths(), vec![local_image_path]);
+         assert_eq!(composer.remote_image_urls(), vec![remote_image_url]);
+@@ -10107,8 +10130,8 @@ mod tests {
+         composer.set_collaboration_modes_enabled(/*enabled*/ true);
+ 
+         type_chars_humanlike(&mut composer, &['/', 'p', 'l', 'a', 'n', ' ']);
+-        let placeholder = local_image_label_text(/*label_number*/ 1);
+         composer.attach_image(PathBuf::from("/tmp/plan.png"));
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         let (result, _needs_redraw) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+@@ -10261,7 +10284,7 @@ mod tests {
+             image_path.to_str().expect("UTF-8 path"),
+         );
+ 
+-        assert_eq!(composer.current_text(), "@sample [Image #1] ");
++        assert_eq!(composer.current_text(), "@sample [📷 image.png] ");
+         assert_eq!(composer.local_image_paths(), vec![image_path]);
+     }
+ 
+@@ -10735,6 +10758,7 @@ mod tests {
+         );
+         let path = PathBuf::from("/tmp/image1.png");
+         composer.attach_image(path.clone());
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+         composer.handle_paste(" hi".into());
+         let (result, _) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+@@ -10743,14 +10767,17 @@ mod tests {
+                 text,
+                 text_elements,
+             } => {
+-                assert_eq!(text, "[Image #1] hi");
++                assert_eq!(text, format!("{placeholder} hi"));
+                 assert_eq!(text_elements.len(), 1);
+-                assert_eq!(text_elements[0].placeholder(&text), Some("[Image #1]"));
++                assert_eq!(
++                    text_elements[0].placeholder(&text),
++                    Some(placeholder.as_str())
++                );
+                 assert_eq!(
+                     text_elements[0].byte_range,
+                     ByteRange {
+                         start: 0,
+-                        end: "[Image #1]".len()
++                        end: placeholder.len()
+                     }
+                 );
+             }
+@@ -10820,10 +10847,10 @@ mod tests {
+         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+ 
+         let text = composer.current_text();
+-        assert_eq!(text, "[Image #2]");
++        assert_eq!(text, "[📷 image1.png]");
+         let text_elements = composer.text_elements();
+         assert_eq!(text_elements.len(), 1);
+-        assert_eq!(text_elements[0].placeholder(&text), Some("[Image #2]"));
++        assert_eq!(text_elements[0].placeholder(&text), Some("[📷 image1.png]"));
+         assert_eq!(composer.local_image_paths(), vec![path]);
+         assert_eq!(composer.remote_image_urls(), vec![remote_image_url]);
+     }
+@@ -11230,6 +11257,7 @@ mod tests {
+         composer.handle_paste(" ".into());
+         let path = PathBuf::from("/tmp/image_with_paste.png");
+         composer.attach_image(path.clone());
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         let (result, _) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+@@ -11238,15 +11266,18 @@ mod tests {
+                 text,
+                 text_elements,
+             } => {
+-                let expected = format!("{large_content} [Image #1]");
++                let expected = format!("{large_content} {placeholder}");
+                 assert_eq!(text, expected);
+                 assert_eq!(text_elements.len(), 1);
+-                assert_eq!(text_elements[0].placeholder(&text), Some("[Image #1]"));
++                assert_eq!(
++                    text_elements[0].placeholder(&text),
++                    Some(placeholder.as_str())
++                );
+                 assert_eq!(
+                     text_elements[0].byte_range,
+                     ByteRange {
+                         start: large_content.len() + 1,
+-                        end: large_content.len() + 1 + "[Image #1]".len(),
++                        end: large_content.len() + 1 + placeholder.len(),
+                     }
+                 );
+             }
+@@ -11273,6 +11304,7 @@ mod tests {
+         composer.handle_paste(" ".into());
+         let path = PathBuf::from("/tmp/image_with_trim.png");
+         composer.attach_image(path.clone());
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         let (result, _) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+@@ -11282,14 +11314,17 @@ mod tests {
+                 text_elements,
+             } => {
+                 let trimmed = large_content.trim().to_string();
+-                assert_eq!(text, format!("{trimmed} [Image #1]"));
++                assert_eq!(text, format!("{trimmed} {placeholder}"));
+                 assert_eq!(text_elements.len(), 1);
+-                assert_eq!(text_elements[0].placeholder(&text), Some("[Image #1]"));
++                assert_eq!(
++                    text_elements[0].placeholder(&text),
++                    Some(placeholder.as_str())
++                );
+                 assert_eq!(
+                     text_elements[0].byte_range,
+                     ByteRange {
+                         start: trimmed.len() + 1,
+-                        end: trimmed.len() + 1 + "[Image #1]".len(),
++                        end: trimmed.len() + 1 + placeholder.len(),
+                     }
+                 );
+             }
+@@ -11316,6 +11351,7 @@ mod tests {
+         composer.handle_paste(" ".into());
+         let path = PathBuf::from("/tmp/image_crlf.png");
+         composer.attach_image(path.clone());
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         let (result, _) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+@@ -11324,15 +11360,18 @@ mod tests {
+                 text,
+                 text_elements,
+             } => {
+-                assert_eq!(text, "line1\nline2\n [Image #1]");
++                assert_eq!(text, format!("line1\nline2\n {placeholder}"));
+                 assert!(!text.contains('\r'));
+                 assert_eq!(text_elements.len(), 1);
+-                assert_eq!(text_elements[0].placeholder(&text), Some("[Image #1]"));
++                assert_eq!(
++                    text_elements[0].placeholder(&text),
++                    Some(placeholder.as_str())
++                );
+                 assert_eq!(
+                     text_elements[0].byte_range,
+                     ByteRange {
+                         start: "line1\nline2\n ".len(),
+-                        end: "line1\nline2\n [Image #1]".len(),
++                        end: "line1\nline2\n ".len() + placeholder.len(),
+                     }
+                 );
+             }
+@@ -11408,6 +11447,7 @@ mod tests {
+         );
+         let path = PathBuf::from("/tmp/image2.png");
+         composer.attach_image(path.clone());
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+         let (result, _) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+         match result {
+@@ -11415,14 +11455,17 @@ mod tests {
+                 text,
+                 text_elements,
+             } => {
+-                assert_eq!(text, "[Image #1]");
++                assert_eq!(text, placeholder);
+                 assert_eq!(text_elements.len(), 1);
+-                assert_eq!(text_elements[0].placeholder(&text), Some("[Image #1]"));
++                assert_eq!(
++                    text_elements[0].placeholder(&text),
++                    Some(placeholder.as_str())
++                );
+                 assert_eq!(
+                     text_elements[0].byte_range,
+                     ByteRange {
+                         start: 0,
+-                        end: "[Image #1]".len()
++                        end: placeholder.len()
+                     }
+                 );
+             }
+@@ -11451,15 +11494,15 @@ mod tests {
+         composer.attach_image(path);
+ 
+         let text = composer.draft.textarea.text().to_string();
+-        assert!(text.contains("[Image #1]"));
+-        assert!(text.contains("[Image #2]"));
++        assert!(text.contains("[📷 image_dup.png]"));
++        assert!(text.contains("[📷 image_dup.png · 2]"));
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            "[Image #1]"
++            "[📷 image_dup.png]"
+         );
+         assert_eq!(
+             composer.attachments.local_images[1].placeholder,
+-            "[Image #2]"
++            "[📷 image_dup.png · 2]"
+         );
+     }
+ 
+@@ -11521,6 +11564,7 @@ mod tests {
+         // Insert an image placeholder at the start
+         let path = PathBuf::from("/tmp/image_multibyte.png");
+         composer.attach_image(path);
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+         // Add multibyte text after the placeholder
+         composer.draft.textarea.insert_str("日本語");
+ 
+@@ -11529,7 +11573,7 @@ mod tests {
+         composer.handle_key_event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+ 
+         assert_eq!(composer.attachments.local_images.len(), 1);
+-        assert!(composer.draft.textarea.text().starts_with("[Image #1]"));
++        assert!(composer.draft.textarea.text().starts_with(&placeholder));
+     }
+ 
+     #[test]
+@@ -11544,8 +11588,8 @@ mod tests {
+             /*disable_paste_burst*/ false,
+         );
+ 
+-        let path1 = PathBuf::from("/tmp/image_dup1.png");
+-        let path2 = PathBuf::from("/tmp/image_dup2.png");
++        let path1 = PathBuf::from("/tmp/one/image_dup.png");
++        let path2 = PathBuf::from("/tmp/two/image_dup.png");
+ 
+         composer.attach_image(path1);
+         // separate placeholders with a space for clarity
+@@ -11575,13 +11619,13 @@ mod tests {
+         );
+         assert_eq!(
+             1,
+-            new_text.matches("[Image #1]").count(),
+-            "remaining placeholder relabeled to #1"
++            new_text.matches(&placeholder1).count(),
++            "remaining duplicate uses the unsuffixed filename label"
+         );
+         assert_eq!(
+             vec![AttachedImage {
+                 path: path2,
+-                placeholder: "[Image #1]".to_string()
++                placeholder: placeholder1
+             }],
+             composer.attachments.local_images,
+             "one image mapping remains"
+@@ -11589,7 +11633,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn deleting_reordered_image_one_renumbers_text_in_place() {
++    fn deleting_reordered_image_removes_the_correct_mapping_in_place() {
+         use crossterm::event::KeyCode;
+         use crossterm::event::KeyEvent;
+         use crossterm::event::KeyModifiers;
+@@ -11627,27 +11671,37 @@ mod tests {
+                     start: start1,
+                     end: start1 + placeholder1.len(),
+                 },
+-                Some(placeholder1.clone()),
++                Some(placeholder1),
+             ),
+         ];
+         composer.set_text_content(text, text_elements, vec![path1, path2.clone()]);
+ 
+-        let end1 = start1 + placeholder1.len();
++        let placeholder1 = composer.attachments.local_images[0].placeholder.clone();
++        let placeholder2 = composer.attachments.local_images[1].placeholder.clone();
++        let current_text = composer.draft.textarea.text().to_string();
++        assert_eq!(
++            current_text,
++            format!("Test {placeholder2} test {placeholder1}")
++        );
++        let end1 = current_text
++            .find(&placeholder1)
++            .expect("first display placeholder present")
++            + placeholder1.len();
+         composer.draft.textarea.set_cursor(end1);
+ 
+         composer.handle_key_event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+ 
+         assert_eq!(
+             composer.draft.textarea.text(),
+-            format!("Test {placeholder1} test ")
++            format!("Test {placeholder2} test ")
+         );
+         assert_eq!(
+             vec![AttachedImage {
+                 path: path2,
+-                placeholder: placeholder1
++                placeholder: placeholder2
+             }],
+             composer.attachments.local_images,
+-            "attachment renumbered after deletion"
++            "the surviving filename mapping remains attached"
+         );
+     }
+ 
+@@ -11667,13 +11721,16 @@ mod tests {
+             /*disable_paste_burst*/ false,
+         );
+ 
+-        let path1 = PathBuf::from("/tmp/image_first.png");
+-        let path2 = PathBuf::from("/tmp/image_second.png");
++        let path1 = PathBuf::from("/tmp/first/image.png");
++        let path2 = PathBuf::from("/tmp/second/image.png");
+ 
+         // Insert two adjacent atomic elements.
+         composer.attach_image(path1);
+         composer.attach_image(path2.clone());
+-        assert_eq!(composer.draft.textarea.text(), "[Image #1][Image #2]");
++        assert_eq!(
++            composer.draft.textarea.text(),
++            "[📷 image.png][📷 image.png · 2]"
++        );
+         assert_eq!(composer.attachments.local_images.len(), 2);
+ 
+         // Delete the first element using normal textarea editing (forward Delete at cursor start).
+@@ -11685,9 +11742,9 @@ mod tests {
+         assert_eq!(composer.attachments.local_images[0].path, path2);
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            "[Image #1]"
++            "[📷 image.png]"
+         );
+-        assert_eq!(composer.draft.textarea.text(), "[Image #1]");
++        assert_eq!(composer.draft.textarea.text(), "[📷 image.png]");
+     }
+ 
+     #[test]
+@@ -11710,7 +11767,13 @@ mod tests {
+ 
+         let needs_redraw = composer.handle_paste(tmp_path.to_string_lossy().to_string());
+         assert!(needs_redraw);
+-        assert!(composer.draft.textarea.text().starts_with("[Image #1] "));
++        assert!(
++            composer
++                .draft
++                .textarea
++                .text()
++                .starts_with("[📷 codex_tui_test_paste_image.png] ")
++        );
+ 
+         let imgs = composer.take_recent_submission_images();
+         assert_eq!(imgs, vec![tmp_path]);
+@@ -12105,12 +12168,8 @@ mod tests {
+             /*disable_paste_burst*/ false,
+         );
+ 
+-        let placeholder = local_image_label_text(/*label_number*/ 1);
+-        composer.draft.textarea.insert_element(&placeholder);
+-        composer.attachments.local_images.push(AttachedImage {
+-            placeholder: placeholder.clone(),
+-            path: PathBuf::from("img.png"),
+-        });
++        composer.attach_image(PathBuf::from("img.png"));
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+         composer
+             .draft
+             .pending_pastes
+@@ -12220,7 +12279,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn apply_external_edit_renumbers_image_placeholders() {
++    fn apply_external_edit_keeps_the_surviving_filename_placeholder() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -12236,20 +12295,19 @@ mod tests {
+         composer.attach_image(first_path);
+         composer.attach_image(second_path.clone());
+ 
+-        let placeholder2 = local_image_label_text(/*label_number*/ 2);
++        let placeholder2 = composer.attachments.local_images[1].placeholder.clone();
+         composer.apply_external_edit(format!("Keep {placeholder2}"));
+ 
+-        let placeholder1 = local_image_label_text(/*label_number*/ 1);
+-        assert_eq!(composer.current_text(), format!("Keep {placeholder1}"));
++        assert_eq!(composer.current_text(), format!("Keep {placeholder2}"));
+         assert_eq!(composer.attachments.local_images.len(), 1);
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            placeholder1
++            placeholder2
+         );
+         assert_eq!(composer.local_image_paths(), vec![second_path]);
+         assert_eq!(
+             composer.draft.textarea.element_payloads(),
+-            vec![placeholder1]
++            vec![placeholder2]
+         );
+     }
+ 
+@@ -12318,12 +12376,8 @@ mod tests {
+             /*disable_paste_burst*/ false,
+         );
+ 
+-        let placeholder = local_image_label_text(/*label_number*/ 1);
+-        composer.draft.textarea.insert_element(&placeholder);
+-        composer.attachments.local_images.push(AttachedImage {
+-            placeholder: placeholder.clone(),
+-            path: PathBuf::from("img.png"),
+-        });
++        composer.attach_image(PathBuf::from("img.png"));
++        let placeholder = composer.attachments.local_images[0].placeholder.clone();
+ 
+         composer.apply_external_edit(format!("{placeholder} extra {placeholder}"));
+ 
+@@ -12332,6 +12386,10 @@ mod tests {
+             format!("{placeholder} extra {placeholder}")
+         );
+         assert_eq!(composer.attachments.local_images.len(), 1);
++        assert_eq!(
++            composer.draft.textarea.element_payloads(),
++            vec![placeholder]
++        );
+     }
+ 
+     #[test]
+@@ -12356,7 +12414,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn attach_image_after_remote_prefix_uses_offset_label() {
++    fn attach_image_after_remote_prefix_uses_filename_display_label() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -12375,13 +12433,13 @@ mod tests {
+ 
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            "[Image #3]"
++            "[📷 local.png]"
+         );
+-        assert_eq!(composer.current_text(), "[Image #3]");
++        assert_eq!(composer.current_text(), "[📷 local.png]");
+     }
+ 
+     #[test]
+-    fn prepare_submission_keeps_remote_offset_local_placeholder_numbering() {
++    fn prepare_submission_keeps_filename_label_until_chatwidget_remaps_it() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -12407,12 +12465,12 @@ mod tests {
+         let (submitted_text, submitted_elements) = composer
+             .prepare_submission_text(/*record_history*/ true)
+             .expect("remote+local submission should be generated");
+-        assert_eq!(submitted_text, "[Image #2] hello");
++        assert_eq!(submitted_text, "[📷 local.png] hello");
+         assert_eq!(
+             submitted_elements,
+             vec![TextElement::new(
+-                (0.."[Image #2]".len()).into(),
+-                Some("[Image #2]".to_string())
++                (0.."[📷 local.png]".len()).into(),
++                Some("[📷 local.png]".to_string())
+             )]
+         );
+     }
+@@ -12438,7 +12496,7 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn delete_selected_remote_image_relabels_local_placeholders() {
++    fn delete_selected_remote_image_keeps_local_filename_placeholder() {
+         let (tx, _rx) = unbounded_channel::<AppEvent>();
+         let sender = AppEventSender::new(tx);
+         let mut composer = ChatComposer::new(
+@@ -12462,19 +12520,19 @@ mod tests {
+             composer.remote_image_urls(),
+             vec!["https://example.com/one.png".to_string()]
+         );
+-        assert_eq!(composer.current_text(), "[Image #2]");
++        assert_eq!(composer.current_text(), "[📷 local.png]");
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            "[Image #2]"
++            "[📷 local.png]"
+         );
+ 
+         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+         assert_eq!(composer.remote_image_urls(), Vec::<String>::new());
+-        assert_eq!(composer.current_text(), "[Image #1]");
++        assert_eq!(composer.current_text(), "[📷 local.png]");
+         assert_eq!(
+             composer.attachments.local_images[0].placeholder,
+-            "[Image #1]"
++            "[📷 local.png]"
+         );
+     }
+ 
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
+index 8744fe8..b09591e 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
+@@ -1,7 +1,9 @@
+ //! Attachment bookkeeping for the chat composer, including local image placeholders,
+ //! remote-image rows, and keyboard selection over those rows.
+ 
++use std::collections::HashMap;
+ use std::collections::HashSet;
++use std::path::Path;
+ use std::path::PathBuf;
+ 
+ use crossterm::event::KeyCode;
+@@ -30,6 +32,35 @@ pub(super) struct AttachmentState {
+     pub(super) selected_remote_image_index: Option<usize>,
+ }
+ 
++fn image_file_name(path: &Path) -> String {
++    let name = path
++        .file_name()
++        .and_then(|name| name.to_str())
++        .unwrap_or("image.png");
++    let mut sanitized = name
++        .chars()
++        .filter_map(|character| match character {
++            ']' => Some(')'),
++            character if character.is_control() => None,
++            character => Some(character),
++        })
++        .take(64)
++        .collect::<String>();
++    if sanitized.is_empty() {
++        sanitized.push_str("image.png");
++    }
++    sanitized
++}
++
++fn image_display_placeholder(path: &Path, occurrence: usize) -> String {
++    let name = image_file_name(path);
++    if occurrence <= 1 {
++        format!("[📷 {name}]")
++    } else {
++        format!("[📷 {name} · {occurrence}]")
++    }
++}
++
+ impl AttachmentState {
+     pub(super) fn is_empty(&self) -> bool {
+         self.local_images.is_empty() && self.remote_image_urls.is_empty()
+@@ -98,6 +129,7 @@ impl AttachmentState {
+         let placeholder = local_image_label_text(image_number);
+         textarea.insert_element(&placeholder);
+         self.local_images.push(AttachedImage { placeholder, path });
++        self.relabel_local_images(textarea);
+     }
+ 
+     pub(super) fn prune_local_images_for_submission(
+@@ -223,8 +255,12 @@ impl AttachmentState {
+     }
+ 
+     pub(super) fn relabel_local_images(&mut self, textarea: &mut TextArea) {
+-        for (index, image) in self.local_images.iter_mut().enumerate() {
+-            let expected = local_image_label_text(self.remote_image_urls.len() + index + 1);
++        let mut occurrences = HashMap::<String, usize>::new();
++        for image in &mut self.local_images {
++            let name = image_file_name(&image.path);
++            let occurrence = occurrences.entry(name).or_default();
++            *occurrence += 1;
++            let expected = image_display_placeholder(&image.path, *occurrence);
+             if image.placeholder == expected {
+                 continue;
+             }
+@@ -249,3 +285,28 @@ impl AttachmentState {
+         self.relabel_local_images(textarea);
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn image_placeholder_matches_copilot_filename_style() {
++        assert_eq!(
++            image_display_placeholder(Path::new("C:/tmp/ccodex-image-36ea99.png"), 1),
++            "[📷 ccodex-image-36ea99.png]"
++        );
++        assert_eq!(
++            image_display_placeholder(Path::new("C:/tmp/ccodex-image-36ea99.png"), 2),
++            "[📷 ccodex-image-36ea99.png · 2]"
++        );
++    }
++
++    #[test]
++    fn image_placeholder_removes_control_characters_and_closing_brackets() {
++        assert_eq!(
++            image_display_placeholder(Path::new("bad]\nname.png"), 1),
++            "[📷 bad)name.png]"
++        );
++    }
++}
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs b/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
+index 437edf8..a5ac38e 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
+@@ -114,6 +114,29 @@ fn effort_composer_restored_baseline_and_reduced_motion_do_not_start() {
+     assert!(composer.effort_status_line_transition.is_none());
+ }
+ 
++#[test]
++fn explicit_max_reselection_replays_the_animation() {
++    let (mut composer, _rx) = new_test_composer();
++    composer.set_status_line_enabled(/*enabled*/ true);
++    composer.set_status_line(Some(Line::from("gpt-5.4 max · main")));
++    composer.set_active_reasoning_effort_baseline(Some(&ReasoningEffort::Max));
++
++    assert!(composer.replay_reasoning_effort_animation(
++        &ReasoningEffort::Max,
++        /*animations_enabled*/ true,
++    ));
++    let first_style = composer.effort_animation_style;
++    assert!(composer.effort_ignition.is_some());
++    assert!(composer.effort_status_line_transition.is_some());
++
++    assert!(composer.replay_reasoning_effort_animation(
++        &ReasoningEffort::Max,
++        /*animations_enabled*/ true,
++    ));
++    assert!(composer.effort_ignition.is_some());
++    assert_ne!(composer.effort_animation_style, first_style);
++}
++
+ #[test]
+ fn effort_transition_never_replaces_a_footer_flash() {
+     let (mut composer, _rx) = new_test_composer();
+diff --git a/codex-rs/tui/src/bottom_pane/footer.rs b/codex-rs/tui/src/bottom_pane/footer.rs
+index 317fb3c..1ee67a0 100644
+--- a/codex-rs/tui/src/bottom_pane/footer.rs
++++ b/codex-rs/tui/src/bottom_pane/footer.rs
+@@ -1334,7 +1334,7 @@ const SHORTCUTS: &[ShortcutDescriptor] = &[
+             },
+         ],
+         prefix: "",
+-        label: " to paste images",
++        label: " to paste",
+     },
+     ShortcutDescriptor {
+         id: ShortcutId::ExternalEditor,
+diff --git a/codex-rs/tui/src/bottom_pane/mod.rs b/codex-rs/tui/src/bottom_pane/mod.rs
+index 8e53ec5..6d1c9e7 100644
+--- a/codex-rs/tui/src/bottom_pane/mod.rs
++++ b/codex-rs/tui/src/bottom_pane/mod.rs
+@@ -337,6 +337,20 @@ impl BottomPane {
+         }
+     }
+ 
++    /// Replays the one-shot effect after the user explicitly selects an advanced effort.
++    pub(crate) fn replay_reasoning_effort_animation(&mut self, effort: &ReasoningEffort) {
++        let animations_enabled = effort_ignition::effort_animation_enabled(
++            self.animations_enabled,
++            effective_stdout_color_level(),
++        );
++        if self
++            .composer
++            .replay_reasoning_effort_animation(effort, animations_enabled)
++        {
++            self.request_redraw();
++        }
++    }
++
+     /// Establishes a restored thread's effort without replaying its one-shot animation.
+     pub(crate) fn set_active_reasoning_effort_baseline(
+         &mut self,
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay.snap
+index 5239a34..2b208eb 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay.snap
+@@ -12,7 +12,7 @@ expression: terminal.backend()
+ "                                                                                                    "
+ "  / for commands                             ! for shell commands                                   "
+ "  shift + enter for newline                  tab to submit message                                  "
+-"  @ for file paths                           ctrl + v to paste images                               "
++"  @ for file paths                           ctrl + v to paste                                      "
+ "  ctrl + g to edit in external editor        esc again to edit previous message                     "
+ "  ctrl + r search history                    ctrl + c to exit                                       "
+ "  ⌥ + , reasoning down                       ⌥ + . reasoning up                                     "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay_queue_submissions.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay_queue_submissions.snap
+index 582724e..1652215 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay_queue_submissions.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__footer_mode_shortcut_overlay_queue_submissions.snap
+@@ -12,7 +12,7 @@ expression: terminal.backend()
+ "                                                                                                    "
+ "  / for commands                             ! for shell commands                                   "
+ "  shift + enter for newline                  tab to queue message                                   "
+-"  @ for file paths                           ctrl + v to paste images                               "
++"  @ for file paths                           ctrl + v to paste                                      "
+ "  ctrl + g to edit in external editor        esc esc to edit previous message                       "
+ "  ctrl + r search history                    ctrl + c to exit                                       "
+ "  ⌥ + , reasoning down                       ⌥ + . reasoning up                                     "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_multiple.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_multiple.snap
+index 49eca41..630a5b8 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_multiple.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_multiple.snap
+@@ -3,7 +3,7 @@ source: tui/src/bottom_pane/chat_composer.rs
+ expression: terminal.backend()
+ ---
+ "                                                                                                    "
+-"› [Image #1][Image #2]                                                                              "
++"› [📷 image1.png][📷 image2.png]                                                                    " Hidden by multi-width symbols: [(4, " "), (19, " ")]
+ "                                                                                                    "
+ "                                                                                                    "
+ "                                                                                                    "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_single.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_single.snap
+index 3a5dd7a..f019a2d 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_single.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__chat_composer__tests__image_placeholder_single.snap
+@@ -3,7 +3,7 @@ source: tui/src/bottom_pane/chat_composer.rs
+ expression: terminal.backend()
+ ---
+ "                                                                                                    "
+-"› [Image #1]                                                                                        "
++"› [📷 image1.png]                                                                                   " Hidden by multi-width symbols: [(4, " ")]
+ "                                                                                                    "
+ "                                                                                                    "
+ "                                                                                                    "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_collaboration_modes_enabled.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_collaboration_modes_enabled.snap
+index 3b67a90..b165768 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_collaboration_modes_enabled.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_collaboration_modes_enabled.snap
+@@ -4,7 +4,7 @@ expression: terminal.backend()
+ ---
+ "  / for commands                             ! for shell commands               "
+ "  ctrl + j for newline                       tab to submit message              "
+-"  @ for file paths                           ctrl + v to paste images           "
++"  @ for file paths                           ctrl + v to paste                  "
+ "  ctrl + g to edit in external editor        esc esc to edit previous message   "
+ "  ctrl + r search history                    ctrl + c to exit                   "
+ "  ⌥ + , reasoning down                       ⌥ + . reasoning up                 "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_running.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_running.snap
+index 7c733bd..71f121c 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_running.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_running.snap
+@@ -4,7 +4,7 @@ expression: terminal.backend()
+ ---
+ "  / for commands                             ! for shell commands               "
+ "  ctrl + j for newline                       tab to queue message               "
+-"  @ for file paths                           ctrl + v to paste images           "
++"  @ for file paths                           ctrl + v to paste                  "
+ "  ctrl + g to edit in external editor        esc esc to edit previous message   "
+ "  ctrl + r search history                    ctrl + c to interrupt              "
+ "  ⌥ + , reasoning down                       ⌥ + . reasoning up                 "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_shift_and_esc.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_shift_and_esc.snap
+index 07e9706..66b6a0e 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_shift_and_esc.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_shortcuts_shift_and_esc.snap
+@@ -4,7 +4,7 @@ expression: terminal.backend()
+ ---
+ "  / for commands                             ! for shell commands               "
+ "  shift + enter for newline                  tab to submit message              "
+-"  @ for file paths                           ctrl + v to paste images           "
++"  @ for file paths                           ctrl + v to paste                  "
+ "  ctrl + g to edit in external editor        esc again to edit previous message "
+ "  ctrl + r search history                    ctrl + c to exit                   "
+ "  ⌥ + , reasoning down                       ⌥ + . reasoning up                 "
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index 19aa77d..cfee7dd 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -291,7 +291,8 @@ use crate::bottom_pane::SelectionItem;
+ use crate::bottom_pane::SelectionViewParams;
+ use crate::bottom_pane::custom_prompt_view::CustomPromptView;
+ use crate::bottom_pane::popup_consts::standard_popup_hint_line;
+-use crate::clipboard_paste::paste_image_to_temp_png;
++use crate::clipboard_paste::PastedClipboardContent;
++use crate::clipboard_paste::paste_clipboard_content;
+ use crate::collaboration_modes;
+ use crate::diff_render::display_path_for;
+ use crate::exec_cell::CommandOutput;
+@@ -445,7 +446,6 @@ pub(crate) use self::user_messages::create_initial_user_message;
+ pub(crate) use self::user_messages::mention_bindings_from_user_inputs;
+ use self::user_messages::merge_user_messages;
+ use self::user_messages::merge_user_messages_with_history_record;
+-#[cfg(test)]
+ use self::user_messages::remap_placeholders_for_message;
+ use self::user_messages::user_message_display_for_history;
+ use self::user_messages::user_message_for_restore;
+diff --git a/codex-rs/tui/src/chatwidget/input_submission.rs b/codex-rs/tui/src/chatwidget/input_submission.rs
+index 830cd3e..8de5cb2 100644
+--- a/codex-rs/tui/src/chatwidget/input_submission.rs
++++ b/codex-rs/tui/src/chatwidget/input_submission.rs
+@@ -12,13 +12,17 @@ impl ChatWidget {
+             .bottom_pane
+             .take_recent_submission_images_with_placeholders();
+         let remote_image_urls = self.take_remote_image_urls();
+-        UserMessage {
+-            text,
+-            local_images,
+-            remote_image_urls,
+-            text_elements,
+-            mention_bindings: self.bottom_pane.take_recent_submission_mention_bindings(),
+-        }
++        let mut next_label = remote_image_urls.len() + 1;
++        remap_placeholders_for_message(
++            UserMessage {
++                text,
++                local_images,
++                remote_image_urls,
++                text_elements,
++                mention_bindings: self.bottom_pane.take_recent_submission_mention_bindings(),
++            },
++            &mut next_label,
++        )
+     }
+ 
+     fn submit_shell_command(&mut self, command: &str) -> QueueDrain {
+diff --git a/codex-rs/tui/src/chatwidget/interaction.rs b/codex-rs/tui/src/chatwidget/interaction.rs
+index 5846c93..88cd095 100644
+--- a/codex-rs/tui/src/chatwidget/interaction.rs
++++ b/codex-rs/tui/src/chatwidget/interaction.rs
+@@ -58,10 +58,6 @@ impl ChatWidget {
+                     match crate::clipboard_copy::copy_to_clipboard(&selection) {
+                         Ok(lease) => {
+                             self.clipboard_lease = lease;
+-                            self.add_info_message(
+-                                "Copied selected prompt text".to_string(),
+-                                /*hint*/ None,
+-                            );
+                         }
+                         Err(error) => {
+                             self.add_error_message(format!("Failed to copy selection: {error}"));
+@@ -188,14 +184,14 @@ impl ChatWidget {
+         }
+     }
+ 
+-    /// Attach the image currently held by the platform clipboard.
++    /// Paste the image or text currently held by the platform clipboard.
+     ///
+     /// Besides the explicit image-paste keybinding, the app-level paste router calls this when a
+     /// terminal reports an empty bracketed-paste payload. Windows Terminal uses that empty payload
+     /// for bitmap clipboard contents, so handling it in the native TUI avoids a nested ConPTY proxy.
+     pub(crate) fn paste_image_from_clipboard(&mut self) {
+-        match paste_image_to_temp_png() {
+-            Ok((path, info)) => {
++        match paste_clipboard_content() {
++            Ok(PastedClipboardContent::Image(path, info)) => {
+                 tracing::debug!(
+                     "pasted image size={}x{} format={}",
+                     info.width,
+@@ -204,10 +200,13 @@ impl ChatWidget {
+                 );
+                 self.attach_image(path);
+             }
+-            Err(err) => {
+-                tracing::warn!("failed to paste image: {err}");
++            Ok(PastedClipboardContent::Text(text)) => {
++                self.handle_paste(text);
++            }
++            Err(error) => {
++                tracing::warn!("failed to paste clipboard content: {error}");
+                 self.add_to_history(history_cell::new_error_event(format!(
+-                    "Failed to paste image: {err}",
++                    "Failed to paste clipboard: {error}",
+                 )));
+             }
+         }
+diff --git a/codex-rs/tui/src/chatwidget/model_popups.rs b/codex-rs/tui/src/chatwidget/model_popups.rs
+index 955d2bc..f2f29bd 100644
+--- a/codex-rs/tui/src/chatwidget/model_popups.rs
++++ b/codex-rs/tui/src/chatwidget/model_popups.rs
+@@ -282,6 +282,11 @@ impl ChatWidget {
+                     model: model_for_action.clone(),
+                     effort: effort_for_action.clone(),
+                 });
++                if effort_for_action == Some(ReasoningEffortConfig::Max) {
++                    tx.send(AppEvent::ReplayReasoningEffortAnimation(
++                        ReasoningEffortConfig::Max,
++                    ));
++                }
+             }
+             if let Some(warning) = warning.clone() {
+                 tx.send(AppEvent::InsertHistoryCell(Box::new(
+diff --git a/codex-rs/tui/src/chatwidget/settings.rs b/codex-rs/tui/src/chatwidget/settings.rs
+index 58fe920..e0bc243 100644
+--- a/codex-rs/tui/src/chatwidget/settings.rs
++++ b/codex-rs/tui/src/chatwidget/settings.rs
+@@ -177,6 +177,10 @@ impl ChatWidget {
+         self.refresh_model_dependent_surfaces();
+     }
+ 
++    pub(crate) fn replay_reasoning_effort_animation(&mut self, effort: &ReasoningEffortConfig) {
++        self.bottom_pane.replay_reasoning_effort_animation(effort);
++    }
++
+     /// Set the personality in the widget's config copy.
+     pub(crate) fn set_personality(&mut self, personality: Personality) {
+         self.config.personality = Some(personality);
+diff --git a/codex-rs/tui/src/chatwidget/slash_dispatch.rs b/codex-rs/tui/src/chatwidget/slash_dispatch.rs
+index 626fe26..ae4d248 100644
+--- a/codex-rs/tui/src/chatwidget/slash_dispatch.rs
++++ b/codex-rs/tui/src/chatwidget/slash_dispatch.rs
+@@ -649,13 +649,17 @@ impl ChatWidget {
+             remote_image_urls = self.take_remote_image_urls();
+             mention_bindings = self.bottom_pane.take_recent_submission_mention_bindings();
+         }
+-        UserMessage {
+-            text: args,
+-            local_images,
+-            remote_image_urls,
+-            text_elements,
+-            mention_bindings,
+-        }
++        let mut next_label = remote_image_urls.len() + 1;
++        remap_placeholders_for_message(
++            UserMessage {
++                text: args,
++                local_images,
++                remote_image_urls,
++                text_elements,
++                mention_bindings,
++            },
++            &mut next_label,
++        )
+     }
+ 
+     fn dispatch_prepared_command_with_args(
+@@ -805,12 +809,23 @@ impl ChatWidget {
+                     }
+                     return;
+                 }
++                let mut next_label = remote_image_urls.len() + 1;
++                let remapped = remap_placeholders_for_message(
++                    UserMessage {
++                        text: args,
++                        text_elements,
++                        local_images,
++                        remote_image_urls,
++                        mention_bindings: Vec::new(),
++                    },
++                    &mut next_label,
++                );
+                 let draft = GoalDraft {
+-                    objective: args,
+-                    text_elements,
++                    objective: remapped.text,
++                    text_elements: remapped.text_elements,
+                     pending_pastes,
+-                    local_images,
+-                    remote_image_urls,
++                    local_images: remapped.local_images,
++                    remote_image_urls: remapped.remote_image_urls,
+                 };
+                 let Some(thread_id) = self.thread_id else {
+                     if source == SlashCommandDispatchSource::Live {
+diff --git a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+index c334a7a..b1a5823 100644
+--- a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
++++ b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+@@ -193,6 +193,10 @@ async fn submission_preserves_text_elements_and_local_images() {
+ 
+     chat.bottom_pane
+         .set_composer_text(text.clone(), text_elements.clone(), local_images.clone());
++    assert_eq!(
++        chat.bottom_pane.composer_text(),
++        "[📷 submitted.png] submit"
++    );
+     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+ 
+     let items = match next_submit_op(&mut op_rx) {
+@@ -403,7 +407,10 @@ async fn submission_with_remote_and_local_images_keeps_local_placeholder_numberi
+ 
+     chat.bottom_pane
+         .set_composer_text(text.clone(), text_elements.clone(), local_images.clone());
+-    assert_eq!(chat.bottom_pane.composer_text(), "[Image #2] submit mixed");
++    assert_eq!(
++        chat.bottom_pane.composer_text(),
++        "[📷 submitted-mixed.png] submit mixed"
++    );
+     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+ 
+     let items = match next_submit_op(&mut op_rx) {
+@@ -753,22 +760,27 @@ async fn blocked_image_restore_preserves_mention_bindings() {
+     }];
+ 
+     chat.restore_blocked_image_submission(
+-        text.clone(),
++        text,
+         text_elements,
+         local_images.clone(),
+         mention_bindings.clone(),
+         Vec::new(),
+     );
+ 
+-    let mention_start = text.find("$file").expect("mention token exists");
++    let display_placeholder = "[📷 blocked.png]";
++    let display_text = format!("{display_placeholder} check $file");
++    let mention_start = display_text.find("$file").expect("mention token exists");
+     let expected_elements = vec![
+-        TextElement::new((0..placeholder.len()).into(), Some(placeholder.to_string())),
++        TextElement::new(
++            (0..display_placeholder.len()).into(),
++            Some(display_placeholder.to_string()),
++        ),
+         TextElement::new(
+             (mention_start..mention_start + "$file".len()).into(),
+             Some("$file".to_string()),
+         ),
+     ];
+-    assert_eq!(chat.bottom_pane.composer_text(), text);
++    assert_eq!(chat.bottom_pane.composer_text(), display_text);
+     assert_eq!(chat.bottom_pane.composer_text_elements(), expected_elements);
+     assert_eq!(
+         chat.bottom_pane.composer_local_image_paths(),
+@@ -818,16 +830,46 @@ async fn blocked_image_restore_with_remote_images_keeps_local_placeholder_mappin
+     let remote_image_urls = vec!["https://example.com/blocked-remote.png".to_string()];
+ 
+     chat.restore_blocked_image_submission(
+-        text.clone(),
+-        text_elements.clone(),
++        text,
++        text_elements,
+         local_images.clone(),
+         Vec::new(),
+         remote_image_urls.clone(),
+     );
+ 
+-    assert_eq!(chat.bottom_pane.composer_text(), text);
+-    assert_eq!(chat.bottom_pane.composer_text_elements(), text_elements);
+-    assert_eq!(chat.bottom_pane.composer_local_images(), local_images);
++    let first_display = "[📷 blocked-first.png]";
++    let second_display = "[📷 blocked-second.png]";
++    let display_text = format!("{first_display} first\n{second_display} second");
++    let second_start = display_text
++        .find(second_display)
++        .expect("second display label");
++    assert_eq!(chat.bottom_pane.composer_text(), display_text);
++    assert_eq!(
++        chat.bottom_pane.composer_text_elements(),
++        vec![
++            TextElement::new(
++                (0..first_display.len()).into(),
++                Some(first_display.to_string()),
++            ),
++            TextElement::new(
++                (second_start..second_start + second_display.len()).into(),
++                Some(second_display.to_string()),
++            ),
++        ]
++    );
++    assert_eq!(
++        chat.bottom_pane.composer_local_images(),
++        vec![
++            LocalImageAttachment {
++                placeholder: first_display.to_string(),
++                path: local_images[0].path.clone(),
++            },
++            LocalImageAttachment {
++                placeholder: second_display.to_string(),
++                path: local_images[1].path.clone(),
++            },
++        ]
++    );
+     assert_eq!(chat.remote_image_urls(), remote_image_urls);
+ }
+ 
+@@ -862,17 +904,47 @@ async fn queued_restore_with_remote_images_keeps_local_placeholder_mapping() {
+     let remote_image_urls = vec!["https://example.com/queued-remote.png".to_string()];
+ 
+     chat.restore_user_message_to_composer(UserMessage {
+-        text: text.clone(),
++        text,
+         local_images: local_images.clone(),
+         remote_image_urls: remote_image_urls.clone(),
+-        text_elements: text_elements.clone(),
++        text_elements,
+         mention_bindings: Vec::new(),
+     });
+ 
+-    assert_eq!(chat.bottom_pane.composer_text(), text);
+-    assert_eq!(chat.bottom_pane.composer_cursor(), text.len());
+-    assert_eq!(chat.bottom_pane.composer_text_elements(), text_elements);
+-    assert_eq!(chat.bottom_pane.composer_local_images(), local_images);
++    let first_display = "[📷 queued-first.png]";
++    let second_display = "[📷 queued-second.png]";
++    let display_text = format!("{first_display} first\n{second_display} second");
++    let second_start = display_text
++        .find(second_display)
++        .expect("second display label");
++    assert_eq!(chat.bottom_pane.composer_text(), display_text);
++    assert_eq!(chat.bottom_pane.composer_cursor(), display_text.len());
++    assert_eq!(
++        chat.bottom_pane.composer_text_elements(),
++        vec![
++            TextElement::new(
++                (0..first_display.len()).into(),
++                Some(first_display.to_string()),
++            ),
++            TextElement::new(
++                (second_start..second_start + second_display.len()).into(),
++                Some(second_display.to_string()),
++            ),
++        ]
++    );
++    assert_eq!(
++        chat.bottom_pane.composer_local_images(),
++        vec![
++            LocalImageAttachment {
++                placeholder: first_display.to_string(),
++                path: local_images[0].path.clone(),
++            },
++            LocalImageAttachment {
++                placeholder: second_display.to_string(),
++                path: local_images[1].path.clone(),
++            },
++        ]
++    );
+     assert_eq!(chat.remote_image_urls(), remote_image_urls);
+ }
+ 
+@@ -910,7 +982,7 @@ async fn restored_message_preserves_existing_composer_draft_and_attachments() {
+ 
+     assert_eq!(
+         chat.bottom_pane.composer_text(),
+-        format!("[Image #1] retry prompt\n[Image #2] {paste_placeholder} draft")
++        format!("[📷 retry.png] retry prompt\n[📷 draft.png] {paste_placeholder} draft")
+     );
+     assert_eq!(
+         chat.bottom_pane.composer_local_image_paths(),
+diff --git a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+index debcd1e..548a69b 100644
+--- a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
++++ b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+@@ -3363,9 +3363,9 @@ async fn ultra_reasoning_selection_skips_warning_below_threshold() {
+ }
+ 
+ #[tokio::test]
+-async fn max_reasoning_selection_persists_model_selection() {
++async fn max_reasoning_reselection_persists_and_requests_animation_replay() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
+-    chat.set_reasoning_effort(Some(ReasoningEffortConfig::High));
++    chat.set_reasoning_effort(Some(ReasoningEffortConfig::Max));
+ 
+     let mut preset = get_available_model(&chat, "gpt-5.4");
+     preset.supported_reasoning_efforts = vec![ReasoningEffortPreset {
+@@ -3387,6 +3387,10 @@ async fn max_reasoning_selection_persists_model_selection() {
+             effort: Some(ReasoningEffortConfig::Max),
+         } if model == "gpt-5.4"
+     )));
++    assert!(events.iter().any(|event| matches!(
++        event,
++        AppEvent::ReplayReasoningEffortAnimation(ReasoningEffortConfig::Max)
++    )));
+     assert!(
+         events
+             .iter()
+diff --git a/codex-rs/tui/src/chatwidget/tests/review_mode.rs b/codex-rs/tui/src/chatwidget/tests/review_mode.rs
+index 7723e29..1e0d49a 100644
+--- a/codex-rs/tui/src/chatwidget/tests/review_mode.rs
++++ b/codex-rs/tui/src/chatwidget/tests/review_mode.rs
+@@ -61,13 +61,16 @@ async fn interrupted_turn_restores_queued_messages_with_images_and_elements() {
+     chat.bottom_pane
+         .set_composer_text(existing_text, existing_elements, existing_images.clone());
+ 
+-    // When interrupted, queued messages are merged into the composer; image placeholders
+-    // must be renumbered to match the combined local image list.
++    // When interrupted, queued messages are merged into the composer. The protocol labels are
++    // renumbered internally, while the restored editor presents stable filename labels.
+     handle_turn_interrupted(&mut chat, "turn-1");
+ 
+-    let first = "[Image #1] first".to_string();
+-    let second = "[Image #2] second".to_string();
+-    let third = "[Image #3] existing".to_string();
++    let first_placeholder = "[📷 first.png]";
++    let second_placeholder = "[📷 second.png]";
++    let third_placeholder = "[📷 existing.png]";
++    let first = format!("{first_placeholder} first");
++    let second = format!("{second_placeholder} second");
++    let third = format!("{third_placeholder} existing");
+     let expected_text = format!("{first}\n{second}\n{third}");
+     assert_eq!(chat.bottom_pane.composer_text(), expected_text);
+ 
+@@ -76,16 +79,16 @@ async fn interrupted_turn_restores_queued_messages_with_images_and_elements() {
+     let third_start = second_start + second.len() + 1;
+     let expected_elements = vec![
+         TextElement::new(
+-            (first_start..first_start + "[Image #1]".len()).into(),
+-            Some("[Image #1]".to_string()),
++            (first_start..first_start + first_placeholder.len()).into(),
++            Some(first_placeholder.to_string()),
+         ),
+         TextElement::new(
+-            (second_start..second_start + "[Image #2]".len()).into(),
+-            Some("[Image #2]".to_string()),
++            (second_start..second_start + second_placeholder.len()).into(),
++            Some(second_placeholder.to_string()),
+         ),
+         TextElement::new(
+-            (third_start..third_start + "[Image #3]".len()).into(),
+-            Some("[Image #3]".to_string()),
++            (third_start..third_start + third_placeholder.len()).into(),
++            Some(third_placeholder.to_string()),
+         ),
+     ];
+     assert_eq!(chat.bottom_pane.composer_text_elements(), expected_elements);
+@@ -1018,7 +1021,7 @@ async fn ctrl_c_cleared_prompt_is_recoverable_via_history() {
+     chat.bottom_pane.insert_str("draft message ");
+     chat.bottom_pane
+         .attach_image(PathBuf::from("/tmp/preview.png"));
+-    let placeholder = "[Image #1]";
++    let placeholder = "[📷 preview.png]";
+     assert!(
+         chat.bottom_pane.composer_text().ends_with(placeholder),
+         "expected placeholder {placeholder:?} in composer text"
+diff --git a/codex-rs/tui/src/chatwidget/tests/side.rs b/codex-rs/tui/src/chatwidget/tests/side.rs
+index 39a0cb9..62101b1 100644
+--- a/codex-rs/tui/src/chatwidget/tests/side.rs
++++ b/codex-rs/tui/src/chatwidget/tests/side.rs
+@@ -346,6 +346,61 @@ async fn slash_side_requests_forked_side_question_while_task_running() {
+     );
+ }
+ 
++#[tokio::test]
++async fn slash_side_remaps_filename_placeholder_before_fork_request() {
++    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
++    let parent_thread_id = ThreadId::new();
++    chat.thread_id = Some(parent_thread_id);
++    chat.on_task_started();
++
++    let remote_image_url = "https://example.com/remote.png".to_string();
++    chat.set_remote_image_urls(vec![remote_image_url.clone()]);
++    let internal_placeholder = "[Image #2]";
++    let command = format!("/side {internal_placeholder} inspect");
++    let placeholder_start = "/side ".len();
++    let local_image_path = PathBuf::from("/tmp/side.png");
++    chat.bottom_pane.set_composer_text(
++        command,
++        vec![TextElement::new(
++            (placeholder_start..placeholder_start + internal_placeholder.len()).into(),
++            Some(internal_placeholder.to_string()),
++        )],
++        vec![local_image_path.clone()],
++    );
++    assert_eq!(
++        chat.bottom_pane.composer_text(),
++        "/side [📷 side.png] inspect"
++    );
++
++    chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
++
++    let AppEvent::StartSide {
++        parent_thread_id: emitted_parent_thread_id,
++        user_message: Some(user_message),
++    } = rx.try_recv().expect("expected side conversation request")
++    else {
++        panic!("expected populated StartSide event");
++    };
++    assert_eq!(emitted_parent_thread_id, parent_thread_id);
++    assert_eq!(
++        user_message,
++        UserMessage {
++            text: format!("{internal_placeholder} inspect"),
++            local_images: vec![LocalImageAttachment {
++                placeholder: internal_placeholder.to_string(),
++                path: local_image_path,
++            }],
++            remote_image_urls: vec![remote_image_url],
++            text_elements: vec![TextElement::new(
++                (0..internal_placeholder.len()).into(),
++                Some(internal_placeholder.to_string()),
++            )],
++            mention_bindings: Vec::new(),
++        }
++    );
++    assert!(op_rx.try_recv().is_err(), "expected no parent-thread op");
++}
++
+ #[tokio::test]
+ async fn slash_btw_requests_forked_side_question_while_task_running() {
+     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+diff --git a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+index 98d0167..fe13ed3 100644
+--- a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
++++ b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+@@ -762,6 +762,10 @@ async fn goal_slash_command_emits_attached_images() {
+         )],
+         vec![local_image.to_path_buf()],
+     );
++    assert_eq!(
++        chat.bottom_pane.composer_text(),
++        "/goal literal [Image #2] describe [📷 goal-local.png]"
++    );
+ 
+     chat.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+ 
+diff --git a/codex-rs/tui/src/chatwidget/user_messages.rs b/codex-rs/tui/src/chatwidget/user_messages.rs
+index ca92adb..2a14e00 100644
+--- a/codex-rs/tui/src/chatwidget/user_messages.rs
++++ b/codex-rs/tui/src/chatwidget/user_messages.rs
+@@ -359,7 +359,6 @@ fn remap_placeholders_for_message_and_history_record(
+     )
+ }
+ 
+-#[cfg(test)]
+ pub(super) fn remap_placeholders_for_message(
+     message: UserMessage,
+     next_label: &mut usize,
+diff --git a/codex-rs/tui/src/clipboard_paste.rs b/codex-rs/tui/src/clipboard_paste.rs
+index 55ca6ca..01cf922 100644
+--- a/codex-rs/tui/src/clipboard_paste.rs
++++ b/codex-rs/tui/src/clipboard_paste.rs
+@@ -46,6 +46,42 @@ pub struct PastedImageInfo {
+     pub encoded_format: EncodedImageFormat, // Always PNG for now.
+ }
+ 
++#[derive(Debug)]
++pub enum PastedClipboardContent {
++    Image(PathBuf, PastedImageInfo),
++    Text(String),
++}
++
++/// Prefer a real clipboard bitmap/file image, then fall back to clipboard text.
++///
++/// Some terminals report Ctrl+V as the image shortcut even when the clipboard
++/// contains only text. Keeping the decision here makes Ctrl+V useful for both
++/// kinds without treating image encoding or file-system failures as text.
++pub fn paste_clipboard_content() -> Result<PastedClipboardContent, String> {
++    paste_clipboard_content_with(paste_image_to_temp_png, paste_text_from_clipboard)
++}
++
++fn paste_clipboard_content_with(
++    image: impl FnOnce() -> Result<(PathBuf, PastedImageInfo), PasteImageError>,
++    text: impl FnOnce() -> Result<String, String>,
++) -> Result<PastedClipboardContent, String> {
++    match image() {
++        Ok((path, info)) => Ok(PastedClipboardContent::Image(path, info)),
++        Err(
++            image_error @ (PasteImageError::ClipboardUnavailable(_) | PasteImageError::NoImage(_)),
++        ) => match text() {
++            Ok(text) if !text.is_empty() => Ok(PastedClipboardContent::Text(text)),
++            Ok(_) => Err(format!(
++                "image unavailable ({image_error}); text unavailable (clipboard text is empty)"
++            )),
++            Err(text_error) => Err(format!(
++                "image unavailable ({image_error}); text unavailable ({text_error})"
++            )),
++        },
++        Err(error) => Err(format!("image paste failed: {error}")),
++    }
++}
++
+ /// Capture image from system clipboard, encode to PNG, and return bytes + info.
+ #[cfg(not(target_os = "android"))]
+ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
+@@ -124,7 +160,7 @@ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImag
+         Ok((png, info)) => {
+             // Create a unique temporary file with a .png suffix to avoid collisions.
+             let tmp = Builder::new()
+-                .prefix("codex-clipboard-")
++                .prefix("ccodex-image-")
+                 .suffix(".png")
+                 .tempfile()
+                 .map_err(|e| PasteImageError::IoError(e.to_string()))?;
+@@ -149,6 +185,33 @@ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImag
+     }
+ }
+ 
++#[cfg(not(target_os = "android"))]
++pub fn paste_text_from_clipboard() -> Result<String, String> {
++    let native_error = match arboard::Clipboard::new()
++        .map_err(|error| error.to_string())
++        .and_then(|mut clipboard| clipboard.get_text().map_err(|error| error.to_string()))
++    {
++        Ok(text) if !text.is_empty() => return Ok(text),
++        Ok(_) => "clipboard text is empty".to_string(),
++        Err(error) => format!("clipboard text unavailable: {error}"),
++    };
++
++    #[cfg(target_os = "linux")]
++    if is_probably_wsl()
++        && let Some(text) = try_read_windows_clipboard_text()
++        && !text.is_empty()
++    {
++        return Ok(text);
++    }
++
++    Err(native_error)
++}
++
++#[cfg(target_os = "android")]
++pub fn paste_text_from_clipboard() -> Result<String, String> {
++    Err("clipboard text paste is unsupported on Android".to_string())
++}
++
+ /// Attempt WSL fallback for clipboard image paste.
+ ///
+ /// If clipboard is unavailable (common under WSL because arboard cannot access
+@@ -228,6 +291,26 @@ fn try_dump_windows_clipboard_image() -> Option<String> {
+     None
+ }
+ 
++#[cfg(target_os = "linux")]
++fn try_read_windows_clipboard_text() -> Option<String> {
++    let script = r#"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $text = Get-Clipboard -Raw -ErrorAction Stop; if ($null -eq $text) { exit 1 }; [Console]::Out.Write([string]$text)"#;
++    for cmd in ["powershell.exe", "pwsh", "powershell"] {
++        let Ok(output) = std::process::Command::new(cmd)
++            .args(["-NoProfile", "-Command", script])
++            .output()
++        else {
++            continue;
++        };
++        if output.status.success() {
++            let text = String::from_utf8_lossy(&output.stdout).into_owned();
++            if !text.is_empty() {
++                return Some(text);
++            }
++        }
++    }
++    None
++}
++
+ #[cfg(target_os = "android")]
+ pub fn paste_image_to_temp_png() -> Result<(PathBuf, PastedImageInfo), PasteImageError> {
+     // Keep error consistent with paste_image_as_png.
+@@ -374,6 +457,58 @@ pub fn pasted_image_format(path: &Path) -> EncodedImageFormat {
+     }
+ }
+ 
++#[cfg(test)]
++mod clipboard_content_tests {
++    use super::*;
++
++    fn image_info() -> PastedImageInfo {
++        PastedImageInfo {
++            width: 10,
++            height: 20,
++            encoded_format: EncodedImageFormat::Png,
++        }
++    }
++
++    #[test]
++    fn real_image_takes_precedence_over_clipboard_text() {
++        let result = paste_clipboard_content_with(
++            || Ok((PathBuf::from("ccodex-image-test.png"), image_info())),
++            || -> Result<String, String> { panic!("text fallback must not run") },
++        )
++        .expect("image content");
++        assert!(matches!(
++            result,
++            PastedClipboardContent::Image(path, _)
++                if path.as_path() == Path::new("ccodex-image-test.png")
++        ));
++    }
++
++    #[test]
++    fn text_is_used_when_clipboard_has_no_image() {
++        let result = paste_clipboard_content_with(
++            || Err(PasteImageError::NoImage("not an image".to_string())),
++            || Ok("copied text".to_string()),
++        )
++        .expect("text fallback");
++        assert!(matches!(
++            result,
++            PastedClipboardContent::Text(text) if text == "copied text"
++        ));
++    }
++
++    #[test]
++    fn image_encoding_failure_does_not_silently_paste_text() {
++        let result = paste_clipboard_content_with(
++            || Err(PasteImageError::EncodeFailed("broken bitmap".to_string())),
++            || -> Result<String, String> { panic!("text fallback must not run") },
++        );
++        assert_eq!(
++            result.expect_err("encoding failure"),
++            "image paste failed: could not encode image: broken bitmap"
++        );
++    }
++}
++
+ #[cfg(test)]
+ mod pasted_search_query_tests {
+     use super::*;
+diff --git a/codex-rs/tui/src/terminal_palette.rs b/codex-rs/tui/src/terminal_palette.rs
+index 3c28848..b989567 100644
+--- a/codex-rs/tui/src/terminal_palette.rs
++++ b/codex-rs/tui/src/terminal_palette.rs
+@@ -41,11 +41,12 @@ pub fn best_color_for_level(target: (u8, u8, u8), color_level: StdoutColorLevel)
+ }
+ 
+ pub(crate) fn effective_stdout_color_level() -> StdoutColorLevel {
++    let force_color = std::env::var("FORCE_COLOR").ok();
+     stdout_color_level_for_terminal(
+         stdout_color_level(),
+         terminal_info().name,
+         std::env::var_os("WT_SESSION").is_some(),
+-        std::env::var_os("FORCE_COLOR").is_some(),
++        force_color.as_deref(),
+     )
+ }
+ 
+@@ -53,16 +54,22 @@ fn stdout_color_level_for_terminal(
+     stdout_level: StdoutColorLevel,
+     terminal_name: TerminalName,
+     has_wt_session: bool,
+-    has_force_color_override: bool,
++    force_color_override: Option<&str>,
+ ) -> StdoutColorLevel {
+-    if has_wt_session && !has_force_color_override {
++    if let Some(value) = force_color_override.map(str::trim) {
++        return match value.to_ascii_lowercase().as_str() {
++            "0" | "false" | "off" => StdoutColorLevel::Unknown,
++            "2" | "256" => StdoutColorLevel::Ansi256,
++            "3" | "truecolor" | "24bit" => StdoutColorLevel::TrueColor,
++            _ => stdout_level,
++        };
++    }
++
++    if has_wt_session {
+         return StdoutColorLevel::TrueColor;
+     }
+ 
+-    if stdout_level == StdoutColorLevel::Ansi16
+-        && terminal_name == TerminalName::WindowsTerminal
+-        && !has_force_color_override
+-    {
++    if stdout_level == StdoutColorLevel::Ansi16 && terminal_name == TerminalName::WindowsTerminal {
+         StdoutColorLevel::TrueColor
+     } else {
+         stdout_level
+@@ -593,7 +600,7 @@ mod tests {
+                 StdoutColorLevel::Ansi16,
+                 TerminalName::Unknown,
+                 /*has_wt_session*/ true,
+-                /*has_force_color_override*/ false,
++                /*force_color_override*/ None,
+             ),
+             StdoutColorLevel::TrueColor
+         );
+@@ -606,22 +613,35 @@ mod tests {
+                 StdoutColorLevel::Ansi16,
+                 TerminalName::WindowsTerminal,
+                 /*has_wt_session*/ false,
+-                /*has_force_color_override*/ false,
++                /*force_color_override*/ None,
+             ),
+             StdoutColorLevel::TrueColor
+         );
+     }
+ 
+     #[test]
+-    fn force_color_keeps_reported_stdout_level() {
++    fn force_color_three_enables_truecolor_animation() {
+         assert_eq!(
+             stdout_color_level_for_terminal(
+                 StdoutColorLevel::Ansi16,
+                 TerminalName::WindowsTerminal,
+                 /*has_wt_session*/ true,
+-                /*has_force_color_override*/ true,
++                Some("3"),
++            ),
++            StdoutColorLevel::TrueColor
++        );
++    }
++
++    #[test]
++    fn force_color_zero_disables_color_animation() {
++        assert_eq!(
++            stdout_color_level_for_terminal(
++                StdoutColorLevel::TrueColor,
++                TerminalName::WindowsTerminal,
++                /*has_wt_session*/ true,
++                Some("0"),
+             ),
+-            StdoutColorLevel::Ansi16
++            StdoutColorLevel::Unknown
+         );
+     }
+ }
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index 9d5865a..27e0927 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -70,6 +70,19 @@ mod windows_console;
+ /// Target frame interval for UI redraw scheduling.
+ pub(crate) const TARGET_FRAME_INTERVAL: Duration = frame_rate_limiter::MIN_FRAME_INTERVAL;
+ 
++fn mouse_capture_enabled_for(override_value: Option<&str>) -> bool {
++    override_value.is_none_or(|value| {
++        matches!(
++            value.trim().to_ascii_lowercase().as_str(),
++            "1" | "true" | "yes" | "on"
++        )
++    })
++}
++
++fn mouse_capture_enabled() -> bool {
++    mouse_capture_enabled_for(std::env::var("CCODEX_MOUSE_CAPTURE").ok().as_deref())
++}
++
+ /// A type alias for the terminal type used in this application
+ pub type Terminal = CustomTerminal<CrosstermBackend<Stdout>>;
+ 
+@@ -119,6 +132,15 @@ mod tests {
+         ));
+     }
+ 
++    #[test]
++    fn mouse_capture_defaults_to_click_placement_and_can_be_disabled() {
++        assert!(super::mouse_capture_enabled_for(
++            /*override_value*/ None
++        ));
++        assert!(super::mouse_capture_enabled_for(Some("1")));
++        assert!(!super::mouse_capture_enabled_for(Some("0")));
++    }
++
+     #[test]
+     fn always_notification_condition_emits_when_focused() {
+         assert!(should_emit_notification(
+@@ -209,7 +231,15 @@ pub fn set_modes() -> Result<()> {
+     ensure_virtual_terminal_processing()?;
+ 
+     execute!(stdout(), EnableBracketedPaste)?;
+-    let _ = execute!(stdout(), EnableMouseCapture);
++    if mouse_capture_enabled() {
++        // Mouse reporting powers grapheme-safe composer clicks, prompt drag selection, and the
++        // embedded transcript wheel. Terminal emulators retain their native selection override
++        // (Shift+drag in Windows Terminal), while CCODEX_MOUSE_CAPTURE=0 is an explicit fallback.
++        let _ = execute!(stdout(), EnableMouseCapture);
++    } else {
++        // Explicit opt-out: leave selection and wheel scrolling entirely with the terminal.
++        let _ = execute!(stdout(), DisableMouseCapture);
++    }
+ 
+     enable_raw_mode()?;
+     #[cfg(windows)]

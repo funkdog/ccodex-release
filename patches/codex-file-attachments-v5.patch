@@ -1,0 +1,1254 @@
+diff --git a/codex-rs/tui/src/attachment_label_tests.rs b/codex-rs/tui/src/attachment_label_tests.rs
+new file mode 100644
+index 0000000..ebf42ad
+--- /dev/null
++++ b/codex-rs/tui/src/attachment_label_tests.rs
+@@ -0,0 +1,97 @@
++use super::*;
++use crate::history_cell::HistoryCell;
++use crate::history_cell::new_user_prompt;
++use pretty_assertions::assert_eq;
++use ratatui::Terminal;
++use ratatui::backend::TestBackend;
++use ratatui::widgets::Paragraph;
++
++#[test]
++fn attachment_projection_preserves_source_and_rebases_unicode_spans() {
++    let text = "\u{4e2d}\u{6587} [Image #2] '/tmp/report.docx' tail";
++    let image_start = text.find("[Image").unwrap();
++    let file_start = text.find('\'').unwrap();
++    let file_end = file_start + "'/tmp/report.docx'".len();
++    let file_label = "[\u{1f4c4} report.docx]";
++    let elements = vec![
++        TextElement::new(
++            (image_start..image_start + 10).into(),
++            Some("[Image #2]".into()),
++        ),
++        TextElement::new((file_start..file_end).into(), Some(file_label.into())),
++    ];
++    let (display, projected) =
++        display_user_attachments(text, &elements, &[PathBuf::from("/tmp/screen.png")], 1);
++    assert_eq!(
++        display,
++        "\u{4e2d}\u{6587} [\u{1f4f7} screen.png] [\u{1f4c4} report.docx] tail"
++    );
++    for element in &projected {
++        assert_eq!(
++            display.get(element.byte_range.start..element.byte_range.end),
++            element.placeholder(&display),
++        );
++    }
++    assert_eq!(
++        file_pastes(text, &elements),
++        vec![(file_label.into(), "'/tmp/report.docx'".into())]
++    );
++    assert_eq!(text, "\u{4e2d}\u{6587} [Image #2] '/tmp/report.docx' tail");
++}
++
++#[test]
++fn unstructured_literal_labels_are_not_rewritten() {
++    let source = "The string [Image #1] is not an attachment.";
++    assert_eq!(
++        display_user_attachments(source, &[], &[], 0),
++        (source.into(), vec![])
++    );
++}
++
++#[test]
++fn attachment_projection_ignores_invalid_and_overlapping_ranges() {
++    let source = "\u{4e2d} abc";
++    let elements = vec![
++        TextElement::new((1..3).into(), Some("invalid".into())),
++        TextElement::new((4..7).into(), Some("word".into())),
++        TextElement::new((5..20).into(), Some("overlap".into())),
++    ];
++    let labels = HashMap::from([("word".into(), "label".into())]);
++    assert_eq!(
++        project_labels(source, &elements, &labels),
++        (
++            "\u{4e2d} label".into(),
++            vec![TextElement::new((4..9).into(), Some("label".into()))],
++        ),
++    );
++}
++
++#[test]
++fn submitted_attachments_render_filename_labels_for_every_file() {
++    let source = "[Image #1] [Image #2] '/tmp/report.docx'";
++    let document = source.find('\'').unwrap();
++    let cell = new_user_prompt(
++        source.into(),
++        vec![
++            TextElement::new((0..10).into(), Some("[Image #1]".into())),
++            TextElement::new((11..21).into(), Some("[Image #2]".into())),
++            TextElement::new(
++                (document..source.len()).into(),
++                Some("[\u{1f4c4} report.docx]".into()),
++            ),
++        ],
++        vec![
++            PathBuf::from("/a/screen.png"),
++            PathBuf::from("/b/screen.png"),
++        ],
++        vec![],
++    );
++    let mut terminal = Terminal::new(TestBackend::new(70, 6)).unwrap();
++    terminal
++        .draw(|frame| {
++            frame.render_widget(Paragraph::new(cell.display_lines(70)), frame.area());
++        })
++        .unwrap();
++    insta::assert_snapshot!(terminal.backend());
++    assert_eq!(cell.message, source);
++}
+diff --git a/codex-rs/tui/src/attachment_label.rs b/codex-rs/tui/src/attachment_label.rs
+new file mode 100644
+index 0000000..41bf67b
+--- /dev/null
++++ b/codex-rs/tui/src/attachment_label.rs
+@@ -0,0 +1,156 @@
++//! Filename labels are a display projection; model input retains canonical image IDs and paths.
++
++use std::collections::HashMap;
++use std::path::Path;
++use std::path::PathBuf;
++
++use codex_protocol::models::local_image_label_text;
++use codex_protocol::user_input::TextElement;
++
++const FILE_PREFIX: &str = "[\u{1f4c4} ";
++
++#[derive(Clone, Copy)]
++pub(crate) enum AttachmentKind {
++    Image,
++    File,
++}
++
++pub(crate) fn attachment_name(path: &Path) -> String {
++    let name = path
++        .file_name()
++        .and_then(|name| name.to_str())
++        .unwrap_or("attachment");
++    let sanitized: String = name
++        .chars()
++        .filter_map(|character| match character {
++            ']' => Some(')'),
++            character if character.is_control() => None,
++            character => Some(character),
++        })
++        .take(64)
++        .collect();
++    if sanitized.is_empty() {
++        "attachment".to_string()
++    } else {
++        sanitized
++    }
++}
++
++pub(crate) fn attachment_label(path: &Path, kind: AttachmentKind, occurrence: usize) -> String {
++    let name = attachment_name(path);
++    let icon = match kind {
++        AttachmentKind::Image => "\u{1f4f7}",
++        AttachmentKind::File => "\u{1f4c4}",
++    };
++    if occurrence <= 1 {
++        format!("[{icon} {name}]")
++    } else {
++        format!("[{icon} {name} \u{b7} {occurrence}]")
++    }
++}
++
++pub(crate) fn is_file_label(label: &str) -> bool {
++    label.starts_with(FILE_PREFIX)
++        && label.ends_with(']')
++        && label.len() <= 512
++        && !label.chars().any(char::is_control)
++}
++
++/// Recover file bindings from persisted path spans without requiring files to still exist.
++pub(crate) fn file_pastes(text: &str, elements: &[TextElement]) -> Vec<(String, String)> {
++    elements
++        .iter()
++        .filter_map(|element| {
++            let label = element.placeholder(text)?;
++            let actual = text.get(element.byte_range.start..element.byte_range.end)?;
++            (is_file_label(label)
++                && actual != label
++                && crate::clipboard_paste::normalize_pasted_path(actual).is_some())
++            .then(|| (label.to_string(), actual.to_string()))
++        })
++        .collect()
++}
++
++/// Replace only structured spans, rebasing all remaining elements without changing literal text.
++pub(crate) fn project_labels(
++    text: &str,
++    elements: &[TextElement],
++    labels: &HashMap<String, String>,
++) -> (String, Vec<TextElement>) {
++    let mut elements = elements.to_vec();
++    elements.sort_by_key(|element| element.byte_range.start);
++    let mut output = String::with_capacity(text.len());
++    let mut projected = Vec::with_capacity(elements.len());
++    let mut cursor = 0;
++    for element in elements {
++        let range = element.byte_range;
++        if range.start < cursor || range.start >= range.end {
++            continue;
++        }
++        let Some(prefix) = text.get(cursor..range.start) else {
++            continue;
++        };
++        let Some(original) = text.get(range.start..range.end) else {
++            continue;
++        };
++        output.push_str(prefix);
++        let start = output.len();
++        let replacement = element
++            .placeholder(text)
++            .and_then(|label| labels.get(label));
++        output.push_str(replacement.map(String::as_str).unwrap_or(original));
++        let mut element = element.map_range(|_| (start..output.len()).into());
++        if let Some(label) = replacement {
++            element.set_placeholder(Some(label.clone()));
++        }
++        projected.push(element);
++        cursor = range.end;
++    }
++    output.push_str(&text[cursor..]);
++    (output, projected)
++}
++
++pub(crate) fn display_user_attachments(
++    text: &str,
++    elements: &[TextElement],
++    images: &[PathBuf],
++    remote_count: usize,
++) -> (String, Vec<TextElement>) {
++    let mut text = text.to_string();
++    let mut elements = elements.to_vec();
++    let mut labels: HashMap<String, String> = file_pastes(&text, &elements)
++        .into_iter()
++        .map(|(label, _)| (label.clone(), label))
++        .collect();
++    let mut occurrences = HashMap::<String, usize>::new();
++    for (index, image) in images.iter().enumerate() {
++        let count = occurrences.entry(attachment_name(image)).or_default();
++        *count += 1;
++        let label = attachment_label(image, AttachmentKind::Image, *count);
++        let canonical = local_image_label_text(remote_count + index + 1);
++        let represented = elements.iter().any(|element| {
++            element
++                .placeholder(&text)
++                .is_some_and(|value| value == canonical || value == label)
++        });
++        if !represented {
++            let range = if let Some(start) = text.find(&canonical) {
++                start..start + canonical.len()
++            } else {
++                if !text.is_empty() {
++                    text.push(' ');
++                }
++                let start = text.len();
++                text.push_str(&canonical);
++                start..text.len()
++            };
++            elements.push(TextElement::new(range.into(), Some(canonical.clone())));
++        }
++        labels.insert(canonical, label);
++    }
++    project_labels(&text, &elements, &labels)
++}
++
++#[cfg(test)]
++#[path = "attachment_label_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/attachment_paths_tests.rs b/codex-rs/tui/src/attachment_paths_tests.rs
+new file mode 100644
+index 0000000..8eba7bb
+--- /dev/null
++++ b/codex-rs/tui/src/attachment_paths_tests.rs
+@@ -0,0 +1,55 @@
++use super::*;
++use pretty_assertions::assert_eq;
++
++#[test]
++fn attachment_paths_accept_quoted_windows_and_shell_escaped_lists() {
++    assert_eq!(
++        split_drop_paths(r#""C:\My Files\a.png" "D:\Other\b.docx""#),
++        Some(vec![r"C:\My Files\a.png".into(), r"D:\Other\b.docx".into()]),
++    );
++    assert_eq!(
++        split_drop_paths(r"/tmp/My\ File.png '/tmp/report.docx'"),
++        Some(vec!["/tmp/My File.png".into(), "/tmp/report.docx".into()]),
++    );
++    assert_eq!(
++        split_drop_paths("& 'C:\\O''Brien\\one.docx' \"D:\\two.png\""),
++        Some(vec!["C:\\O'Brien\\one.docx".into(), "D:\\two.png".into()]),
++    );
++    assert_eq!(split_drop_paths("'unterminated"), None);
++}
++
++#[test]
++fn attachment_paths_require_the_entire_drop_to_be_regular_files() {
++    let root = tempfile::tempdir().unwrap();
++    let first = root.path().join("one file.docx");
++    let second = root.path().join("\u{4e2d}\u{6587}.csv");
++    std::fs::write(&first, "test").unwrap();
++    std::fs::write(&second, "test").unwrap();
++    let input = format!("{}\r\n{}", quoted_path(&first), quoted_path(&second));
++    assert_eq!(
++        pasted_paths(&input),
++        Some(vec![first.clone(), second.clone()])
++    );
++    assert_eq!(
++        pasted_paths(&format!("{} explain this", quoted_path(&first))),
++        None
++    );
++    assert_eq!(pasted_paths(&quoted_path(root.path())), None);
++    assert_eq!(
++        pasted_paths(&format!(
++            "{} {}",
++            quoted_path(&first),
++            quoted_path(&root.path().join("missing"))
++        )),
++        None
++    );
++    assert_eq!(pasted_paths(&first.to_string_lossy()), Some(vec![first]));
++    let url = url::Url::from_file_path(&second).unwrap();
++    assert_eq!(pasted_paths(url.as_str()), Some(vec![second]));
++}
++
++#[test]
++fn attachment_paths_do_not_run_shell_syntax() {
++    assert_eq!(pasted_paths("$(Get-Content credentials)"), None);
++    assert_eq!(pasted_paths("a.docx; rm -rf /"), None);
++}
+diff --git a/codex-rs/tui/src/attachment_paths.rs b/codex-rs/tui/src/attachment_paths.rs
+new file mode 100644
+index 0000000..0a76da4
+--- /dev/null
++++ b/codex-rs/tui/src/attachment_paths.rs
+@@ -0,0 +1,94 @@
++//! Parse terminal file drops as an all-or-nothing path list, never as shell commands.
++
++use std::path::Path;
++use std::path::PathBuf;
++
++use crate::clipboard_paste::normalize_pasted_path;
++
++const MAX_DROP_BYTES: usize = 64 * 1024;
++const MAX_DROP_FILES: usize = 128;
++
++pub(crate) fn pasted_paths(pasted: &str) -> Option<Vec<PathBuf>> {
++    let pasted = pasted.trim();
++    if pasted.is_empty() || pasted.len() > MAX_DROP_BYTES {
++        return None;
++    }
++    // An unquoted filename may itself contain spaces.
++    if let Some(path) = existing_path(pasted) {
++        return Some(vec![path]);
++    }
++    let tokens = split_drop_paths(pasted)?;
++    if tokens.is_empty() || tokens.len() > MAX_DROP_FILES {
++        return None;
++    }
++    tokens
++        .into_iter()
++        .map(|token| existing_path(&token))
++        .collect()
++}
++
++fn existing_path(text: &str) -> Option<PathBuf> {
++    let literal = PathBuf::from(text);
++    if literal.is_file() {
++        return Some(literal);
++    }
++    let normalized = normalize_pasted_path(text)?;
++    normalized.is_file().then_some(normalized)
++}
++
++pub(crate) fn quoted_path(path: &Path) -> String {
++    let value = path.to_string_lossy();
++    #[cfg(windows)]
++    return format!("\"{value}\"");
++    #[cfg(not(windows))]
++    return format!("'{}'", value.replace('\'', "'\\''"));
++}
++
++fn split_drop_paths(input: &str) -> Option<Vec<String>> {
++    let input = input.strip_prefix("& ").unwrap_or(input);
++    let mut chars = input.chars().peekable();
++    let mut tokens = Vec::new();
++    let mut token = String::new();
++    let mut quote = None;
++    while let Some(character) = chars.next() {
++        if let Some(delimiter) = quote {
++            if character == delimiter {
++                if delimiter == '\'' && chars.peek() == Some(&'\'') {
++                    chars.next();
++                    token.push('\'');
++                } else {
++                    quote = None;
++                }
++            } else {
++                token.push(character);
++            }
++        } else if matches!(character, '\'' | '"') {
++            quote = Some(character);
++        } else if character.is_whitespace() {
++            if !token.is_empty() {
++                tokens.push(std::mem::take(&mut token));
++            }
++        } else if character == '\\'
++            && !token.starts_with('\\')
++            && token.as_bytes().get(1) != Some(&b':')
++            && chars
++                .peek()
++                .is_some_and(|next| next.is_whitespace() || matches!(next, '\'' | '"' | '\\'))
++        {
++            token.push(chars.next()?);
++        } else {
++            token.push(character);
++        }
++    }
++    if quote.is_some() {
++        return None;
++    }
++    if !token.is_empty() {
++        tokens.push(token);
++    }
++    Some(tokens)
++}
++
++#[cfg(test)]
++#[path = "attachment_paths_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer.rs b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+index 00cc46b..99ae4dc 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+@@ -127,6 +127,13 @@
+ //! - Local placeholders render as `[📷 filename]`; duplicate filenames add `· N`.
+ //! - The submission boundary remaps local placeholders to `[Image #M+1]..` so the model-facing
+ //!   protocol remains contiguous even though the editable composer uses filename labels.
++//! - File drops use atomic filename labels backed by pending path payloads. Submission expands
++//!   their paths but preserves display labels in text elements, so history and restored drafts
++//!   retain the same appearance. Deleted file bindings remain available for edit undo until the
++//!   draft is submitted or reset; only surviving elements can expand into model input.
++//! - Windows can deliver drops as ordinary key records even when bracketed paste is enabled.
++//!   A quiet-period path probe formats those ranges without delaying typed characters or changing
++//!   `disable_paste_burst` Enter semantics. Submission finishes that probe before reading the draft.
+ //!
+ //! # Non-bracketed Paste Bursts
+ //!
+@@ -264,6 +271,7 @@ use codex_protocol::user_input::ByteRange;
+ use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+ use codex_protocol::user_input::TextElement;
+ 
++mod attachment_paste;
+ mod attachment_state;
+ mod completion_target;
+ mod draft_state;
+@@ -428,6 +436,8 @@ pub(crate) struct ChatComposerConfig {
+     pub(crate) slash_commands_enabled: bool,
+     /// Whether pasting a file path can attach local images.
+     pub(crate) image_paste_enabled: bool,
++    /// Whether regular file drops use filename labels instead of literal paths.
++    pub(crate) file_paste_enabled: bool,
+ }
+ 
+ impl Default for ChatComposerConfig {
+@@ -436,6 +446,7 @@ impl Default for ChatComposerConfig {
+             popups_enabled: true,
+             slash_commands_enabled: true,
+             image_paste_enabled: true,
++            file_paste_enabled: true,
+         }
+     }
+ }
+@@ -450,6 +461,7 @@ impl ChatComposerConfig {
+             popups_enabled: false,
+             slash_commands_enabled: false,
+             image_paste_enabled: false,
++            file_paste_enabled: false,
+         }
+     }
+ }
+@@ -468,6 +480,7 @@ pub(crate) struct ChatComposer {
+     effort_status_line_transition: Option<EffortStatusLineTransition>,
+     effort_observed: bool,
+     attachments: AttachmentState,
++    raw_attachment_input: Option<attachment_paste::RawAttachmentInput>,
+     placeholder_text: String,
+     blocks_direct_input: bool,
+     is_task_running: bool,
+@@ -644,6 +657,7 @@ impl ChatComposer {
+             },
+             has_focus: has_input_focus,
+             frame_requester: None,
++            raw_attachment_input: None,
+             effort_tier: None,
+             effort_animation_style: None,
+             effort_ignition: None,
+@@ -1130,7 +1144,8 @@ impl ChatComposer {
+     ///
+     /// Behavior:
+     ///
+-    /// - If the paste is larger than `LARGE_PASTE_CHAR_THRESHOLD` chars, inserts a placeholder
++    /// - If the entire paste names regular files, inserts individual attachment labels.
++    /// - Otherwise, if larger than `LARGE_PASTE_CHAR_THRESHOLD` chars, inserts a placeholder
+     ///   element (expanded on submit) and stores the full text in `pending_pastes`.
+     /// - Otherwise, if the paste looks like an image path, attaches the image and inserts a
+     ///   trailing space so the user can keep typing naturally.
+@@ -1139,10 +1154,13 @@ impl ChatComposer {
+     /// In all cases, clears any paste-burst Enter suppression state so a real paste cannot affect
+     /// the next user Enter key, then syncs popup state.
+     pub fn handle_paste(&mut self, pasted: String) -> bool {
++        self.raw_attachment_input = None;
+         let pasted = pasted.replace("\r\n", "\n").replace('\r', "\n");
+         let pasted = sanitize_user_text(&pasted);
+         let char_count = pasted.chars().count();
+-        if char_count > LARGE_PASTE_CHAR_THRESHOLD {
++        if self.config.file_paste_enabled && self.handle_attachment_paths(&pasted) {
++            // A long multi-file drop is still a set of attachments, not a large prose paste.
++        } else if char_count > LARGE_PASTE_CHAR_THRESHOLD {
+             let placeholder = self.next_large_paste_placeholder(char_count);
+             self.draft.textarea.insert_element(&placeholder);
+             self.draft.pending_pastes.push((placeholder, pasted));
+@@ -1400,8 +1418,16 @@ impl ChatComposer {
+         self.draft.pending_pastes.clone()
+     }
+ 
+-    pub(crate) fn set_pending_pastes(&mut self, pending_pastes: Vec<(String, String)>) {
++    pub(crate) fn set_pending_pastes(&mut self, mut pending_pastes: Vec<(String, String)>) {
+         let text = self.current_text();
++        // Restoring expanded file spans already recovered their path bindings.
++        for (label, value) in &self.draft.pending_pastes {
++            if crate::attachment_label::is_file_label(label)
++                && !pending_pastes.iter().any(|(existing, _)| existing == label)
++            {
++                pending_pastes.push((label.clone(), value.clone()));
++            }
++        }
+         self.draft.pending_pastes = pending_pastes
+             .into_iter()
+             .filter(|(placeholder, _)| text.contains(placeholder))
+@@ -1497,6 +1523,7 @@ impl ChatComposer {
+         self.draft.textarea.set_text_clearing_elements("");
+         self.draft.is_bash_mode = false;
+         self.draft.pending_pastes.clear();
++        self.raw_attachment_input = None;
+         self.draft.mention_bindings.clear();
+ 
+         let (text, text_elements) = self.imported_text_for_textarea(text, text_elements);
+@@ -1635,6 +1662,7 @@ impl ChatComposer {
+         text: String,
+         text_elements: Vec<TextElement>,
+     ) -> (String, Vec<TextElement>) {
++        let (text, text_elements) = self.restore_file_labels(text, text_elements);
+         if let Some(stripped) = text.strip_prefix('!') {
+             self.draft.is_bash_mode = true;
+             (
+@@ -2454,7 +2482,12 @@ impl ChatComposer {
+                 if new_start >= new_end {
+                     return None;
+                 }
+-                let placeholder = trimmed.get(new_start..new_end).map(str::to_string);
++                let placeholder = elem
++                    .placeholder(original)
++                    .filter(|label| crate::attachment_label::is_file_label(label))
++                    .filter(|_| start >= trimmed_start && end <= trimmed_end)
++                    .map(str::to_string)
++                    .or_else(|| trimmed.get(new_start..new_end).map(str::to_string));
+                 Some(TextElement::new(
+                     ByteRange {
+                         start: new_start,
+@@ -2508,8 +2541,18 @@ impl ChatComposer {
+                 .and_then(|ph| pending_by_placeholder.get_mut(ph))
+                 .and_then(VecDeque::pop_front);
+             if let Some(actual) = replacement {
+-                // Stage 3: inline actual paste payloads and drop their placeholder elements.
++                // File spans keep a display label while their full path reaches the model.
++                let new_start = rebuilt.len();
+                 rebuilt.push_str(actual);
++                if placeholder
++                    .as_deref()
++                    .is_some_and(crate::attachment_label::is_file_label)
++                {
++                    rebuilt_elements.push(TextElement::new(
++                        (new_start..rebuilt.len()).into(),
++                        placeholder,
++                    ));
++                }
+             } else {
+                 // Stage 4: keep non-paste elements, updating their byte ranges for the new text.
+                 let new_start = rebuilt.len();
+@@ -2896,6 +2939,7 @@ impl ChatComposer {
+         slash_validation: SlashValidation,
+         pending_paste_handling: PendingPasteHandling,
+     ) -> Option<(String, Vec<TextElement>)> {
++        self.finish_attachment_input();
+         let mut text = self.current_text();
+         let original_input = text.clone();
+         let original_text_elements = self.current_text_elements();
+@@ -3612,7 +3656,13 @@ impl ChatComposer {
+             return (InputResult::None, true);
+         }
+ 
++        let insertion_start = self.draft.textarea.cursor();
+         self.draft.textarea.input(input);
++        if matches!(input.code, KeyCode::Char(_)) && !has_ctrl_or_alt(input.modifiers) {
++            self.note_raw_attachment_input(insertion_start, now);
++        } else {
++            self.raw_attachment_input = None;
++        }
+         self.sync_bash_mode_from_text();
+ 
+         if let Some(elements_before) = elements_before {
+@@ -3658,7 +3708,9 @@ impl ChatComposer {
+             .filter(|payload| !elements_after.contains(payload))
+             .collect::<Vec<_>>();
+         for removed in &removed_payloads {
+-            self.draft.pending_pastes.retain(|(ph, _)| ph != removed);
++            self.draft
++                .pending_pastes
++                .retain(|(ph, _)| ph != removed || crate::attachment_label::is_file_label(ph));
+         }
+         self.attachments
+             .remove_deleted_local_placeholders(&removed_payloads, &mut self.draft.textarea);
+@@ -11671,7 +11723,7 @@ mod tests {
+                     start: start1,
+                     end: start1 + placeholder1.len(),
+                 },
+-                Some(placeholder1.clone()),
++                Some(placeholder1),
+             ),
+         ];
+         composer.set_text_content(text, text_elements, vec![path1, path2.clone()]);
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste_tests.rs b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste_tests.rs
+new file mode 100644
+index 0000000..95631f4
+--- /dev/null
++++ b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste_tests.rs
+@@ -0,0 +1,183 @@
++use super::*;
++use crate::app_event::AppEvent;
++use crate::app_event_sender::AppEventSender;
++use crate::history_cell::HistoryCell;
++use crate::history_cell::new_user_prompt;
++use crossterm::event::KeyCode;
++use crossterm::event::KeyEvent;
++use crossterm::event::KeyModifiers;
++use pretty_assertions::assert_eq;
++use tokio::sync::mpsc::unbounded_channel;
++
++fn composer() -> ChatComposer {
++    let (tx, _rx) = unbounded_channel::<AppEvent>();
++    ChatComposer::new(
++        /*has_input_focus*/ true,
++        AppEventSender::new(tx),
++        /*enhanced_keys_supported*/ true,
++        "Ask Codex".into(),
++        /*disable_paste_burst*/ true,
++    )
++}
++
++#[test]
++fn attachment_paste_mixed_files_keep_the_same_labels_after_submission_and_restore() {
++    let root = tempfile::tempdir().unwrap();
++    let document = root.path().join("report.docx");
++    let data = root.path().join("data.csv");
++    let image = root.path().join("screen.png");
++    std::fs::write(&document, "fixture").unwrap();
++    std::fs::write(&data, "a,b\n1,2").unwrap();
++    image::RgbaImage::new(2, 2).save(&image).unwrap();
++    let pasted = [&document, &data, &image]
++        .into_iter()
++        .map(|path| quoted_path(path))
++        .collect::<Vec<_>>()
++        .join(" ");
++    let mut composer = composer();
++    composer.handle_paste(pasted);
++    let labels = "[\u{1f4c4} report.docx] [\u{1f4c4} data.csv] [\u{1f4f7} screen.png]";
++    assert_eq!(composer.current_text().trim(), labels);
++    assert_eq!(composer.local_image_paths(), vec![image.clone()]);
++
++    let (text, elements) = composer
++        .prepare_submission_text(/*record_history*/ true)
++        .unwrap();
++    assert_eq!(
++        text,
++        format!(
++            "{} {} [\u{1f4f7} screen.png]",
++            quoted_path(&document),
++            quoted_path(&data)
++        ),
++    );
++    let cell = new_user_prompt(text.clone(), elements.clone(), vec![image.clone()], vec![]);
++    let rendered = cell
++        .display_lines(120)
++        .iter()
++        .map(ToString::to_string)
++        .collect::<Vec<_>>()
++        .join("\n");
++    assert!(rendered.contains(labels), "{rendered}");
++    assert!(!rendered.contains(&root.path().to_string_lossy().to_string()));
++
++    composer.set_text_content(text.clone(), elements.clone(), vec![image]);
++    composer.set_pending_pastes(Vec::new());
++    assert_eq!(composer.current_text().trim(), labels);
++    assert_eq!(
++        composer.prepare_submission_text(/*record_history*/ false),
++        Some((text, elements)),
++    );
++}
++
++#[test]
++fn attachment_paste_duplicate_filenames_keep_distinct_paths() {
++    let root = tempfile::tempdir().unwrap();
++    let first = root.path().join("report.docx");
++    let directory = root.path().join("second");
++    std::fs::create_dir(&directory).unwrap();
++    let second = directory.join("report.docx");
++    std::fs::write(&first, "one").unwrap();
++    std::fs::write(&second, "two").unwrap();
++    let mut composer = composer();
++    composer.handle_paste(format!("{} {}", quoted_path(&first), quoted_path(&second)));
++    assert_eq!(
++        composer.current_text(),
++        "[\u{1f4c4} report.docx] [\u{1f4c4} report.docx \u{b7} 2] ",
++    );
++    let (text, _) = composer
++        .prepare_submission_text(/*record_history*/ false)
++        .unwrap();
++    assert_eq!(
++        text,
++        format!("{} {}", quoted_path(&first), quoted_path(&second))
++    );
++}
++
++#[test]
++fn attachment_paste_delete_and_undo_restore_the_path_binding() {
++    let root = tempfile::tempdir().unwrap();
++    let file = root.path().join("report.docx");
++    std::fs::write(&file, "fixture").unwrap();
++    let mut composer = composer();
++    composer.handle_paste(quoted_path(&file));
++    composer.handle_key_event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
++    composer.handle_key_event(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
++    assert_eq!(composer.current_text(), "");
++    assert_eq!(composer.current_text_with_pending(), "");
++    composer.handle_key_event(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
++    assert_eq!(composer.current_text(), "[\u{1f4c4} report.docx]");
++    let (text, _) = composer
++        .prepare_submission_text(/*record_history*/ false)
++        .unwrap();
++    assert_eq!(text, quoted_path(&file));
++}
++
++#[test]
++fn attachment_paste_regular_files_work_without_image_support() {
++    let root = tempfile::tempdir().unwrap();
++    let file = root.path().join("report.docx");
++    std::fs::write(&file, "fixture").unwrap();
++    let mut composer = composer();
++    composer.set_image_paste_enabled(/*enabled*/ false);
++    composer.handle_paste(quoted_path(&file));
++    assert_eq!(composer.current_text(), "[\u{1f4c4} report.docx] ");
++    assert_eq!(
++        composer.local_image_paths(),
++        Vec::<std::path::PathBuf>::new()
++    );
++}
++
++#[test]
++fn attachment_drop_key_records_are_recognized_without_buffering_typed_input() {
++    let root = tempfile::tempdir().unwrap();
++    let document = root.path().join("report.docx");
++    let data = root.path().join("data.csv");
++    std::fs::write(&document, "fixture").unwrap();
++    std::fs::write(&data, "fixture").unwrap();
++    let dropped = format!("{} {}", quoted_path(&document), quoted_path(&data));
++    let mut composer = composer();
++    composer.set_text_content("compare: ".into(), Vec::new(), Vec::new());
++    composer.move_cursor_to_end();
++    let start = Instant::now();
++    for (index, character) in dropped.chars().enumerate() {
++        composer.handle_input_basic_with_time(
++            KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE),
++            start + Duration::from_micros(index as u64),
++        );
++    }
++    assert_eq!(composer.current_text(), format!("compare: {dropped}"));
++    assert!(composer.settle_attachment_input(start + Duration::from_secs(1)));
++    assert_eq!(
++        composer.current_text(),
++        "compare: [\u{1f4c4} report.docx] [\u{1f4c4} data.csv] "
++    );
++    assert_eq!(
++        composer.prepare_submission_text(false).unwrap().0,
++        format!("compare: {dropped}")
++    );
++}
++
++#[test]
++fn immediate_submit_finishes_a_drop_but_never_changes_plain_typing() {
++    let root = tempfile::tempdir().unwrap();
++    let document = root.path().join("report.docx");
++    std::fs::write(&document, "fixture").unwrap();
++    let dropped = quoted_path(&document);
++    let mut composer = composer();
++    for character in dropped.chars() {
++        composer.handle_key_event(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE));
++    }
++    let (text, elements) = composer.prepare_submission_text(false).unwrap();
++    assert_eq!(text, dropped);
++    assert!(
++        elements
++            .iter()
++            .any(|element| element.placeholder(&text) == Some("[\u{1f4c4} report.docx]"))
++    );
++    for character in "plain text, not a path".chars() {
++        composer.handle_key_event(KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE));
++    }
++    composer.settle_attachment_input(Instant::now() + Duration::from_secs(1));
++    assert_eq!(composer.current_text(), "plain text, not a path");
++}
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste.rs b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste.rs
+new file mode 100644
+index 0000000..d1a7cd8
+--- /dev/null
++++ b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_paste.rs
+@@ -0,0 +1,150 @@
++//! File drops use the existing atomic paste bindings; only their paths reach the model.
++
++use std::collections::HashMap;
++use std::path::PathBuf;
++use std::time::Duration;
++use std::time::Instant;
++
++use super::ChatComposer;
++use crate::attachment_label::AttachmentKind;
++use crate::attachment_label::attachment_label;
++use crate::attachment_label::file_pastes;
++use crate::attachment_label::project_labels;
++use crate::attachment_paths::pasted_paths;
++use crate::attachment_paths::quoted_path;
++use codex_protocol::user_input::TextElement;
++
++const DROP_SETTLE_TIME: Duration = Duration::from_millis(150);
++
++pub(super) struct RawAttachmentInput {
++    start: usize,
++    end: usize,
++    updated_at: Instant,
++}
++
++impl ChatComposer {
++    pub(super) fn handle_attachment_paths(&mut self, pasted: &str) -> bool {
++        let Some(paths) = pasted_paths(pasted) else {
++            return false;
++        };
++        self.insert_attachment_paths(paths);
++        true
++    }
++
++    fn insert_attachment_paths(&mut self, paths: Vec<PathBuf>) {
++        for path in paths {
++            if self.image_paste_enabled() && image::image_dimensions(&path).is_ok() {
++                self.attach_image(path);
++            } else {
++                let mut occurrence = 1;
++                let label = loop {
++                    let label = attachment_label(&path, AttachmentKind::File, occurrence);
++                    if !self
++                        .draft
++                        .pending_pastes
++                        .iter()
++                        .any(|(existing, _)| *existing == label)
++                    {
++                        break label;
++                    }
++                    occurrence += 1;
++                };
++                let value = quoted_path(&path);
++                self.draft.textarea.insert_element(&label);
++                self.draft.pending_pastes.push((label, value));
++            }
++            self.draft.textarea.insert_str(" ");
++        }
++    }
++
++    pub(super) fn note_raw_attachment_input(&mut self, start: usize, now: Instant) {
++        if !self.config.file_paste_enabled {
++            return;
++        }
++        let end = self.draft.textarea.cursor();
++        if end <= start {
++            self.raw_attachment_input = None;
++            return;
++        }
++        let start = self
++            .raw_attachment_input
++            .as_ref()
++            .filter(|previous| {
++                previous.end == start && now.duration_since(previous.updated_at) < DROP_SETTLE_TIME
++            })
++            .map(|previous| previous.start)
++            .unwrap_or(start);
++        self.raw_attachment_input = Some(RawAttachmentInput {
++            start,
++            end,
++            updated_at: now,
++        });
++        if let Some(requester) = &self.frame_requester {
++            requester.schedule_frame_in(DROP_SETTLE_TIME);
++        }
++    }
++
++    pub(crate) fn settle_attachment_input(&mut self, now: Instant) -> bool {
++        let Some(pending) = &self.raw_attachment_input else {
++            return false;
++        };
++        let elapsed = now.saturating_duration_since(pending.updated_at);
++        if elapsed < DROP_SETTLE_TIME {
++            if let Some(requester) = &self.frame_requester {
++                requester.schedule_frame_in(DROP_SETTLE_TIME - elapsed);
++            }
++            return false;
++        }
++        self.finish_attachment_input()
++    }
++
++    pub(super) fn finish_attachment_input(&mut self) -> bool {
++        let Some(pending) = self.raw_attachment_input.take() else {
++            return false;
++        };
++        let range = pending.start..pending.end;
++        if self.draft.textarea.cursor() != pending.end
++            || self
++                .draft
++                .textarea
++                .text_element_ranges_overlapping(range.clone())
++                .next()
++                .is_some()
++        {
++            return false;
++        }
++        let Some(text) = self.draft.textarea.text().get(range.clone()) else {
++            return false;
++        };
++        // Ordinary words such as a quickly typed LICENSE must not turn into attachments.
++        if !text.contains(['/', '\\']) && !text.starts_with(['\'', '"']) {
++            return false;
++        }
++        let Some(paths) = pasted_paths(text) else {
++            return false;
++        };
++        self.draft.textarea.replace_range(range, "");
++        self.draft.textarea.set_cursor(pending.start);
++        self.insert_attachment_paths(paths);
++        self.sync_popups();
++        true
++    }
++
++    pub(super) fn restore_file_labels(
++        &mut self,
++        text: String,
++        elements: Vec<TextElement>,
++    ) -> (String, Vec<TextElement>) {
++        let files = file_pastes(&text, &elements);
++        let labels: HashMap<String, String> = files
++            .iter()
++            .map(|(label, _)| (label.clone(), label.clone()))
++            .collect();
++        self.draft.pending_pastes.extend(files);
++        project_labels(&text, &elements, &labels)
++    }
++}
++
++#[cfg(test)]
++#[path = "attachment_paste_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
+index 8dfcbb2..d590cd5 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer/attachment_state.rs
+@@ -14,6 +14,9 @@ use ratatui::style::Stylize;
+ use ratatui::text::Line;
+ 
+ use super::InputResult;
++use crate::attachment_label::AttachmentKind;
++use crate::attachment_label::attachment_label;
++use crate::attachment_label::attachment_name;
+ use crate::bottom_pane::LocalImageAttachment;
+ use crate::bottom_pane::textarea::TextArea;
+ use codex_protocol::models::local_image_label_text;
+@@ -33,32 +36,11 @@ pub(super) struct AttachmentState {
+ }
+ 
+ fn image_file_name(path: &Path) -> String {
+-    let name = path
+-        .file_name()
+-        .and_then(|name| name.to_str())
+-        .unwrap_or("image.png");
+-    let mut sanitized = name
+-        .chars()
+-        .filter_map(|character| match character {
+-            ']' => Some(')'),
+-            character if character.is_control() => None,
+-            character => Some(character),
+-        })
+-        .take(64)
+-        .collect::<String>();
+-    if sanitized.is_empty() {
+-        sanitized.push_str("image.png");
+-    }
+-    sanitized
++    attachment_name(path)
+ }
+ 
+ fn image_display_placeholder(path: &Path, occurrence: usize) -> String {
+-    let name = image_file_name(path);
+-    if occurrence <= 1 {
+-        format!("[📷 {name}]")
+-    } else {
+-        format!("[📷 {name} · {occurrence}]")
+-    }
++    attachment_label(path, AttachmentKind::Image, occurrence)
+ }
+ 
+ impl AttachmentState {
+diff --git a/codex-rs/tui/src/bottom_pane/mod.rs b/codex-rs/tui/src/bottom_pane/mod.rs
+index 4827ef2..747c700 100644
+--- a/codex-rs/tui/src/bottom_pane/mod.rs
++++ b/codex-rs/tui/src/bottom_pane/mod.rs
+@@ -792,6 +792,7 @@ impl BottomPane {
+     }
+ 
+     fn pre_draw_tick_at(&mut self, now: Instant) {
++        self.composer.settle_attachment_input(now);
+         self.composer.sync_popups();
+         self.maybe_show_delayed_approval_requests_at(now);
+         self.tick_active_view(now);
+diff --git a/codex-rs/tui/src/chatwidget/interaction.rs b/codex-rs/tui/src/chatwidget/interaction.rs
+index 12a918c..3907d08 100644
+--- a/codex-rs/tui/src/chatwidget/interaction.rs
++++ b/codex-rs/tui/src/chatwidget/interaction.rs
+@@ -191,6 +191,14 @@ impl ChatWidget {
+     /// for bitmap clipboard contents, so handling it in the native TUI avoids a nested ConPTY proxy.
+     pub(crate) fn paste_image_from_clipboard(&mut self) {
+         match paste_clipboard_content() {
++            Ok(PastedClipboardContent::Files(paths)) => {
++                let pasted = paths
++                    .iter()
++                    .map(|path| crate::attachment_paths::quoted_path(path))
++                    .collect::<Vec<_>>()
++                    .join(" ");
++                self.handle_paste(pasted);
++            }
+             Ok(PastedClipboardContent::Image(path, info)) => {
+                 tracing::debug!(
+                     "pasted image size={}x{} format={}",
+diff --git a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+index 12c287e..cadc837 100644
+--- a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
++++ b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+@@ -760,7 +760,7 @@ async fn blocked_image_restore_preserves_mention_bindings() {
+     }];
+ 
+     chat.restore_blocked_image_submission(
+-        text.clone(),
++        text,
+         text_elements,
+         local_images.clone(),
+         mention_bindings.clone(),
+@@ -830,8 +830,8 @@ async fn blocked_image_restore_with_remote_images_keeps_local_placeholder_mappin
+     let remote_image_urls = vec!["https://example.com/blocked-remote.png".to_string()];
+ 
+     chat.restore_blocked_image_submission(
+-        text.clone(),
+-        text_elements.clone(),
++        text,
++        text_elements,
+         local_images.clone(),
+         Vec::new(),
+         remote_image_urls.clone(),
+@@ -904,10 +904,10 @@ async fn queued_restore_with_remote_images_keeps_local_placeholder_mapping() {
+     let remote_image_urls = vec!["https://example.com/queued-remote.png".to_string()];
+ 
+     chat.restore_user_message_to_composer(UserMessage {
+-        text: text.clone(),
++        text: text,
+         local_images: local_images.clone(),
+         remote_image_urls: remote_image_urls.clone(),
+-        text_elements: text_elements.clone(),
++        text_elements: text_elements,
+         mention_bindings: Vec::new(),
+     });
+ 
+diff --git a/codex-rs/tui/src/clipboard_paste.rs b/codex-rs/tui/src/clipboard_paste.rs
+index d643cc6..ab39e25 100644
+--- a/codex-rs/tui/src/clipboard_paste.rs
++++ b/codex-rs/tui/src/clipboard_paste.rs
+@@ -48,6 +48,7 @@ pub struct PastedImageInfo {
+ 
+ #[derive(Debug)]
+ pub enum PastedClipboardContent {
++    Files(Vec<PathBuf>),
+     Image(PathBuf, PastedImageInfo),
+     Text(String),
+ }
+@@ -58,13 +59,22 @@ pub enum PastedClipboardContent {
+ /// contains only text. Keeping the decision here makes Ctrl+V useful for both
+ /// kinds without treating image encoding or file-system failures as text.
+ pub fn paste_clipboard_content() -> Result<PastedClipboardContent, String> {
+-    paste_clipboard_content_with(paste_image_to_temp_png, paste_text_from_clipboard)
++    paste_clipboard_content_with(
++        paste_files_from_clipboard,
++        paste_image_to_temp_png,
++        paste_text_from_clipboard,
++    )
+ }
+ 
+ fn paste_clipboard_content_with(
++    files: impl FnOnce() -> Vec<PathBuf>,
+     image: impl FnOnce() -> Result<(PathBuf, PastedImageInfo), PasteImageError>,
+     text: impl FnOnce() -> Result<String, String>,
+ ) -> Result<PastedClipboardContent, String> {
++    let files = files();
++    if !files.is_empty() {
++        return Ok(PastedClipboardContent::Files(files));
++    }
+     match image() {
+         Ok((path, info)) => Ok(PastedClipboardContent::Image(path, info)),
+         Err(
+@@ -82,6 +92,21 @@ fn paste_clipboard_content_with(
+     }
+ }
+ 
++#[cfg(not(target_os = "android"))]
++fn paste_files_from_clipboard() -> Vec<PathBuf> {
++    arboard::Clipboard::new()
++        .and_then(|mut clipboard| clipboard.get().file_list())
++        .unwrap_or_default()
++        .into_iter()
++        .filter(|path| path.is_file())
++        .collect()
++}
++
++#[cfg(target_os = "android")]
++fn paste_files_from_clipboard() -> Vec<PathBuf> {
++    Vec::new()
++}
++
+ /// Capture image from system clipboard, encode to PNG, and return bytes + info.
+ #[cfg(not(target_os = "android"))]
+ pub fn paste_image_as_png() -> Result<(Vec<u8>, PastedImageInfo), PasteImageError> {
+@@ -472,19 +497,21 @@ mod clipboard_content_tests {
+     #[test]
+     fn real_image_takes_precedence_over_clipboard_text() {
+         let result = paste_clipboard_content_with(
++            Vec::new,
+             || Ok((PathBuf::from("ccodex-image-test.png"), image_info())),
+             || -> Result<String, String> { panic!("text fallback must not run") },
+         )
+         .expect("image content");
+         assert!(matches!(
+             result,
+-            PastedClipboardContent::Image(path, _) if path == PathBuf::from("ccodex-image-test.png")
++            PastedClipboardContent::Image(path, _) if path.as_path() == Path::new("ccodex-image-test.png")
+         ));
+     }
+ 
+     #[test]
+     fn text_is_used_when_clipboard_has_no_image() {
+         let result = paste_clipboard_content_with(
++            Vec::new,
+             || Err(PasteImageError::NoImage("not an image".to_string())),
+             || Ok("copied text".to_string()),
+         )
+@@ -498,6 +525,7 @@ mod clipboard_content_tests {
+     #[test]
+     fn image_encoding_failure_does_not_silently_paste_text() {
+         let result = paste_clipboard_content_with(
++            Vec::new,
+             || Err(PasteImageError::EncodeFailed("broken bitmap".to_string())),
+             || -> Result<String, String> { panic!("text fallback must not run") },
+         );
+@@ -506,6 +534,21 @@ mod clipboard_content_tests {
+             "image paste failed: could not encode image: broken bitmap"
+         );
+     }
++
++    #[test]
++    fn clipboard_files_are_all_preserved_before_bitmap_and_text_fallbacks() {
++        let paths = vec![
++            PathBuf::from("report.docx"),
++            PathBuf::from("screenshot.png"),
++        ];
++        let result = paste_clipboard_content_with(
++            || paths.clone(),
++            || panic!("file lists must not collapse to their first image"),
++            || panic!("file lists must not collapse to text"),
++        )
++        .expect("files");
++        assert!(matches!(result, PastedClipboardContent::Files(actual) if actual == paths));
++    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/codex-rs/tui/src/history_cell/messages.rs b/codex-rs/tui/src/history_cell/messages.rs
+index d997386..df7a245 100644
+--- a/codex-rs/tui/src/history_cell/messages.rs
++++ b/codex-rs/tui/src/history_cell/messages.rs
+@@ -108,9 +108,15 @@ fn trim_trailing_blank_lines(mut lines: Vec<Line<'static>>) -> Vec<Line<'static>
+ 
+ impl HistoryCell for UserHistoryCell {
+     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+-        let message = sanitize_user_text(&self.message);
+-        let text_elements = if message == self.message {
+-            self.text_elements.as_slice()
++        let (display, projected_elements) = crate::attachment_label::display_user_attachments(
++            &self.message,
++            &self.text_elements,
++            &self.local_image_paths,
++            self.remote_image_urls.len(),
++        );
++        let message = sanitize_user_text(&display);
++        let text_elements = if message == display {
++            projected_elements.as_slice()
+         } else {
+             &[]
+         };
+diff --git a/codex-rs/tui/src/lib.rs b/codex-rs/tui/src/lib.rs
+index dc2fa43..b93af58 100644
+--- a/codex-rs/tui/src/lib.rs
++++ b/codex-rs/tui/src/lib.rs
+@@ -97,6 +97,8 @@ mod app_server_approval_conversions;
+ mod app_server_session;
+ mod approval_events;
+ mod ascii_animation;
++mod attachment_label;
++mod attachment_paths;
+ mod bottom_pane;
+ mod branch_summary;
+ mod chatwidget;
+diff --git a/codex-rs/tui/src/snapshots/codex_tui__attachment_label__tests__submitted_attachments_render_filename_labels_for_every_file.snap b/codex-rs/tui/src/snapshots/codex_tui__attachment_label__tests__submitted_attachments_render_filename_labels_for_every_file.snap
+new file mode 100644
+index 0000000..c1c2c98
+--- /dev/null
++++ b/codex-rs/tui/src/snapshots/codex_tui__attachment_label__tests__submitted_attachments_render_filename_labels_for_every_file.snap
+@@ -0,0 +1,11 @@
++---
++source: tui/src/attachment_label_tests.rs
++assertion_line: 79
++expression: terminal.backend()
++---
++"                                                                      "
++"› [📷 screen.png] [📷 screen.png · 2] [📄 report.docx]                " Hidden by multi-width symbols: [(4, " "), (20, " "), (40, " ")]
++"                                                                      "
++"                                                                      "
++"                                                                      "
++"                                                                      "

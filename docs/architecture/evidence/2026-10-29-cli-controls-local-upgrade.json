@@ -1,0 +1,25 @@
+{
+  "requestedAt": "2026-10-29T09:21:05.503Z",
+  "appRestarted": false,
+  "gatewayRestarted": true,
+  "phase": "complete",
+  "updatedAt": "2026-10-29T09:21:11.425Z",
+  "historyPreserved": true,
+  "capabilities": {
+    "modelCount": 15,
+    "reasoningEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "approvalModes": [
+      "ask",
+      "read-only",
+      "auto",
+      "deny"
+    ]
+  },
+  "health": "activate-existing"
+}

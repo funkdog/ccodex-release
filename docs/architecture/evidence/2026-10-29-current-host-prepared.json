@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "host": "current",
+  "inspectionOnly": false,
+  "activationReady": false,
+  "application": "/Applications/ChatGPT.app",
+  "executable": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+  "nativeCli": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+  "applicationVersion": "26.1023.50603",
+  "archiveSha256": "94a7fac7fdf222261170204df0406249822431cf4db3627d5524b6ba033ce3e6",
+  "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  "running": [
+    {
+      "pid": 92047,
+      "lifetime": "macos:Wed Oct 28 05:27:27 2026"
+    }
+  ],
+  "profilePolicy": "preserve-existing-no-profile-override",
+  "launchPerformed": false,
+  "originalFilesModified": false,
+  "globalEnvironmentModified": false,
+  "nextStep": "After the coordinated quit, use the same configuration with --activate. Preparation did not start a gateway or Desktop.",
+  "mode": "app-server-gateway",
+  "instanceId": "current-mac",
+  "configGeneration": "e80bb2f4c69145ed3bebbd115cca2049baf1d6ab94e0afb83561167faff6552c",
+  "phase": "prepared",
+  "frontend": "routed-stdio.mjs",
+  "stagedNativeProbe": {
+    "version": "codex-cli 0.165.0-alpha.1.2",
+    "temporaryCodexHome": true,
+    "existingCodexHomeUsed": false,
+    "temporaryEntries": [
+      "tmp"
+    ],
+    "temporaryHomeRemoved": true
+  },
+  "gatewayRunning": false,
+  "sourceGeneration": "9dfaf12028570e7ff981025a624ccd826ef968e8db08b79e73f9fa7eb3f30ac3",
+  "preparedAt": "2026-10-29T02:19:13.314Z"
+}

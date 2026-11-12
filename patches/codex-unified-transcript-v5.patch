@@ -1,0 +1,1696 @@
+diff --git a/codex-rs/.config/nextest.toml b/codex-rs/.config/nextest.toml
+index 1e03209..7b6240b 100644
+--- a/codex-rs/.config/nextest.toml
++++ b/codex-rs/.config/nextest.toml
+@@ -11,6 +11,13 @@ path = "junit.xml"
+ [profile.local]
+ inherits = "default"
+ 
++[[profile.local.overrides]]
++# Each case starts, resumes or forks embedded app servers. Keep the assertions and
++# timeout unchanged, but run these workflows alone in the six-slot local test pool.
++platform = 'cfg(windows)'
++filter = 'package(codex-tui) & (test(in_app_resume_uses_configured_or_explicit_cwd) | test(startup_resume_and_fork_use_configured_or_explicit_cwd) | test(app::tests::safety_buffering::safety_retry))'
++threads-required = 6
++
+ [test-groups.app_server_protocol_codegen]
+ max-threads = 1
+ 
+diff --git a/codex-rs/tui/src/app_backtrack.rs b/codex-rs/tui/src/app_backtrack.rs
+index 6d1b401..369c9ac 100644
+--- a/codex-rs/tui/src/app_backtrack.rs
++++ b/codex-rs/tui/src/app_backtrack.rs
+@@ -204,7 +204,11 @@ impl App {
+     /// Close transcript overlay and restore normal UI.
+     pub(crate) fn close_transcript_overlay(&mut self, tui: &mut tui::Tui) {
+         let was_scrollback = self.overlay.as_ref().is_some_and(Overlay::is_scrollback);
+-        if was_scrollback {
++        if self.transcript_view.is_some() {
++            if let Err(error) = tui.terminal.clear_visible_screen() {
++                tracing::warn!(%error, "failed to clear transcript overlay");
++            }
++        } else if was_scrollback {
+             let _ = tui.leave_scrollback_screen();
+         } else {
+             let _ = tui.leave_alt_screen();
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index 901514a..07e958e 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -207,6 +207,7 @@ mod app_server_events;
+ pub(crate) mod app_server_requests;
+ mod background_requests;
+ mod config_persistence;
++mod docked_transcript;
+ mod event_dispatch;
+ mod history_ui;
+ mod input;
+@@ -525,6 +526,7 @@ pub(crate) struct App {
+     pub(crate) file_search: FileSearchManager,
+ 
+     pub(crate) transcript_cells: Vec<Arc<dyn HistoryCell>>,
++    pub(crate) transcript_view: Option<crate::transcript_view::TranscriptView>,
+ 
+     // Pager overlay state (Transcript or Static like Diff)
+     pub(crate) overlay: Option<Overlay>,
+@@ -1030,6 +1032,9 @@ See the Codex keymap documentation for supported actions and examples."
+         #[cfg(not(debug_assertions))]
+         let upgrade_version = crate::updates::get_upgrade_version(&config);
+ 
++        let transcript_view =
++            tui::mouse_capture_enabled().then(crate::transcript_view::TranscriptView::default);
++        tui.set_docked_transcript_enabled(transcript_view.is_some());
+         let mut app = Self {
+             model_catalog,
+             session_telemetry: session_telemetry.clone(),
+@@ -1049,6 +1054,7 @@ See the Codex keymap documentation for supported actions and examples."
+             enhanced_keys_supported,
+             keymap: runtime_keymap,
+             transcript_cells: Vec::new(),
++            transcript_view,
+             overlay: None,
+             deferred_history_lines: Vec::new(),
+             has_emitted_history_lines: false,
+@@ -1250,6 +1256,7 @@ See the Codex keymap documentation for supported actions and examples."
+         if let Err(err) = app_server.shutdown().await {
+             tracing::warn!(error = %err, "failed to shut down embedded app server");
+         }
++        app.restore_native_transcript_on_exit(tui)?;
+         let clear_pet_result = tui.clear_ambient_pet_image();
+         let clear_result = tui.terminal.clear();
+         let exit_reason = match exit_reason_result {
+@@ -1292,6 +1299,9 @@ See the Codex keymap documentation for supported actions and examples."
+         if matches!(event, TuiEvent::Draw | TuiEvent::Resize) {
+             self.handle_draw_pre_render(tui)?;
+         }
++        if self.overlay.is_none() && self.handle_docked_transcript_input(tui, &event) {
++            return Ok(AppRunControl::Continue);
++        }
+ 
+         if self.scrollback_overlay_active() {
+             self.handle_scrollback_event(tui, app_server, event).await?;
+@@ -1306,7 +1316,9 @@ See the Codex keymap documentation for supported actions and examples."
+                     self.handle_terminal_paste(pasted);
+                 }
+                 TuiEvent::Mouse(mouse) => {
+-                    if matches!(mouse.kind, crossterm::event::MouseEventKind::ScrollUp) {
++                    if self.transcript_view.is_none()
++                        && matches!(mouse.kind, crossterm::event::MouseEventKind::ScrollUp)
++                    {
+                         self.open_scrollback_overlay(tui);
+                         self.handle_scrollback_mouse(tui, mouse)?;
+                     } else {
+@@ -1373,6 +1385,9 @@ See the Codex keymap documentation for supported actions and examples."
+     }
+ 
+     fn render_chat_widget_frame(&mut self, tui: &mut tui::Tui) -> Result<Rect> {
++        if self.transcript_view.is_some() {
++            return self.render_docked_chat_frame(tui);
++        }
+         let width = tui.terminal.size()?.width;
+         self.with_chat_widget_frame(width, |desired_height, chat_widget| {
+             let mut rendered_area = Rect::default();
+diff --git a/codex-rs/tui/src/app/docked_transcript_tests.rs b/codex-rs/tui/src/app/docked_transcript_tests.rs
+new file mode 100644
+index 0000000..a700779
+--- /dev/null
++++ b/codex-rs/tui/src/app/docked_transcript_tests.rs
+@@ -0,0 +1,71 @@
++use super::*;
++use crate::history_cell::PlainHistoryCell;
++use crate::transcript_view::TranscriptView;
++use crossterm::event::MouseButton;
++use crossterm::event::MouseEvent;
++use crossterm::event::MouseEventKind;
++use pretty_assertions::assert_eq;
++
++fn mouse(kind: MouseEventKind, column: u16, row: u16) -> TuiEvent {
++    TuiEvent::Mouse(MouseEvent {
++        kind,
++        column,
++        row,
++        modifiers: KeyModifiers::NONE,
++    })
++}
++
++#[tokio::test]
++async fn output_copy_is_consumed_before_composer_or_interrupt_handling() {
++    let mut app = super::super::test_support::make_test_app().await;
++    let mut tui = crate::tui::test_support::make_test_tui().unwrap();
++    app.chat_widget
++        .handle_paste("draft remains unchanged".into());
++    let before = app.chat_widget.composer_text_with_pending();
++    let mut view = TranscriptView::default();
++    view.sync(
++        &[Arc::new(PlainHistoryCell::new(vec!["output text".into()]))],
++        40,
++        history_cell::HistoryRenderMode::Rich,
++        None,
++        |_| None,
++    );
++    view.render(
++        Rect::new(0, 0, 41, 6),
++        &mut ratatui::buffer::Buffer::empty(Rect::new(0, 0, 41, 6)),
++    );
++    app.transcript_view = Some(view);
++    for event in [
++        mouse(MouseEventKind::Down(MouseButton::Left), 0, 0),
++        mouse(MouseEventKind::Drag(MouseButton::Left), 6, 0),
++        mouse(MouseEventKind::Up(MouseButton::Left), 6, 0),
++    ] {
++        assert!(
++            app.handle_docked_transcript_input_with_copy(&mut tui, &event, |_| panic!(
++                "not a copy"
++            ))
++        );
++    }
++    let mut copied = String::new();
++    assert!(app.handle_docked_transcript_input_with_copy(
++        &mut tui,
++        &TuiEvent::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
++        |text| {
++            copied = text.into();
++            Ok(None)
++        },
++    ));
++    assert_eq!(copied, "output");
++    assert_eq!(app.chat_widget.composer_text_with_pending(), before);
++    assert!(app.handle_docked_transcript_input_with_copy(
++        &mut tui,
++        &TuiEvent::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
++        |_| panic!("not a copy"),
++    ));
++    assert!(app.transcript_view.as_ref().unwrap().following());
++    assert!(!app.handle_docked_transcript_input_with_copy(
++        &mut tui,
++        &TuiEvent::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)),
++        |_| panic!("not a copy"),
++    ));
++}
+diff --git a/codex-rs/tui/src/app/docked_transcript.rs b/codex-rs/tui/src/app/docked_transcript.rs
+new file mode 100644
+index 0000000..6930dbb
+--- /dev/null
++++ b/codex-rs/tui/src/app/docked_transcript.rs
+@@ -0,0 +1,174 @@
++//! Route output selection before composer input, and render both over one row coordinate space.
++
++use super::*;
++use crate::transcript_view::MouseAction;
++use ratatui::widgets::Widget;
++
++impl App {
++    pub(super) fn handle_docked_transcript_input(
++        &mut self,
++        tui: &mut tui::Tui,
++        event: &TuiEvent,
++    ) -> bool {
++        self.handle_docked_transcript_input_with_copy(
++            tui,
++            event,
++            crate::clipboard_copy::copy_to_clipboard,
++        )
++    }
++
++    fn handle_docked_transcript_input_with_copy(
++        &mut self,
++        tui: &mut tui::Tui,
++        event: &TuiEvent,
++        copy_text: impl FnOnce(
++            &str,
++        ) -> std::result::Result<
++            Option<crate::clipboard_copy::ClipboardLease>,
++            String,
++        >,
++    ) -> bool {
++        if !self.chat_widget.no_modal_or_popup_active() {
++            return false;
++        }
++        let Some(view) = &mut self.transcript_view else {
++            return false;
++        };
++        let mut copy = None;
++        match event {
++            TuiEvent::Key(key)
++                if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) =>
++            {
++                let copy_key = key.modifiers.contains(KeyModifiers::CONTROL)
++                    && matches!(key.code, KeyCode::Char('c' | 'C') | KeyCode::Insert);
++                if copy_key && view.has_selection() {
++                    copy = view.selected_text();
++                } else if key.code == KeyCode::Down && key.modifiers.is_empty() && !view.following()
++                {
++                    view.jump_to_latest();
++                } else if key.code == KeyCode::Esc && view.has_selection() {
++                    view.clear_selection();
++                } else {
++                    if matches!(
++                        key.code,
++                        KeyCode::Char(_) | KeyCode::Enter | KeyCode::Backspace
++                    ) {
++                        view.clear_selection();
++                    }
++                    return false;
++                }
++            }
++            TuiEvent::Mouse(mouse) => match view.handle_mouse(*mouse) {
++                MouseAction::Copy(text) => copy = Some(text),
++                MouseAction::Redraw => {}
++                MouseAction::Unhandled => {
++                    if matches!(mouse.kind, crossterm::event::MouseEventKind::Down(_)) {
++                        view.clear_selection();
++                    }
++                    return false;
++                }
++            },
++            TuiEvent::Paste(_) => {
++                view.clear_selection();
++                return false;
++            }
++            _ => return false,
++        }
++        if let Some(text) = copy {
++            match copy_text(&text) {
++                Ok(lease) => view.clipboard_lease = lease,
++                Err(error) => self
++                    .chat_widget
++                    .add_error_message(format!("Failed to copy selection: {error}")),
++            }
++        }
++        tui.frame_requester().schedule_frame();
++        true
++    }
++
++    pub(super) fn render_docked_chat_frame(&mut self, tui: &mut tui::Tui) -> Result<Rect> {
++        let width = tui.terminal.size()?.width;
++        let chat = &self.chat_widget;
++        let composer = chat.composer_as_renderable();
++        let composer_height = composer.desired_height(width);
++        let active_key = chat.active_cell_transcript_key();
++        let view = self
++            .transcript_view
++            .as_mut()
++            .ok_or_else(|| color_eyre::eyre::eyre!("docked transcript is not initialized"))?;
++        view.sync(
++            &self.transcript_cells,
++            width.saturating_sub(1).max(1),
++            chat.history_render_mode(),
++            active_key,
++            |width| chat.active_cell_view_hyperlink_lines(width),
++        );
++        let autoscrolling = view.autoscroll(Instant::now());
++        let mut rendered = Rect::default();
++        tui.draw_transcript(|frame| {
++            let area = frame.area();
++            let height = composer_height.min(area.height);
++            let history = Rect::new(
++                area.x,
++                area.y,
++                area.width,
++                area.height.saturating_sub(height),
++            );
++            let input = Rect::new(area.x, history.bottom(), area.width, height);
++            view.render(history, frame.buffer);
++            composer.render(input, frame.buffer);
++            if !view.following() && input.height > 0 {
++                let hint = if view.has_selection() {
++                    "Selection paused \u{b7} Ctrl+C / right-click copy \u{b7} \u{2193} latest"
++                } else {
++                    "Scrolled \u{b7} \u{2193} latest"
++                };
++                ratatui::widgets::Paragraph::new(hint.cyan()).render(
++                    Rect::new(input.x + 1, input.y, input.width.saturating_sub(1), 1),
++                    frame.buffer,
++                );
++            }
++            chat.note_rendered_width(input.width);
++            if let Some((x, y)) = composer.cursor_pos(input) {
++                frame.set_cursor_style(composer.cursor_style(input));
++                frame.set_cursor_position((x, y));
++            }
++            rendered = area;
++        })?;
++        if autoscrolling
++            || (view.following() && active_key.is_some_and(|key| key.animation_tick.is_some()))
++        {
++            tui.frame_requester()
++                .schedule_frame_in(Duration::from_millis(60));
++        }
++        Ok(rendered)
++    }
++
++    pub(super) fn restore_native_transcript_on_exit(&mut self, tui: &mut tui::Tui) -> Result<()> {
++        if self.transcript_view.take().is_none() {
++            return Ok(());
++        }
++        let was_alternate = tui.is_alt_screen_active();
++        tui.set_docked_transcript_enabled(/*enabled*/ false);
++        tui.leave_alt_screen()?;
++        if !was_alternate {
++            tui.terminal.clear_visible_screen()?;
++            let mut area = tui.terminal.viewport_area;
++            area.y = 0;
++            area.height = 0;
++            tui.terminal.set_viewport_area(area);
++        }
++        // Append the conversation after the preserved shell, never purge the shell's scrollback.
++        let width = self
++            .chat_widget
++            .history_wrap_width(tui.terminal.size()?.width);
++        let lines = self.render_transcript_lines_for_reflow(width).lines;
++        tui.insert_history_hyperlink_lines_with_wrap_policy(lines, self.history_line_wrap_policy());
++        self.render_chat_widget_frame(tui)?;
++        Ok(())
++    }
++}
++
++#[cfg(test)]
++#[path = "docked_transcript_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/app/history_ui.rs b/codex-rs/tui/src/app/history_ui.rs
+index 547083c..7157e9e 100644
+--- a/codex-rs/tui/src/app/history_ui.rs
++++ b/codex-rs/tui/src/app/history_ui.rs
+@@ -120,6 +120,12 @@ impl App {
+             .history_wrap_width(tui.terminal.last_known_screen_size.width);
+         let header_lines = self.clear_ui_header_lines(width);
+         if !header_lines.is_empty() {
++            if self.transcript_view.is_some() {
++                self.transcript_cells
++                    .push(Arc::new(history_cell::PlainHistoryCell::new(header_lines)));
++                tui.frame_requester().schedule_frame();
++                return;
++            }
+             tui.insert_history_lines(header_lines);
+             self.has_emitted_history_lines = true;
+         }
+@@ -163,6 +169,9 @@ impl App {
+     }
+ 
+     pub(super) fn reset_transcript_state_after_clear(&mut self) {
++        if let Some(view) = &mut self.transcript_view {
++            view.reset();
++        }
+         self.overlay = None;
+         self.transcript_cells.clear();
+         self.deferred_history_lines.clear();
+diff --git a/codex-rs/tui/src/app/resize_reflow.rs b/codex-rs/tui/src/app/resize_reflow.rs
+index e61db78..e3a28bc 100644
+--- a/codex-rs/tui/src/app/resize_reflow.rs
++++ b/codex-rs/tui/src/app/resize_reflow.rs
+@@ -94,6 +94,10 @@ impl App {
+         cell: &dyn HistoryCell,
+         width: u16,
+     ) {
++        if self.transcript_view.is_some() {
++            tui.frame_requester().schedule_frame();
++            return;
++        }
+         let display = self.display_lines_for_history_insert(cell, width);
+         if display.is_empty() {
+             return;
+@@ -140,6 +144,11 @@ impl App {
+     /// This mirrors terminal scrollback behavior and avoids making startup replay cheaper or more
+     /// expensive than a later resize rebuild of the same transcript.
+     pub(super) fn finish_initial_history_replay_buffer(&mut self, tui: &mut tui::Tui) {
++        if self.transcript_view.is_some() {
++            self.initial_history_replay_buffer = None;
++            tui.frame_requester().schedule_frame();
++            return;
++        }
+         let Some(buffer) = self.initial_history_replay_buffer.take() else {
+             return;
+         };
+@@ -168,6 +177,10 @@ impl App {
+         cell: &dyn HistoryCell,
+         width: u16,
+     ) {
++        if self.transcript_view.is_some() {
++            tui.frame_requester().schedule_frame();
++            return;
++        }
+         if self
+             .initial_history_replay_buffer
+             .as_ref()
+@@ -407,6 +420,12 @@ impl App {
+ 
+     pub(super) fn reflow_transcript_now(&mut self, tui: &mut tui::Tui) -> Result<u16> {
+         let terminal_width = tui.terminal.size()?.width;
++        if self.transcript_view.is_some() {
++            tui.clear_pending_history_lines();
++            self.deferred_history_lines.clear();
++            tui.frame_requester().schedule_frame();
++            return Ok(terminal_width);
++        }
+         let width = self.chat_widget.history_wrap_width(terminal_width);
+         if self.transcript_cells.is_empty() {
+             // Drop any queued pre-resize/pre-consolidation inserts before rebuilding from cells.
+@@ -439,6 +458,10 @@ impl App {
+     /// the cancelled user prompt stays visible in scrollback despite being removed from the source
+     /// transcript.
+     pub(super) fn rebuild_transcript_after_backtrack(&mut self, tui: &mut tui::Tui) -> Result<()> {
++        if self.transcript_view.is_some() {
++            self.reflow_transcript_now(tui)?;
++            return Ok(());
++        }
+         let terminal_width = tui.terminal.size()?.width;
+         let width = self.chat_widget.history_wrap_width(terminal_width);
+         let reflowed_lines = if self.transcript_cells.is_empty() {
+diff --git a/codex-rs/tui/src/app/test_support.rs b/codex-rs/tui/src/app/test_support.rs
+index 0d8a4a1..4bd2587 100644
+--- a/codex-rs/tui/src/app/test_support.rs
++++ b/codex-rs/tui/src/app/test_support.rs
+@@ -33,6 +33,7 @@ pub(super) async fn make_test_app() -> App {
+         runtime_permission_profile_override: None,
+         file_search,
+         transcript_cells: Vec::new(),
++        transcript_view: None,
+         overlay: None,
+         deferred_history_lines: Vec::new(),
+         has_emitted_history_lines: false,
+diff --git a/codex-rs/tui/src/app/tests.rs b/codex-rs/tui/src/app/tests.rs
+index dc2efb8..4cddbba 100644
+--- a/codex-rs/tui/src/app/tests.rs
++++ b/codex-rs/tui/src/app/tests.rs
+@@ -4634,6 +4634,7 @@ async fn make_test_app() -> App {
+         runtime_permission_profile_override: None,
+         file_search,
+         transcript_cells: Vec::new(),
++        transcript_view: None,
+         overlay: None,
+         deferred_history_lines: Vec::new(),
+         has_emitted_history_lines: false,
+@@ -4701,6 +4702,7 @@ async fn make_test_app_with_channels() -> (
+             runtime_permission_profile_override: None,
+             file_search,
+             transcript_cells: Vec::new(),
++            transcript_view: None,
+             overlay: None,
+             deferred_history_lines: Vec::new(),
+             has_emitted_history_lines: false,
+diff --git a/codex-rs/tui/src/chatwidget/rendering.rs b/codex-rs/tui/src/chatwidget/rendering.rs
+index 965a163..985020b 100644
+--- a/codex-rs/tui/src/chatwidget/rendering.rs
++++ b/codex-rs/tui/src/chatwidget/rendering.rs
+@@ -3,6 +3,33 @@
+ use super::*;
+ 
+ impl ChatWidget {
++    pub(crate) fn active_cell_view_hyperlink_lines(
++        &self,
++        width: u16,
++    ) -> Option<Vec<HyperlinkLine>> {
++        let cells: [Option<&dyn HistoryCell>; 4] = [
++            self.transcript.active_cell.as_deref(),
++            self.active_hook_cell
++                .as_ref()
++                .map(|cell| cell as &dyn HistoryCell),
++            self.pending_token_activity_output()
++                .map(|cell| cell as &dyn HistoryCell),
++            self.pending_rate_limit_reset_hint()
++                .map(|cell| cell as &dyn HistoryCell),
++        ];
++        let mut lines = Vec::new();
++        for cell in cells.into_iter().flatten() {
++            let rendered = cell.display_hyperlink_lines_for_mode(width, self.history_render_mode());
++            if !rendered.is_empty() {
++                if !lines.is_empty() && !cell.is_stream_continuation() {
++                    lines.push(HyperlinkLine::from(""));
++                }
++                lines.extend(rendered);
++            }
++        }
++        (!lines.is_empty()).then_some(lines)
++    }
++
+     pub(crate) fn composer_as_renderable(&self) -> RenderableItem<'_> {
+         self.bottom_pane
+             .as_renderable_with_composer_right_reserve(self.ambient_pet_wrap_reserved_cols())
+diff --git a/codex-rs/tui/src/lib.rs b/codex-rs/tui/src/lib.rs
+index b93af58..12ae805 100644
+--- a/codex-rs/tui/src/lib.rs
++++ b/codex-rs/tui/src/lib.rs
+@@ -190,6 +190,7 @@ mod thread_transcript;
+ mod token_usage;
+ mod tooltips;
+ mod transcript_reflow;
++mod transcript_view;
+ mod tui;
+ mod ui_consts;
+ pub(crate) mod update_action;
+diff --git a/codex-rs/tui/src/transcript_view/buffer_tests.rs b/codex-rs/tui/src/transcript_view/buffer_tests.rs
+new file mode 100644
+index 0000000..e9f1863
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/buffer_tests.rs
+@@ -0,0 +1,68 @@
++use super::*;
++use pretty_assertions::assert_eq;
++use ratatui::text::Line;
++use std::sync::atomic::AtomicUsize;
++use std::sync::atomic::Ordering;
++
++#[derive(Debug)]
++struct CountedCell {
++    renders: Arc<AtomicUsize>,
++    stable: bool,
++}
++
++impl HistoryCell for CountedCell {
++    fn display_lines(&self, _width: u16) -> Vec<Line<'static>> {
++        self.renders.fetch_add(1, Ordering::Relaxed);
++        vec!["unchanged output".into()]
++    }
++
++    fn raw_lines(&self) -> Vec<Line<'static>> {
++        vec!["raw output".into()]
++    }
++
++    fn has_stable_transcript_height(&self) -> bool {
++        self.stable
++    }
++}
++
++#[test]
++fn a_dynamic_card_does_not_rebuild_later_stable_cells() {
++    let dynamic_renders = Arc::new(AtomicUsize::new(0));
++    let stable_renders = Arc::new(AtomicUsize::new(0));
++    let cells: Vec<Arc<dyn HistoryCell>> = vec![
++        Arc::new(CountedCell {
++            renders: Arc::clone(&dynamic_renders),
++            stable: false,
++        }),
++        Arc::new(CountedCell {
++            renders: Arc::clone(&stable_renders),
++            stable: true,
++        }),
++    ];
++    let mut buffer = TranscriptBuffer::default();
++    buffer.sync(&cells, 60, HistoryRenderMode::Rich);
++    let before = buffer.rows.clone();
++    assert!(matches!(
++        buffer.sync(&cells, 60, HistoryRenderMode::Rich),
++        BufferChange::Unchanged
++    ));
++    assert_eq!(dynamic_renders.load(Ordering::Relaxed), 2);
++    assert_eq!(stable_renders.load(Ordering::Relaxed), 1);
++    assert_eq!(buffer.rows, before);
++    assert!(matches!(
++        buffer.sync(&cells, 30, HistoryRenderMode::Rich),
++        BufferChange::Layout
++    ));
++    assert_eq!(stable_renders.load(Ordering::Relaxed), 2);
++    buffer.layout.as_mut().unwrap().syntax_theme_revision =
++        crate::render::highlight::syntax_theme_revision().wrapping_sub(1);
++    assert!(matches!(
++        buffer.sync(&cells, 30, HistoryRenderMode::Rich),
++        BufferChange::Layout
++    ));
++    assert_eq!(stable_renders.load(Ordering::Relaxed), 3);
++    buffer.sync(&cells[..1], 30, HistoryRenderMode::Raw);
++    assert_eq!(buffer.rows, vec![HyperlinkLine::from("raw output")]);
++    buffer.sync(&[], 30, HistoryRenderMode::Rich);
++    assert_eq!(buffer.rows, Vec::<HyperlinkLine>::new());
++}
+diff --git a/codex-rs/tui/src/transcript_view/buffer.rs b/codex-rs/tui/src/transcript_view/buffer.rs
+new file mode 100644
+index 0000000..4e9ff0d
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/buffer.rs
+@@ -0,0 +1,136 @@
++//! Cache cells independently so a changing status card cannot invalidate a long transcript.
++
++use std::sync::Arc;
++
++use crate::history_cell::HistoryCell;
++use crate::history_cell::HistoryRenderMode;
++use crate::render::line_utils::line_to_static;
++use crate::terminal_hyperlinks::HyperlinkLine;
++use crate::terminal_hyperlinks::remap_wrapped_line;
++use crate::wrapping::RtOptions;
++use crate::wrapping::word_wrap_line;
++
++pub(super) enum BufferChange {
++    Unchanged,
++    Content,
++    Layout,
++}
++
++struct CachedCell {
++    source: Arc<dyn HistoryCell>,
++    lines: Vec<HyperlinkLine>,
++    continuation: bool,
++}
++
++#[derive(Clone, Copy, Eq, PartialEq)]
++struct Layout {
++    width: u16,
++    mode: HistoryRenderMode,
++    syntax_theme_revision: u64,
++    foreground: Option<(u8, u8, u8)>,
++    background: Option<(u8, u8, u8)>,
++}
++
++#[derive(Default)]
++pub(super) struct TranscriptBuffer {
++    cells: Vec<CachedCell>,
++    ends: Vec<usize>,
++    layout: Option<Layout>,
++    pub(super) rows: Vec<HyperlinkLine>,
++}
++
++impl TranscriptBuffer {
++    pub(super) fn sync(
++        &mut self,
++        cells: &[Arc<dyn HistoryCell>],
++        width: u16,
++        mode: HistoryRenderMode,
++    ) -> BufferChange {
++        let layout = Layout {
++            width,
++            mode,
++            syntax_theme_revision: crate::render::highlight::syntax_theme_revision(),
++            foreground: crate::terminal_palette::default_fg(),
++            background: crate::terminal_palette::default_bg(),
++        };
++        let layout_changed = self.layout != Some(layout);
++        self.layout = Some(layout);
++        let mut first_changed = None;
++        for (index, source) in cells.iter().enumerate() {
++            let cached = self.cells.get_mut(index);
++            if !layout_changed
++                && cached.as_ref().is_some_and(|cached| {
++                    Arc::ptr_eq(&cached.source, source) && source.has_stable_transcript_height()
++                })
++            {
++                continue;
++            }
++            let lines = wrap_rows(source.display_hyperlink_lines_for_mode(width, mode), width);
++            let continuation = source.is_stream_continuation();
++            if let Some(cached) = cached {
++                if cached.lines != lines || cached.continuation != continuation || layout_changed {
++                    first_changed.get_or_insert(index);
++                    cached.lines = lines;
++                    cached.continuation = continuation;
++                }
++                cached.source = Arc::clone(source);
++            } else {
++                first_changed.get_or_insert(index);
++                self.cells.push(CachedCell {
++                    source: Arc::clone(source),
++                    lines,
++                    continuation,
++                });
++            }
++        }
++        if self.cells.len() > cells.len() {
++            first_changed.get_or_insert(cells.len());
++            self.cells.truncate(cells.len());
++        }
++        if let Some(start) = first_changed {
++            self.rows.truncate(
++                start
++                    .checked_sub(1)
++                    .map(|index| self.ends[index])
++                    .unwrap_or(0),
++            );
++            self.ends.truncate(start);
++            for cell in &self.cells[start..] {
++                if !cell.lines.is_empty() {
++                    if !self.rows.is_empty() && !cell.continuation {
++                        self.rows.push(HyperlinkLine::from(""));
++                    }
++                    self.rows.extend(cell.lines.iter().cloned());
++                }
++                self.ends.push(self.rows.len());
++            }
++        }
++        if layout_changed {
++            BufferChange::Layout
++        } else if first_changed.is_some() {
++            BufferChange::Content
++        } else {
++            BufferChange::Unchanged
++        }
++    }
++}
++
++pub(super) fn wrap_rows(lines: Vec<HyperlinkLine>, width: u16) -> Vec<HyperlinkLine> {
++    let mut rows = Vec::new();
++    for line in lines {
++        if line.width() <= usize::from(width) {
++            rows.push(line);
++        } else {
++            let wrapped = word_wrap_line(&line.line, RtOptions::new(usize::from(width.max(1))))
++                .iter()
++                .map(line_to_static)
++                .collect();
++            rows.extend(remap_wrapped_line(&line, wrapped));
++        }
++    }
++    rows
++}
++
++#[cfg(test)]
++#[path = "buffer_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/transcript_view/mod.rs b/codex-rs/tui/src/transcript_view/mod.rs
+new file mode 100644
+index 0000000..dae3aee
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/mod.rs
+@@ -0,0 +1,380 @@
++//! One source-backed viewport owns live output, scroll position, selection and its scrollbar.
++//!
++//! Stable committed cells are cached by Arc identity and width. A selection freezes its visible
++//! document while live cells continue updating offscreen, so consolidation cannot change copied
++//! text under the pointer. Returning to the live tail releases that snapshot.
++
++use std::sync::Arc;
++use std::time::Duration;
++use std::time::Instant;
++
++use crossterm::event::MouseButton;
++use crossterm::event::MouseEvent;
++use crossterm::event::MouseEventKind;
++use ratatui::buffer::Buffer;
++use ratatui::layout::Rect;
++use ratatui::style::Modifier;
++use ratatui::style::Stylize;
++use ratatui::widgets::Clear;
++use ratatui::widgets::Paragraph;
++use ratatui::widgets::Widget;
++use ratatui::widgets::WidgetRef;
++
++use crate::chatwidget::ActiveCellTranscriptKey;
++use crate::clipboard_copy::ClipboardLease;
++use crate::history_cell::HistoryCell;
++use crate::history_cell::HistoryRenderMode;
++use crate::terminal_hyperlinks::HyperlinkLine;
++use crate::terminal_hyperlinks::mark_buffer_hyperlinks;
++
++mod buffer;
++mod scrollbar;
++mod selection;
++use buffer::BufferChange;
++use buffer::TranscriptBuffer;
++use buffer::wrap_rows;
++use scrollbar::Scrollbar;
++use selection::Point;
++use selection::Selection;
++use selection::slice_columns;
++use selection::snap_column;
++
++const WHEEL_ROWS: usize = 3;
++const AUTOSCROLL_INTERVAL: Duration = Duration::from_millis(60);
++
++pub(crate) enum MouseAction {
++    Unhandled,
++    Redraw,
++    Copy(String),
++}
++
++pub(crate) struct TranscriptView {
++    committed: TranscriptBuffer,
++    tail: Vec<HyperlinkLine>,
++    area: Rect,
++    offset: usize,
++    following: bool,
++    selection: Option<Selection>,
++    selected_document: Option<Vec<HyperlinkLine>>,
++    drag_pointer: Option<(u16, u16)>,
++    drag_was_following: bool,
++    thumb_grab: Option<usize>,
++    last_autoscroll: Instant,
++    pub(crate) clipboard_lease: Option<ClipboardLease>,
++}
++
++impl Default for TranscriptView {
++    fn default() -> Self {
++        Self {
++            committed: TranscriptBuffer::default(),
++            tail: Vec::new(),
++            area: Rect::default(),
++            offset: 0,
++            following: true,
++            selection: None,
++            selected_document: None,
++            drag_pointer: None,
++            drag_was_following: true,
++            thumb_grab: None,
++            last_autoscroll: Instant::now(),
++            clipboard_lease: None,
++        }
++    }
++}
++
++impl TranscriptView {
++    pub(crate) fn sync(
++        &mut self,
++        cells: &[Arc<dyn HistoryCell>],
++        width: u16,
++        mode: HistoryRenderMode,
++        tail_key: Option<ActiveCellTranscriptKey>,
++        live_lines: impl FnOnce(u16) -> Option<Vec<HyperlinkLine>>,
++    ) {
++        let change = self.committed.sync(cells, width, mode);
++        if matches!(change, BufferChange::Layout) {
++            // A physical-column selection cannot be reinterpreted at another width.
++            self.clear_selection();
++        }
++        // Startup headers and delayed hooks can change without a transcript revision bump.
++        // Only the small live tail is rendered each frame; committed history remains cached.
++        self.tail = live_lines(width)
++            .map(|lines| wrap_rows(lines, width))
++            .unwrap_or_default();
++        if !self.tail.is_empty()
++            && !self.committed.rows.is_empty()
++            && tail_key.is_some_and(|key| !key.is_stream_continuation)
++        {
++            self.tail.insert(0, HyperlinkLine::from(""));
++        }
++        self.clamp_offset();
++    }
++
++    fn row_count(&self) -> usize {
++        self.selected_document
++            .as_ref()
++            .map_or(self.committed.rows.len() + self.tail.len(), Vec::len)
++    }
++
++    fn row(&self, index: usize) -> Option<&HyperlinkLine> {
++        if let Some(document) = &self.selected_document {
++            document.get(index)
++        } else if index < self.committed.rows.len() {
++            self.committed.rows.get(index)
++        } else {
++            self.tail.get(index - self.committed.rows.len())
++        }
++    }
++
++    fn clamp_offset(&mut self) {
++        let max_scroll = self
++            .row_count()
++            .saturating_sub(usize::from(self.area.height));
++        self.offset = if self.following {
++            max_scroll
++        } else {
++            self.offset.min(max_scroll)
++        };
++    }
++
++    pub(crate) fn following(&self) -> bool {
++        self.following
++    }
++
++    pub(crate) fn jump_to_latest(&mut self) {
++        self.clear_selection();
++        self.following = true;
++        self.thumb_grab = None;
++        self.clamp_offset();
++    }
++
++    pub(crate) fn clear_selection(&mut self) {
++        self.selection = None;
++        self.selected_document = None;
++        self.drag_pointer = None;
++    }
++
++    pub(crate) fn has_selection(&self) -> bool {
++        self.selection
++            .is_some_and(|selection| selection.anchor != selection.focus)
++    }
++
++    pub(crate) fn reset(&mut self) {
++        let lease = self.clipboard_lease.take();
++        *self = Self::default();
++        self.clipboard_lease = lease;
++    }
++
++    pub(crate) fn selected_text(&self) -> Option<String> {
++        let selection = self.selection?;
++        let (start, end) = selection.ordered();
++        if start == end {
++            return None;
++        }
++        let text = (start.row..=end.row)
++            .filter_map(|index| {
++                let row = self.row(index)?;
++                let columns = selection.columns(index, row.width())?;
++                Some(
++                    slice_columns(&row.line.to_string(), columns)
++                        .trim_end()
++                        .to_string(),
++                )
++            })
++            .collect::<Vec<_>>()
++            .join("\n");
++        (!text.is_empty()).then_some(text)
++    }
++
++    pub(crate) fn render(&mut self, area: Rect, buffer: &mut Buffer) {
++        self.area = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
++        self.clamp_offset();
++        Clear.render(area, buffer);
++        for visible_row in 0..usize::from(area.height) {
++            let index = self.offset + visible_row;
++            let Some(row) = self.row(index) else { break };
++            let row_area = Rect::new(area.x, area.y + visible_row as u16, self.area.width, 1);
++            Paragraph::new(row.line.clone())
++                .style(row.line.style)
++                .render(row_area, buffer);
++            mark_buffer_hyperlinks(
++                buffer,
++                row_area,
++                std::slice::from_ref(row),
++                /*scroll_rows*/ 0,
++            );
++            if let Some(columns) = self
++                .selection
++                .and_then(|selection| selection.columns(index, usize::from(self.area.width)))
++            {
++                for column in columns {
++                    buffer[(area.x + column as u16, row_area.y)]
++                        .modifier
++                        .insert(Modifier::REVERSED);
++                }
++            }
++        }
++        if area.width > 0 && area.height > 0 && self.row_count() > usize::from(area.height) {
++            let bar = Scrollbar::new(self.row_count(), usize::from(area.height), self.offset);
++            let x = area.right() - 1;
++            for y in 0..usize::from(area.height) {
++                let symbol = if (bar.top..bar.top + bar.length).contains(&y) {
++                    "\u{2503}".cyan()
++                } else {
++                    "\u{2502}".dim()
++                };
++                symbol.render_ref(Rect::new(x, area.y + y as u16, 1, 1), buffer);
++            }
++        }
++    }
++
++    fn point_at(&self, column: u16, row: u16) -> Option<Point> {
++        let visible = row
++            .saturating_sub(self.area.y)
++            .min(self.area.height.saturating_sub(1));
++        let requested = self.offset + usize::from(visible);
++        let index = requested.min(self.row_count().saturating_sub(1));
++        let text = self.row(index)?.line.to_string();
++        Some(Point {
++            row: index,
++            column: if requested >= self.row_count() {
++                self.row(index)?.width()
++            } else {
++                snap_column(&text, usize::from(column.saturating_sub(self.area.x)))
++            },
++        })
++    }
++
++    fn scroll(&mut self, direction: isize) {
++        let max_scroll = self
++            .row_count()
++            .saturating_sub(usize::from(self.area.height));
++        self.offset = self.offset.saturating_add_signed(direction).min(max_scroll);
++        self.following = self.offset == max_scroll && self.selected_document.is_none();
++    }
++
++    pub(crate) fn handle_mouse(&mut self, event: MouseEvent) -> MouseAction {
++        if self.area.height == 0 {
++            return MouseAction::Unhandled;
++        }
++        let in_rows = event.row >= self.area.y && event.row < self.area.bottom();
++        match event.kind {
++            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
++                let direction = if event.kind == MouseEventKind::ScrollUp {
++                    -1
++                } else {
++                    1
++                };
++                self.scroll(direction * WHEEL_ROWS as isize);
++                if self.drag_pointer.is_some() {
++                    self.drag_pointer = Some((event.column, event.row));
++                    self.extend_selection();
++                }
++            }
++            MouseEventKind::Down(MouseButton::Left)
++                if in_rows && event.column == self.area.right() =>
++            {
++                let bar =
++                    Scrollbar::new(self.row_count(), usize::from(self.area.height), self.offset);
++                let position = usize::from(event.row - self.area.y);
++                let grab = if (bar.top..bar.top + bar.length).contains(&position) {
++                    position - bar.top
++                } else {
++                    bar.length / 2
++                };
++                self.offset = bar.offset_at(position.saturating_sub(grab));
++                self.following = self.offset == bar.max_scroll && self.selected_document.is_none();
++                self.thumb_grab = Some(grab);
++            }
++            MouseEventKind::Down(MouseButton::Left)
++                if in_rows && event.column < self.area.right() =>
++            {
++                self.clear_selection();
++                let Some(point) = self.point_at(event.column, event.row) else {
++                    return MouseAction::Unhandled;
++                };
++                self.selected_document = Some(
++                    self.committed
++                        .rows
++                        .iter()
++                        .chain(&self.tail)
++                        .cloned()
++                        .collect(),
++                );
++                self.drag_was_following = self.following;
++                self.following = false;
++                self.selection = Some(Selection {
++                    anchor: point,
++                    focus: point,
++                });
++                self.drag_pointer = Some((event.column, event.row));
++            }
++            MouseEventKind::Drag(MouseButton::Left) if self.thumb_grab.is_some() => {
++                let bar =
++                    Scrollbar::new(self.row_count(), usize::from(self.area.height), self.offset);
++                let position = usize::from(event.row.saturating_sub(self.area.y));
++                self.offset = bar.offset_at(position.saturating_sub(self.thumb_grab.unwrap_or(0)));
++                self.following = self.offset == bar.max_scroll && self.selected_document.is_none();
++            }
++            MouseEventKind::Drag(MouseButton::Left) if self.drag_pointer.is_some() => {
++                self.drag_pointer = Some((event.column, event.row));
++                self.autoscroll(Instant::now());
++                self.extend_selection();
++            }
++            MouseEventKind::Up(MouseButton::Left)
++                if self.drag_pointer.is_some() || self.thumb_grab.is_some() =>
++            {
++                if self.drag_pointer.is_some() {
++                    self.drag_pointer = Some((event.column, event.row));
++                    self.extend_selection();
++                    if self.selected_text().is_none() {
++                        self.clear_selection();
++                        self.following = self.drag_was_following;
++                    }
++                }
++                self.drag_pointer = None;
++                self.thumb_grab = None;
++            }
++            MouseEventKind::Down(MouseButton::Right) => {
++                if let Some(text) = self.selected_text() {
++                    return MouseAction::Copy(text);
++                }
++                return MouseAction::Unhandled;
++            }
++            _ => return MouseAction::Unhandled,
++        }
++        MouseAction::Redraw
++    }
++
++    fn extend_selection(&mut self) {
++        if let Some((column, row)) = self.drag_pointer
++            && let Some(point) = self.point_at(column, row)
++            && let Some(selection) = &mut self.selection
++        {
++            selection.focus = point;
++        }
++    }
++
++    pub(crate) fn autoscroll(&mut self, now: Instant) -> bool {
++        let Some((_, row)) = self.drag_pointer else {
++            return false;
++        };
++        let direction = if row <= self.area.y {
++            -1
++        } else if row >= self.area.bottom().saturating_sub(1) {
++            1
++        } else {
++            return false;
++        };
++        if now.duration_since(self.last_autoscroll) >= AUTOSCROLL_INTERVAL {
++            self.last_autoscroll = now;
++            self.scroll(direction);
++            self.extend_selection();
++        }
++        true
++    }
++}
++
++#[cfg(test)]
++#[path = "tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/transcript_view/scrollbar_tests.rs b/codex-rs/tui/src/transcript_view/scrollbar_tests.rs
+new file mode 100644
+index 0000000..838ed5b
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/scrollbar_tests.rs
+@@ -0,0 +1,42 @@
++use super::*;
++use pretty_assertions::assert_eq;
++
++#[test]
++fn scrollbar_and_drag_share_the_actual_viewport_range() {
++    let bottom = Scrollbar::new(100, 20, 80);
++    assert_eq!(
++        bottom,
++        Scrollbar {
++            top: 16,
++            length: 4,
++            travel: 16,
++            max_scroll: 80
++        }
++    );
++    assert_eq!(bottom.offset_at(16), 80);
++    assert_eq!(bottom.offset_at(8), 40);
++    assert_eq!(bottom.offset_at(0), 0);
++    assert_eq!(Scrollbar::new(100, 20, bottom.offset_at(8)).top, 8);
++}
++
++#[test]
++fn scrollbar_handles_empty_short_and_zero_height_viewports() {
++    assert_eq!(
++        Scrollbar::new(0, 0, 0),
++        Scrollbar {
++            top: 0,
++            length: 0,
++            travel: 0,
++            max_scroll: 0
++        }
++    );
++    assert_eq!(
++        Scrollbar::new(3, 20, 10),
++        Scrollbar {
++            top: 0,
++            length: 20,
++            travel: 0,
++            max_scroll: 0
++        }
++    );
++}
+diff --git a/codex-rs/tui/src/transcript_view/scrollbar.rs b/codex-rs/tui/src/transcript_view/scrollbar.rs
+new file mode 100644
+index 0000000..8c457f0
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/scrollbar.rs
+@@ -0,0 +1,48 @@
++//! The same row offset drives the scrollbar's thumb, hit testing and drag conversion.
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub(super) struct Scrollbar {
++    pub(super) top: usize,
++    pub(super) length: usize,
++    pub(super) travel: usize,
++    pub(super) max_scroll: usize,
++}
++
++impl Scrollbar {
++    pub(super) fn new(total: usize, height: usize, offset: usize) -> Self {
++        let max_scroll = total.saturating_sub(height);
++        let length = if total == 0 || height == 0 {
++            height
++        } else {
++            height
++                .saturating_mul(height)
++                .checked_div(total)
++                .unwrap_or(0)
++                .clamp(1, height.max(1))
++        };
++        let travel = height.saturating_sub(length);
++        let top = offset
++            .min(max_scroll)
++            .saturating_mul(travel)
++            .checked_div(max_scroll)
++            .unwrap_or(0);
++        Self {
++            top,
++            length,
++            travel,
++            max_scroll,
++        }
++    }
++
++    pub(super) fn offset_at(self, position: usize) -> usize {
++        position
++            .min(self.travel)
++            .saturating_mul(self.max_scroll)
++            .checked_div(self.travel)
++            .unwrap_or(0)
++    }
++}
++
++#[cfg(test)]
++#[path = "scrollbar_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/transcript_view/selection_tests.rs b/codex-rs/tui/src/transcript_view/selection_tests.rs
+new file mode 100644
+index 0000000..84c07bc
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/selection_tests.rs
+@@ -0,0 +1,36 @@
++use super::*;
++use pretty_assertions::assert_eq;
++
++#[test]
++fn output_selection_never_splits_cjk_combining_marks_or_emoji() {
++    let text = "a\u{4e2d}e\u{301}\u{1f600}b";
++    assert_eq!(snap_column(text, 2), 1);
++    assert_eq!(snap_column(text, 5), 4);
++    assert_eq!(slice_columns(text, 1..6), "\u{4e2d}e\u{301}\u{1f600}");
++    let family = "x\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}y";
++    assert_eq!(snap_column(family, 2), 1);
++    assert_eq!(
++        slice_columns(family, 1..3),
++        "\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}"
++    );
++}
++
++#[test]
++fn reverse_drag_selects_the_same_columns_as_forward_drag() {
++    let start = Point { row: 2, column: 3 };
++    let end = Point { row: 4, column: 7 };
++    let forward = Selection {
++        anchor: start,
++        focus: end,
++    };
++    let backward = Selection {
++        anchor: end,
++        focus: start,
++    };
++    for row in 0..6 {
++        assert_eq!(forward.columns(row, 20), backward.columns(row, 20));
++    }
++    assert_eq!(forward.columns(2, 20), Some(3..20));
++    assert_eq!(forward.columns(3, 20), Some(0..20));
++    assert_eq!(forward.columns(4, 20), Some(0..7));
++}
+diff --git a/codex-rs/tui/src/transcript_view/selection.rs b/codex-rs/tui/src/transcript_view/selection.rs
+new file mode 100644
+index 0000000..515c3c6
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/selection.rs
+@@ -0,0 +1,61 @@
++//! Selection boundaries use display columns, never UTF-8 byte offsets or partial graphemes.
++
++use std::ops::Range;
++
++use unicode_segmentation::UnicodeSegmentation;
++use unicode_width::UnicodeWidthStr;
++
++#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
++pub(super) struct Point {
++    pub(super) row: usize,
++    pub(super) column: usize,
++}
++
++#[derive(Clone, Copy, Debug)]
++pub(super) struct Selection {
++    pub(super) anchor: Point,
++    pub(super) focus: Point,
++}
++
++impl Selection {
++    pub(super) fn ordered(self) -> (Point, Point) {
++        (self.anchor.min(self.focus), self.anchor.max(self.focus))
++    }
++
++    pub(super) fn columns(self, row: usize, width: usize) -> Option<Range<usize>> {
++        let (start, end) = self.ordered();
++        if start == end || row < start.row || row > end.row {
++            return None;
++        }
++        let first = if row == start.row { start.column } else { 0 };
++        let last = if row == end.row { end.column } else { width };
++        Some(first.min(width)..last.min(width))
++    }
++}
++
++pub(super) fn snap_column(text: &str, column: usize) -> usize {
++    let mut offset = 0;
++    for grapheme in text.graphemes(true) {
++        let end = offset + grapheme.width();
++        if column < end {
++            return offset;
++        }
++        offset = end;
++    }
++    offset
++}
++
++pub(super) fn slice_columns(text: &str, columns: Range<usize>) -> String {
++    let mut offset = 0;
++    text.graphemes(true)
++        .filter(|grapheme| {
++            let start = offset;
++            offset += grapheme.width();
++            start >= columns.start && start < columns.end
++        })
++        .collect()
++}
++
++#[cfg(test)]
++#[path = "selection_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/transcript_view/snapshots/codex_tui__transcript_view__tests__transcript_selection_snapshot.snap b/codex-rs/tui/src/transcript_view/snapshots/codex_tui__transcript_view__tests__transcript_selection_snapshot.snap
+new file mode 100644
+index 0000000..5770035
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/snapshots/codex_tui__transcript_view__tests__transcript_selection_snapshot.snap
+@@ -0,0 +1,31 @@
++---
++source: tui/src/transcript_view/tests.rs
++assertion_line: 120
++expression: "render(&mut view, 41, 6)"
++---
++Buffer {
++    area: Rect { x: 0, y: 0, width: 41, height: 6 },
++    content: [
++        "Rich output                              ",
++        "select 中文 safely                       ", // hidden by multi-width symbols: [(8, " "), (10, " ")]
++        "copy without interrupting                ",
++        "                                         ",
++        "                                         ",
++        "                                         ",
++    ],
++    styles: [
++        x: 0, y: 0, fg: Cyan, bg: Reset, underline: Reset, modifier: NONE,
++        x: 11, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
++        x: 0, y: 1, fg: Cyan, bg: Reset, underline: Reset, modifier: NONE,
++        x: 7, y: 1, fg: Cyan, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 8, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 9, y: 1, fg: Cyan, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 10, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 11, y: 1, fg: Cyan, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 18, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 40, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
++        x: 0, y: 2, fg: Cyan, bg: Reset, underline: Reset, modifier: REVERSED,
++        x: 4, y: 2, fg: Cyan, bg: Reset, underline: Reset, modifier: NONE,
++        x: 25, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
++    ]
++}
+diff --git a/codex-rs/tui/src/transcript_view/tests.rs b/codex-rs/tui/src/transcript_view/tests.rs
+new file mode 100644
+index 0000000..0531710
+--- /dev/null
++++ b/codex-rs/tui/src/transcript_view/tests.rs
+@@ -0,0 +1,197 @@
++use super::*;
++use crate::history_cell::PlainHistoryCell;
++use crossterm::event::KeyModifiers;
++use pretty_assertions::assert_eq;
++use ratatui::style::Color;
++use ratatui::text::Line;
++
++fn cell(lines: impl IntoIterator<Item = String>) -> Arc<dyn HistoryCell> {
++    Arc::new(PlainHistoryCell::new(
++        lines
++            .into_iter()
++            .map(|line| Line::from(line.cyan()))
++            .collect(),
++    ))
++}
++
++fn mouse(kind: MouseEventKind, column: u16, row: u16) -> MouseEvent {
++    MouseEvent {
++        kind,
++        column,
++        row,
++        modifiers: KeyModifiers::NONE,
++    }
++}
++
++fn render(view: &mut TranscriptView, width: u16, height: u16) -> Buffer {
++    let area = Rect::new(0, 0, width, height);
++    let mut buffer = Buffer::empty(area);
++    view.render(area, &mut buffer);
++    buffer
++}
++
++#[test]
++fn live_output_and_scrolled_output_have_identical_styles() {
++    let mut view = TranscriptView::default();
++    let cells = vec![cell((0..12).map(|row| format!("line {row:02}")))];
++    view.sync(&cells, 40, HistoryRenderMode::Rich, None, |_| None);
++    let before = render(&mut view, 41, 6);
++    assert_eq!(before[(0, 0)].fg, Color::Cyan);
++    view.handle_mouse(mouse(MouseEventKind::ScrollUp, 10, 2));
++    render(&mut view, 41, 6);
++    view.handle_mouse(mouse(MouseEventKind::ScrollDown, 10, 2));
++    let after = render(&mut view, 41, 6);
++    assert_eq!(before, after);
++    assert!(view.following());
++}
++
++#[test]
++fn new_output_follows_only_when_the_user_has_not_scrolled_away() {
++    let mut view = TranscriptView::default();
++    let mut cells = vec![cell((0..12).map(|row| format!("line {row:02}")))];
++    view.sync(&cells, 40, HistoryRenderMode::Rich, None, |_| None);
++    render(&mut view, 41, 6);
++    assert_eq!(view.offset, 6);
++    view.handle_mouse(mouse(MouseEventKind::ScrollUp, 10, 2));
++    assert_eq!(view.offset, 3);
++    cells.push(cell(["new output".into()]));
++    view.sync(&cells, 40, HistoryRenderMode::Rich, None, |_| None);
++    render(&mut view, 41, 6);
++    assert_eq!(view.offset, 3);
++    view.jump_to_latest();
++    render(&mut view, 41, 6);
++    assert_eq!(view.offset, 8);
++}
++
++#[test]
++fn output_drag_selection_is_stable_while_streaming_cells_are_replaced() {
++    let mut view = TranscriptView::default();
++    let cells = vec![cell([
++        "alpha \u{4e2d} beta".into(),
++        "second caf\u{e9}".into(),
++        "last".into(),
++    ])];
++    view.sync(&cells, 40, HistoryRenderMode::Rich, None, |_| None);
++    render(&mut view, 41, 6);
++    view.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), 6, 0));
++    view.handle_mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 6, 1));
++    view.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 6, 1));
++    let selected = "\u{4e2d} beta\nsecond";
++    assert_eq!(view.selected_text().as_deref(), Some(selected));
++    let highlighted = render(&mut view, 41, 6);
++    assert!(highlighted[(6, 0)].modifier.contains(Modifier::REVERSED));
++    assert!(highlighted[(7, 0)].modifier.contains(Modifier::REVERSED));
++    view.sync(
++        &[cell(["consolidated output".into()])],
++        40,
++        HistoryRenderMode::Rich,
++        None,
++        |_| None,
++    );
++    assert_eq!(view.selected_text().as_deref(), Some(selected));
++    assert_eq!(render(&mut view, 41, 6), highlighted);
++    assert!(
++        matches!(view.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Right), 8, 1)), MouseAction::Copy(text) if text == selected)
++    );
++    view.jump_to_latest();
++    assert_eq!(view.selected_text(), None);
++    assert_eq!(view.row(0).unwrap().line.to_string(), "consolidated output");
++}
++
++#[test]
++fn output_selection_extends_across_wheel_and_edge_autoscroll() {
++    let mut view = TranscriptView::default();
++    view.sync(
++        &[cell((0..20).map(|row| format!("row {row:02}")))],
++        40,
++        HistoryRenderMode::Rich,
++        None,
++        |_| None,
++    );
++    render(&mut view, 41, 6);
++    for _ in 0..10 {
++        view.handle_mouse(mouse(MouseEventKind::ScrollUp, 5, 2));
++    }
++    view.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), 0, 1));
++    view.handle_mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 6, 4));
++    view.handle_mouse(mouse(MouseEventKind::ScrollDown, 6, 4));
++    assert_eq!(view.offset, 3);
++    assert_eq!(view.selected_text().unwrap().lines().count(), 7);
++    view.handle_mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 6, 5));
++    view.autoscroll(view.last_autoscroll + AUTOSCROLL_INTERVAL);
++    assert!(view.selected_text().unwrap().contains("row 09"));
++    assert!(!view.following());
++}
++
++#[test]
++fn output_scrollbar_click_and_drag_reach_the_same_latest_row() {
++    let mut view = TranscriptView::default();
++    view.sync(
++        &[cell((0..100).map(|row| format!("row {row:02}")))],
++        40,
++        HistoryRenderMode::Rich,
++        None,
++        |_| None,
++    );
++    render(&mut view, 41, 10);
++    view.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), 40, 0));
++    assert_eq!(view.offset, 0);
++    view.handle_mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 40, 9));
++    view.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 40, 9));
++    assert_eq!(view.offset, 90);
++    assert!(view.following());
++    let buffer = render(&mut view, 41, 10);
++    assert_eq!(buffer[(40, 9)].symbol(), "\u{2503}");
++    assert_eq!(buffer[(0, 0)].symbol(), "r");
++}
++
++#[test]
++fn transcript_selection_snapshot() {
++    let mut view = TranscriptView::default();
++    view.sync(
++        &[cell([
++            "Rich output".into(),
++            "select \u{4e2d}\u{6587} safely".into(),
++            "copy without interrupting".into(),
++        ])],
++        40,
++        HistoryRenderMode::Rich,
++        None,
++        |_| None,
++    );
++    render(&mut view, 41, 6);
++    view.handle_mouse(mouse(MouseEventKind::Down(MouseButton::Left), 7, 1));
++    view.handle_mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 4, 2));
++    view.handle_mouse(mouse(MouseEventKind::Up(MouseButton::Left), 4, 2));
++    insta::assert_debug_snapshot!(render(&mut view, 41, 6));
++}
++
++#[test]
++fn startup_live_tail_refreshes_even_without_a_revision_change() {
++    let mut view = TranscriptView::default();
++    let key = Some(ActiveCellTranscriptKey {
++        revision: 0,
++        is_stream_continuation: false,
++        animation_tick: None,
++    });
++    view.sync(&[], 40, HistoryRenderMode::Rich, key, |_| {
++        Some(vec![HyperlinkLine::from("loading")])
++    });
++    render(&mut view, 41, 6);
++    view.sync(&[], 40, HistoryRenderMode::Rich, key, |_| {
++        Some(vec![HyperlinkLine::from("selected model")])
++    });
++    assert_eq!(view.row(0).unwrap().line.to_string(), "selected model");
++}
++
++#[test]
++fn styled_history_background_covers_the_same_row_as_the_composer() {
++    let mut view = TranscriptView::default();
++    let cells: Vec<Arc<dyn HistoryCell>> = vec![Arc::new(PlainHistoryCell::new(vec![
++        Line::from("attachment").bg(Color::DarkGray),
++    ]))];
++    view.sync(&cells, 40, HistoryRenderMode::Rich, None, |_| None);
++    let buffer = render(&mut view, 41, 6);
++    assert_eq!(buffer[(39, 0)].bg, Color::DarkGray);
++    assert_eq!(buffer[(40, 0)].bg, Color::Reset);
++}
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index bef9b5b..9b11647 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -56,6 +56,7 @@ use crate::tui::job_control::SuspendContext;
+ use codex_config::types::NotificationCondition;
+ use codex_config::types::NotificationMethod;
+ 
++mod docked_view;
+ mod event_stream;
+ mod frame_rate_limiter;
+ mod frame_requester;
+@@ -81,7 +82,7 @@ fn mouse_capture_enabled_for(override_value: Option<&str>) -> bool {
+     })
+ }
+ 
+-fn mouse_capture_enabled() -> bool {
++pub(crate) fn mouse_capture_enabled() -> bool {
+     mouse_capture_enabled_for(std::env::var("CCODEX_MOUSE_CAPTURE").ok().as_deref())
+ }
+ 
+@@ -621,6 +622,7 @@ pub struct Tui {
+     is_zellij: bool,
+     // When false, enter_alt_screen() becomes a no-op.
+     alt_screen_enabled: bool,
++    docked_transcript_enabled: bool,
+     // Keeps unmanaged process stderr writes out of the inline viewport.
+     _stderr_guard: terminal_stderr::TerminalStderrGuard,
+ }
+@@ -674,6 +676,7 @@ impl Tui {
+             notification_condition: NotificationCondition::default(),
+             is_zellij,
+             alt_screen_enabled: true,
++            docked_transcript_enabled: false,
+             _stderr_guard: stderr_guard,
+         }
+     }
+@@ -809,7 +812,7 @@ impl Tui {
+     /// Enter alternate screen and expand the viewport to full terminal size, saving the current
+     /// inline viewport for restoration when leaving.
+     pub fn enter_alt_screen(&mut self) -> Result<()> {
+-        if !self.alt_screen_enabled {
++        if !self.alt_screen_enabled || self.is_alt_screen_active() {
+             return Ok(());
+         }
+         let _ = execute!(self.terminal.backend_mut(), EnterAlternateScreen);
+@@ -891,6 +894,10 @@ impl Tui {
+         lines: Vec<HyperlinkLine>,
+         wrap_policy: HistoryLineWrapPolicy,
+     ) {
++        if self.docked_transcript_enabled {
++            self.frame_requester().schedule_frame();
++            return;
++        }
+         if lines.is_empty() {
+             return;
+         }
+diff --git a/codex-rs/tui/src/tui/docked_view.rs b/codex-rs/tui/src/tui/docked_view.rs
+new file mode 100644
+index 0000000..48d745c
+--- /dev/null
++++ b/codex-rs/tui/src/tui/docked_view.rs
+@@ -0,0 +1,40 @@
++//! Full-screen transcript frames do not write a second, independently scrolling history buffer.
++
++use super::*;
++
++impl Tui {
++    pub(crate) fn set_docked_transcript_enabled(&mut self, enabled: bool) {
++        self.docked_transcript_enabled = enabled;
++        self.pending_history_lines.clear();
++    }
++
++    pub(crate) fn draw_transcript(
++        &mut self,
++        draw_fn: impl FnOnce(&mut custom_terminal::Frame),
++    ) -> Result<()> {
++        self.enter_alt_screen()?;
++        #[cfg(unix)]
++        let mut prepared_resume = self
++            .suspend_context
++            .prepare_resume_action(&mut self.alt_saved_viewport);
++        ensure_virtual_terminal_processing()?;
++        stdout().sync_update(|_| {
++            #[cfg(unix)]
++            if let Some(prepared) = prepared_resume.take() {
++                prepared.apply(&mut self.terminal)?;
++            }
++            let size = self.terminal.size()?;
++            let area = Rect::new(0, 0, size.width, size.height);
++            if self.terminal.viewport_area != area {
++                self.terminal.set_viewport_area(area);
++                // A reset diff buffer assumes blanks already exist on the physical screen.
++                self.terminal.clear_visible_screen()?;
++            }
++            self.pending_history_lines.clear();
++            #[cfg(unix)]
++            self.suspend_context
++                .set_cursor_y(size.height.saturating_sub(1));
++            self.terminal.draw(draw_fn)
++        })?
++    }
++}

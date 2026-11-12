@@ -1,0 +1,3748 @@
+diff --git a/codex-rs/app-server-protocol/schema/json/ServerNotification.json b/codex-rs/app-server-protocol/schema/json/ServerNotification.json
+index 3fbb2df..73581b2 100644
+--- a/codex-rs/app-server-protocol/schema/json/ServerNotification.json
++++ b/codex-rs/app-server-protocol/schema/json/ServerNotification.json
+@@ -4990,6 +4990,13 @@
+         "model": {
+           "type": "string"
+         },
++        "modelContextWindow": {
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "modelProvider": {
+           "type": "string"
+         },
+diff --git a/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json b/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json
+index 78348e6..75f4057 100644
+--- a/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json
++++ b/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json
+@@ -13070,6 +13070,14 @@
+               }
+             ]
+           },
++          "contextWindow": {
++            "default": null,
++            "format": "int64",
++            "type": [
++              "integer",
++              "null"
++            ]
++          },
+           "defaultReasoningEffort": {
+             "$ref": "#/definitions/v2/ReasoningEffort"
+           },
+@@ -13087,6 +13095,11 @@
+           "displayName": {
+             "type": "string"
+           },
++          "effectiveContextWindowPercent": {
++            "default": 95,
++            "format": "int64",
++            "type": "integer"
++          },
+           "hidden": {
+             "type": "boolean"
+           },
+@@ -13106,6 +13119,14 @@
+           "isDefault": {
+             "type": "boolean"
+           },
++          "maxContextWindow": {
++            "default": null,
++            "format": "int64",
++            "type": [
++              "integer",
++              "null"
++            ]
++          },
+           "model": {
+             "type": "string"
+           },
+@@ -20158,6 +20179,13 @@
+           "model": {
+             "type": "string"
+           },
++          "modelContextWindow": {
++            "format": "int64",
++            "type": [
++              "integer",
++              "null"
++            ]
++          },
+           "modelProvider": {
+             "type": "string"
+           },
+diff --git a/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json b/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json
+index e0cfbc1..e14dbaa 100644
+--- a/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json
++++ b/codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json
+@@ -9412,6 +9412,14 @@
+             }
+           ]
+         },
++        "contextWindow": {
++          "default": null,
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "defaultReasoningEffort": {
+           "$ref": "#/definitions/ReasoningEffort"
+         },
+@@ -9429,6 +9437,11 @@
+         "displayName": {
+           "type": "string"
+         },
++        "effectiveContextWindowPercent": {
++          "default": 95,
++          "format": "int64",
++          "type": "integer"
++        },
+         "hidden": {
+           "type": "boolean"
+         },
+@@ -9448,6 +9461,14 @@
+         "isDefault": {
+           "type": "boolean"
+         },
++        "maxContextWindow": {
++          "default": null,
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "model": {
+           "type": "string"
+         },
+@@ -17922,6 +17943,13 @@
+         "model": {
+           "type": "string"
+         },
++        "modelContextWindow": {
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "modelProvider": {
+           "type": "string"
+         },
+diff --git a/codex-rs/app-server-protocol/schema/json/v2/ModelListResponse.json b/codex-rs/app-server-protocol/schema/json/v2/ModelListResponse.json
+index c50a6bd..d63ecb7 100644
+--- a/codex-rs/app-server-protocol/schema/json/v2/ModelListResponse.json
++++ b/codex-rs/app-server-protocol/schema/json/v2/ModelListResponse.json
+@@ -47,6 +47,14 @@
+             }
+           ]
+         },
++        "contextWindow": {
++          "default": null,
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "defaultReasoningEffort": {
+           "$ref": "#/definitions/ReasoningEffort"
+         },
+@@ -64,6 +72,11 @@
+         "displayName": {
+           "type": "string"
+         },
++        "effectiveContextWindowPercent": {
++          "default": 95,
++          "format": "int64",
++          "type": "integer"
++        },
+         "hidden": {
+           "type": "boolean"
+         },
+@@ -83,6 +96,14 @@
+         "isDefault": {
+           "type": "boolean"
+         },
++        "maxContextWindow": {
++          "default": null,
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "model": {
+           "type": "string"
+         },
+diff --git a/codex-rs/app-server-protocol/schema/json/v2/ThreadSettingsUpdatedNotification.json b/codex-rs/app-server-protocol/schema/json/v2/ThreadSettingsUpdatedNotification.json
+index f3296fa..58f7280 100644
+--- a/codex-rs/app-server-protocol/schema/json/v2/ThreadSettingsUpdatedNotification.json
++++ b/codex-rs/app-server-protocol/schema/json/v2/ThreadSettingsUpdatedNotification.json
+@@ -336,6 +336,13 @@
+         "model": {
+           "type": "string"
+         },
++        "modelContextWindow": {
++          "format": "int64",
++          "type": [
++            "integer",
++            "null"
++          ]
++        },
+         "modelProvider": {
+           "type": "string"
+         },
+diff --git a/codex-rs/app-server-protocol/schema/typescript/v2/Model.ts b/codex-rs/app-server-protocol/schema/typescript/v2/Model.ts
+index e9dbf15..e09626f 100644
+--- a/codex-rs/app-server-protocol/schema/typescript/v2/Model.ts
++++ b/codex-rs/app-server-protocol/schema/typescript/v2/Model.ts
+@@ -16,4 +16,4 @@ additionalSpeedTiers: Array<string>, serviceTiers: Array<ModelServiceTier>,
+ /**
+  * Catalog default service tier id for this model, when one is configured.
+  */
+-defaultServiceTier: string | null, isDefault: boolean, };
++defaultServiceTier: string | null, isDefault: boolean, contextWindow: bigint | null, maxContextWindow: bigint | null, effectiveContextWindowPercent: bigint, };
+diff --git a/codex-rs/app-server-protocol/schema/typescript/v2/ThreadSettings.ts b/codex-rs/app-server-protocol/schema/typescript/v2/ThreadSettings.ts
+index b034ea8..c5dc721 100644
+--- a/codex-rs/app-server-protocol/schema/typescript/v2/ThreadSettings.ts
++++ b/codex-rs/app-server-protocol/schema/typescript/v2/ThreadSettings.ts
+@@ -11,4 +11,4 @@ import type { ApprovalsReviewer } from "./ApprovalsReviewer";
+ import type { AskForApproval } from "./AskForApproval";
+ import type { SandboxPolicy } from "./SandboxPolicy";
+ 
+-export type ThreadSettings = {cwd: AbsolutePathBuf, approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, sandboxPolicy: SandboxPolicy, activePermissionProfile: ActivePermissionProfile | null, model: string, modelProvider: string, serviceTier: string | null, effort: ReasoningEffort | null, summary: ReasoningSummary | null, collaborationMode: CollaborationMode, personality: Personality | null};
++export type ThreadSettings = {cwd: AbsolutePathBuf, approvalPolicy: AskForApproval, approvalsReviewer: ApprovalsReviewer, sandboxPolicy: SandboxPolicy, activePermissionProfile: ActivePermissionProfile | null, model: string, modelContextWindow: bigint | null, modelProvider: string, serviceTier: string | null, effort: ReasoningEffort | null, summary: ReasoningSummary | null, collaborationMode: CollaborationMode, personality: Personality | null};
+diff --git a/codex-rs/app-server-protocol/src/protocol/common.rs b/codex-rs/app-server-protocol/src/protocol/common.rs
+index a4d87e2..7dee187 100644
+--- a/codex-rs/app-server-protocol/src/protocol/common.rs
++++ b/codex-rs/app-server-protocol/src/protocol/common.rs
+@@ -3852,6 +3852,7 @@ mod tests {
+                     sandbox_policy: v2::SandboxPolicy::DangerFullAccess,
+                     active_permission_profile: None,
+                     model: "gpt-5.4".to_string(),
++                    model_context_window: None,
+                     model_provider: "openai".to_string(),
+                     service_tier: None,
+                     effort: None,
+diff --git a/codex-rs/app-server-protocol/src/protocol/v2/model.rs b/codex-rs/app-server-protocol/src/protocol/v2/model.rs
+index bb6c411..a9adb52 100644
+--- a/codex-rs/app-server-protocol/src/protocol/v2/model.rs
++++ b/codex-rs/app-server-protocol/src/protocol/v2/model.rs
+@@ -11,6 +11,10 @@ use serde::Serialize;
+ use serde_json::Value as JsonValue;
+ use ts_rs::TS;
+ 
++const fn default_effective_context_window_percent() -> i64 {
++    95
++}
++
+ v2_enum_from_core!(
+     pub enum ModelRerouteReason from CoreModelRerouteReason {
+         HighRiskCyberActivity
+@@ -104,6 +108,12 @@ pub struct Model {
+     pub default_service_tier: Option<String>,
+     // Only one model should be marked as default.
+     pub is_default: bool,
++    #[serde(default)]
++    pub context_window: Option<i64>,
++    #[serde(default)]
++    pub max_context_window: Option<i64>,
++    #[serde(default = "default_effective_context_window_percent")]
++    pub effective_context_window_percent: i64,
+ }
+ 
+ #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+diff --git a/codex-rs/app-server-protocol/src/protocol/v2/thread.rs b/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+index acebeb5..d0b9b33 100644
+--- a/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
++++ b/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+@@ -235,6 +235,10 @@ pub struct ThreadSettingsUpdateParams {
+     /// Override the model for subsequent turns.
+     #[ts(optional = nullable)]
+     pub model: Option<String>,
++    /// Override the raw model context window for subsequent turns. This only
++    /// changes the running thread and does not persist to `config.toml`.
++    #[ts(optional = nullable)]
++    pub model_context_window: Option<i64>,
+     /// Override the service tier for subsequent turns. `null` clears the
+     /// current service tier; omission leaves it unchanged.
+     #[serde(
+@@ -282,6 +286,7 @@ pub struct ThreadSettings {
+     pub sandbox_policy: SandboxPolicy,
+     pub active_permission_profile: Option<ActivePermissionProfile>,
+     pub model: String,
++    pub model_context_window: Option<i64>,
+     pub model_provider: String,
+     pub service_tier: Option<String>,
+     pub effort: Option<ReasoningEffort>,
+diff --git a/codex-rs/app-server-transport/src/transport/stdio.rs b/codex-rs/app-server-transport/src/transport/stdio.rs
+index 2d30296..6c92ac1 100644
+--- a/codex-rs/app-server-transport/src/transport/stdio.rs
++++ b/codex-rs/app-server-transport/src/transport/stdio.rs
+@@ -8,6 +8,8 @@ use crate::outgoing_message::QueuedOutgoingMessage;
+ use codex_app_server_protocol::InitializeParams;
+ use codex_app_server_protocol::JSONRPCMessage;
+ use codex_app_server_protocol::JSONRPCRequest;
++use std::borrow::Cow;
++use std::fmt::Write as _;
+ use std::io::ErrorKind;
+ use std::io::Result as IoResult;
+ use tokio::io;
+@@ -82,14 +84,18 @@ pub async fn start_stdio_connection(
+     stdio_handles.push(tokio::spawn(async move {
+         let mut stdout = io::stdout();
+         while let Some(queued_message) = writer_rx.recv().await {
+-            let Some(mut json) = serialize_outgoing_message(queued_message.message) else {
++            let Some(json) = serialize_outgoing_message(queued_message.message) else {
+                 continue;
+             };
+-            json.push('\n');
++            let json = escape_non_ascii_json(&json);
+             if let Err(err) = stdout.write_all(json.as_bytes()).await {
+                 error!("Failed to write to stdout: {err}");
+                 break;
+             }
++            if let Err(err) = stdout.write_all(b"\n").await {
++                error!("Failed to write to stdout: {err}");
++                break;
++            }
+             if let Some(write_complete_tx) = queued_message.write_complete_tx {
+                 let _ = write_complete_tx.send(());
+             }
+@@ -100,6 +106,32 @@ pub async fn start_stdio_connection(
+     Ok(())
+ }
+ 
++/// Keep stdio JSON byte-safe for clients that decode arbitrary pipe chunks as UTF-8.
++///
++/// JSON permits non-ASCII scalar values to be represented as `\uXXXX` escapes. Emitting only
++/// ASCII means every possible byte split remains valid UTF-8, including splits made by desktop
++/// process-pipe readers before they have reconstructed a complete JSON line.
++fn escape_non_ascii_json(json: &str) -> Cow<'_, str> {
++    if json.is_ascii() {
++        return Cow::Borrowed(json);
++    }
++
++    let mut escaped = String::with_capacity(json.len());
++    for ch in json.chars() {
++        if ch.is_ascii() {
++            escaped.push(ch);
++            continue;
++        }
++
++        let mut code_units = [0_u16; 2];
++        for code_unit in ch.encode_utf16(&mut code_units) {
++            write!(&mut escaped, "\\u{code_unit:04x}")
++                .expect("writing a JSON escape to String cannot fail");
++        }
++    }
++    Cow::Owned(escaped)
++}
++
+ fn stdio_initialize_client_name(line: &str) -> Option<String> {
+     let message = serde_json::from_str::<JSONRPCMessage>(line).ok()?;
+     let JSONRPCMessage::Request(JSONRPCRequest { method, params, .. }) = message else {
+@@ -111,3 +143,7 @@ fn stdio_initialize_client_name(line: &str) -> Option<String> {
+     let params = serde_json::from_value::<InitializeParams>(params?).ok()?;
+     Some(params.client_info.name)
+ }
++
++#[cfg(test)]
++#[path = "stdio_tests.rs"]
++mod tests;
+diff --git a/codex-rs/app-server-transport/src/transport/stdio_tests.rs b/codex-rs/app-server-transport/src/transport/stdio_tests.rs
+new file mode 100644
+index 0000000..c7d5776
+--- /dev/null
++++ b/codex-rs/app-server-transport/src/transport/stdio_tests.rs
+@@ -0,0 +1,31 @@
++use super::escape_non_ascii_json;
++use pretty_assertions::assert_eq;
++
++#[test]
++fn escaped_stdio_json_round_trips_unicode_at_every_byte_boundary() {
++    let value = serde_json::json!({
++        "message": "当前线程没有乱码🙂",
++        "nested": ["中文", "café", "🚀"],
++    });
++    let json = serde_json::to_string(&value).expect("serialize JSON");
++    let escaped = escape_non_ascii_json(&json);
++
++    assert!(escaped.is_ascii());
++    assert_eq!(
++        serde_json::from_str::<serde_json::Value>(escaped.as_ref()).expect("parse escaped JSON"),
++        value,
++    );
++
++    let bytes = escaped.as_bytes();
++    for split in 0..=bytes.len() {
++        std::str::from_utf8(&bytes[..split]).expect("prefix should be valid UTF-8");
++        std::str::from_utf8(&bytes[split..]).expect("suffix should be valid UTF-8");
++    }
++}
++
++#[test]
++fn ascii_stdio_json_is_borrowed_unchanged() {
++    let json = r#"{"message":"ascii only"}"#;
++
++    assert_eq!(escape_non_ascii_json(json).as_ref(), json);
++}
+diff --git a/codex-rs/app-server/README.md b/codex-rs/app-server/README.md
+index 75959db..db62148 100644
+--- a/codex-rs/app-server/README.md
++++ b/codex-rs/app-server/README.md
+@@ -148,7 +148,7 @@ Example with notification opt-out:
+ - `thread/items/list` — experimental; page through persisted thread items without resuming the thread. Pass `turnId` to restrict results to one turn, or omit it to page items across the thread. The active thread store must support item pagination.
+ - `thread/searchOccurrences` — experimental; find literal, case-insensitive matches in visible user messages and summary-selected final assistant messages within one paginated thread.
+ - `thread/metadata/update` — patch stored thread metadata in sqlite; currently supports updating persisted `gitInfo` fields and returns the refreshed `thread`.
+-- `thread/settings/update` — experimental; queue a partial update to a loaded thread’s next-turn settings without starting a turn or adding transcript items. Omitted fields leave settings unchanged; `serviceTier: null` clears the tier; deprecated `multiAgentMode` is ignored, while Ultra reasoning effort enables proactive multi-agent behavior; `sandboxPolicy` and `permissions` cannot be combined. Returns `{}` when the update is accepted and emits `thread/settings/updated` with the full effective settings only if they actually change. `turn/start` settings overrides emit the same notification when they change the stored settings.
++- `thread/settings/update` — experimental; queue a partial update to a loaded thread’s next-turn settings without starting a turn or adding transcript items. Omitted fields leave settings unchanged; `serviceTier: null` clears the tier; `modelContextWindow` must be a positive raw token count and changes only the loaded thread (it never writes `config.toml`); deprecated `multiAgentMode` is ignored, while Ultra reasoning effort enables proactive multi-agent behavior; `sandboxPolicy` and `permissions` cannot be combined. Returns `{}` when the update is accepted and emits `thread/settings/updated` with the full effective settings only if they actually change. `turn/start` settings overrides emit the same notification when they change the stored settings.
+ - `thread/memoryMode/set` — experimental; set a thread’s persisted memory eligibility to `"enabled"` or `"disabled"` for either a loaded thread or a stored rollout; returns `{}` on success.
+ - `memory/reset` — experimental; clear the current `CODEX_HOME/memories` directory and reset persisted memory stage data in sqlite while preserving existing thread memory modes; returns `{}` on success.
+ - `thread/goal/set` — create or update the single persisted goal for a materialized thread; returns the current goal and emits `thread/goal/updated`.
+diff --git a/codex-rs/app-server/src/models.rs b/codex-rs/app-server/src/models.rs
+index 36219e8..b31e61c 100644
+--- a/codex-rs/app-server/src/models.rs
++++ b/codex-rs/app-server/src/models.rs
+@@ -57,6 +57,9 @@ fn model_from_preset(preset: ModelPreset) -> Model {
+             .collect(),
+         default_service_tier: preset.default_service_tier,
+         is_default: preset.is_default,
++        context_window: preset.context_window,
++        max_context_window: preset.max_context_window,
++        effective_context_window_percent: preset.effective_context_window_percent,
+     }
+ }
+ 
+diff --git a/codex-rs/app-server/src/request_processors/thread_processor_tests.rs b/codex-rs/app-server/src/request_processors/thread_processor_tests.rs
+index 38a94ab..e7a72f0 100644
+--- a/codex-rs/app-server/src/request_processors/thread_processor_tests.rs
++++ b/codex-rs/app-server/src/request_processors/thread_processor_tests.rs
+@@ -756,6 +756,7 @@ mod thread_processor_behavior_tests {
+         };
+         let config_snapshot = ThreadConfigSnapshot {
+             model: "gpt-5".to_string(),
++            model_context_window: None,
+             model_provider_id: "openai".to_string(),
+             service_tier: Some("flex".to_string()),
+             approval_policy: codex_protocol::protocol::AskForApproval::OnRequest,
+diff --git a/codex-rs/app-server/src/request_processors/thread_summary.rs b/codex-rs/app-server/src/request_processors/thread_summary.rs
+index e62ca68..fc6e38d 100644
+--- a/codex-rs/app-server/src/request_processors/thread_summary.rs
++++ b/codex-rs/app-server/src/request_processors/thread_summary.rs
+@@ -184,6 +184,7 @@ pub(crate) fn thread_settings_from_config_snapshot(
+             config_snapshot.active_permission_profile.clone(),
+         ),
+         model: config_snapshot.model.clone(),
++        model_context_window: config_snapshot.model_context_window,
+         model_provider: config_snapshot.model_provider_id.clone(),
+         service_tier: config_snapshot.service_tier.clone(),
+         effort: config_snapshot.reasoning_effort.clone(),
+@@ -200,6 +201,7 @@ pub(crate) fn thread_settings_from_core_snapshot(
+     let codex_protocol::protocol::ThreadSettingsSnapshot {
+         model,
+         model_provider_id,
++        model_context_window,
+         service_tier,
+         approval_policy,
+         approvals_reviewer,
+@@ -225,6 +227,7 @@ pub(crate) fn thread_settings_from_core_snapshot(
+             active_permission_profile,
+         ),
+         model,
++        model_context_window,
+         model_provider: model_provider_id,
+         service_tier,
+         effort: reasoning_effort,
+diff --git a/codex-rs/app-server/src/request_processors/turn_processor.rs b/codex-rs/app-server/src/request_processors/turn_processor.rs
+index 663c460..a0ea88f 100644
+--- a/codex-rs/app-server/src/request_processors/turn_processor.rs
++++ b/codex-rs/app-server/src/request_processors/turn_processor.rs
+@@ -130,6 +130,7 @@ struct ThreadSettingsBuildParams {
+     sandbox_policy: Option<codex_app_server_protocol::SandboxPolicy>,
+     permissions: Option<String>,
+     model: Option<String>,
++    model_context_window: Option<i64>,
+     service_tier: Option<Option<String>>,
+     effort: Option<ReasoningEffort>,
+     summary: Option<ReasoningSummary>,
+@@ -547,6 +548,7 @@ impl TurnRequestProcessor {
+                     sandbox_policy: params.sandbox_policy,
+                     permissions: params.permissions,
+                     model: params.model,
++                    model_context_window: None,
+                     service_tier: params.service_tier,
+                     effort: params.effort,
+                     summary: params.summary,
+@@ -692,6 +694,7 @@ impl TurnRequestProcessor {
+             sandbox_policy,
+             permissions,
+             model,
++            model_context_window,
+             service_tier,
+             effort,
+             summary,
+@@ -723,6 +726,7 @@ impl TurnRequestProcessor {
+             || sandbox_policy.is_some()
+             || permissions.is_some()
+             || model.is_some()
++            || model_context_window.is_some()
+             || service_tier.is_some()
+             || effort.is_some()
+             || summary.is_some()
+@@ -791,6 +795,7 @@ impl TurnRequestProcessor {
+                     profile_workspace_roots: profile_workspace_roots.clone(),
+                     windows_sandbox_level: None,
+                     model: model.clone(),
++                    model_context_window,
+                     effort: effort.clone(),
+                     summary,
+                     service_tier: service_tier.clone(),
+@@ -813,6 +818,7 @@ impl TurnRequestProcessor {
+             active_permission_profile,
+             windows_sandbox_level: None,
+             model,
++            model_context_window,
+             effort,
+             summary,
+             service_tier,
+@@ -847,6 +853,7 @@ impl TurnRequestProcessor {
+                     sandbox_policy: params.sandbox_policy,
+                     permissions: params.permissions,
+                     model: params.model,
++                    model_context_window: params.model_context_window,
+                     service_tier: params.service_tier,
+                     effort: params.effort,
+                     summary: params.summary,
+diff --git a/codex-rs/app-server/src/thread_state.rs b/codex-rs/app-server/src/thread_state.rs
+index 3843172..2e80db4 100644
+--- a/codex-rs/app-server/src/thread_state.rs
++++ b/codex-rs/app-server/src/thread_state.rs
+@@ -236,6 +236,7 @@ mod tests {
+             },
+             active_permission_profile: None,
+             model: model.to_string(),
++            model_context_window: None,
+             model_provider: "mock_provider".to_string(),
+             service_tier: None,
+             effort: None,
+diff --git a/codex-rs/app-server/tests/suite/v2/model_list.rs b/codex-rs/app-server/tests/suite/v2/model_list.rs
+index 65f563e..8f489a4 100644
+--- a/codex-rs/app-server/tests/suite/v2/model_list.rs
++++ b/codex-rs/app-server/tests/suite/v2/model_list.rs
+@@ -44,6 +44,9 @@ fn model_from_preset(preset: &ModelPreset) -> Model {
+         availability_nux: preset.availability_nux.clone().map(Into::into),
+         display_name: preset.display_name.clone(),
+         description: preset.description.clone(),
++        context_window: None,
++        max_context_window: None,
++        effective_context_window_percent: 95,
+         hidden: !preset.show_in_picker,
+         supported_reasoning_efforts: preset
+             .supported_reasoning_efforts
+diff --git a/codex-rs/app-server/tests/suite/v2/thread_settings_update.rs b/codex-rs/app-server/tests/suite/v2/thread_settings_update.rs
+index ed6196d..4fe9347 100644
+--- a/codex-rs/app-server/tests/suite/v2/thread_settings_update.rs
++++ b/codex-rs/app-server/tests/suite/v2/thread_settings_update.rs
+@@ -18,6 +18,7 @@ use codex_app_server_protocol::ThreadSettingsUpdateResponse;
+ use codex_app_server_protocol::ThreadSettingsUpdatedNotification;
+ use codex_app_server_protocol::ThreadStartParams;
+ use codex_app_server_protocol::ThreadStartResponse;
++use codex_app_server_protocol::ThreadTokenUsageUpdatedNotification;
+ use codex_app_server_protocol::TurnStartParams;
+ use codex_app_server_protocol::TurnStartResponse;
+ use codex_app_server_protocol::UserInput as V2UserInput;
+@@ -97,6 +98,62 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
+     Ok(())
+ }
+ 
++#[tokio::test]
++async fn thread_settings_update_context_window_is_session_only() -> Result<()> {
++    let server = create_mock_responses_server_sequence_unchecked(vec![
++        create_final_assistant_message_sse_response("done")?,
++    ])
++    .await;
++    let codex_home = TempDir::new()?;
++    create_config_toml(codex_home.path(), &server.uri())?;
++    let config_path = codex_home.path().join("config.toml");
++    let config_before = std::fs::read(&config_path)?;
++
++    let mut mcp = TestAppServer::builder()
++        .with_codex_home(codex_home.path())
++        .build()
++        .await?;
++    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
++    let thread = start_thread(&mut mcp).await?.thread;
++
++    send_thread_settings_update(
++        &mut mcp,
++        ThreadSettingsUpdateParams {
++            thread_id: thread.id.clone(),
++            model_context_window: Some(64_000),
++            ..Default::default()
++        },
++    )
++    .await?;
++
++    let updated = read_thread_settings_updated(&mut mcp).await?;
++    assert_eq!(updated.thread_id, thread.id);
++    assert_eq!(updated.thread_settings.model_context_window, Some(64_000));
++    assert_eq!(std::fs::read(&config_path)?, config_before);
++
++    start_text_turn(&mut mcp, thread.id.clone()).await?;
++    let notification: JSONRPCNotification = timeout(
++        DEFAULT_TIMEOUT,
++        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
++    )
++    .await??;
++    let token_usage: ThreadTokenUsageUpdatedNotification = serde_json::from_value(
++        notification
++            .params
++            .context("thread/tokenUsage/updated should include params")?,
++    )?;
++    assert_eq!(token_usage.thread_id, thread.id);
++    assert_eq!(token_usage.token_usage.model_context_window, Some(60_800));
++
++    timeout(
++        DEFAULT_TIMEOUT,
++        mcp.read_stream_until_notification_message("turn/completed"),
++    )
++    .await??;
++    assert_eq!(std::fs::read(config_path)?, config_before);
++    Ok(())
++}
++
+ #[tokio::test]
+ async fn thread_settings_update_cwd_retargets_default_environment() -> Result<()> {
+     let server = responses::start_mock_server().await;
+diff --git a/codex-rs/core/src/agent/control_tests.rs b/codex-rs/core/src/agent/control_tests.rs
+index 6d4cbc7..bc6a6a8 100644
+--- a/codex-rs/core/src/agent/control_tests.rs
++++ b/codex-rs/core/src/agent/control_tests.rs
+@@ -948,6 +948,7 @@ async fn spawn_agent_fork_from_paginated_parent_uses_model_context_prefix() {
+                 ThreadSettingsAppliedEvent {
+                     thread_settings: ThreadSettingsSnapshot {
+                         model: "parent-only-model".to_string(),
++                        model_context_window: None,
+                         model_provider_id: "parent-only-provider".to_string(),
+                         service_tier: None,
+                         approval_policy: AskForApproval::Never,
+diff --git a/codex-rs/core/src/codex_thread.rs b/codex-rs/core/src/codex_thread.rs
+index 2b22f37..5323669 100644
+--- a/codex-rs/core/src/codex_thread.rs
++++ b/codex-rs/core/src/codex_thread.rs
+@@ -62,6 +62,7 @@ use codex_rollout::state_db::StateDbHandle;
+ pub struct ThreadConfigSnapshot {
+     pub model: String,
+     pub model_provider_id: String,
++    pub model_context_window: Option<i64>,
+     pub service_tier: Option<String>,
+     pub approval_policy: AskForApproval,
+     pub approvals_reviewer: ApprovalsReviewer,
+@@ -152,6 +153,7 @@ pub struct CodexThreadSettingsOverrides {
+     pub active_permission_profile: Option<ActivePermissionProfile>,
+     pub windows_sandbox_level: Option<WindowsSandboxLevel>,
+     pub model: Option<String>,
++    pub model_context_window: Option<i64>,
+     pub effort: Option<Option<ReasoningEffort>>,
+     pub summary: Option<ReasoningSummary>,
+     pub service_tier: Option<Option<String>>,
+@@ -374,6 +376,7 @@ impl CodexThread {
+             active_permission_profile,
+             windows_sandbox_level,
+             model,
++            model_context_window,
+             effort,
+             summary,
+             service_tier,
+@@ -398,6 +401,7 @@ impl CodexThread {
+             permission_profile,
+             active_permission_profile,
+             windows_sandbox_level,
++            model_context_window,
+             collaboration_mode: Some(collaboration_mode),
+             reasoning_summary: summary,
+             service_tier,
+diff --git a/codex-rs/core/src/config/mod.rs b/codex-rs/core/src/config/mod.rs
+index 1fe1b80..a0fcbf0 100644
+--- a/codex-rs/core/src/config/mod.rs
++++ b/codex-rs/core/src/config/mod.rs
+@@ -1505,6 +1505,7 @@ impl Config {
+         ModelsManagerConfig {
+             model_context_window: self.model_context_window,
+             model_auto_compact_token_limit: self.model_auto_compact_token_limit,
++            service_tier: self.service_tier.clone(),
+             tool_output_token_limit: self.tool_output_token_limit,
+             base_instructions: self.base_instructions.clone(),
+             personality_enabled: self.features.enabled(Feature::Personality),
+diff --git a/codex-rs/core/src/exec.rs b/codex-rs/core/src/exec.rs
+index 47dd317..2665d72 100644
+--- a/codex-rs/core/src/exec.rs
++++ b/codex-rs/core/src/exec.rs
+@@ -1111,6 +1111,7 @@ async fn read_output<R: AsyncRead + Unpin + Send + 'static>(
+     );
+     let mut tmp = [0u8; READ_CHUNK_SIZE];
+     let mut emitted_deltas: usize = 0;
++    let mut pending_delta = Vec::new();
+ 
+     loop {
+         let n = reader.read(&mut tmp).await?;
+@@ -1121,23 +1122,16 @@ async fn read_output<R: AsyncRead + Unpin + Send + 'static>(
+         if let Some(stream) = &stream
+             && emitted_deltas < MAX_EXEC_OUTPUT_DELTAS_PER_CALL
+         {
+-            let chunk = tmp[..n].to_vec();
+-            let msg = EventMsg::ExecCommandOutputDelta(ExecCommandOutputDeltaEvent {
+-                call_id: stream.call_id.clone(),
+-                stream: if is_stderr {
+-                    ExecOutputStream::Stderr
+-                } else {
+-                    ExecOutputStream::Stdout
+-                },
+-                chunk,
+-            });
+-            let event = Event {
+-                id: stream.sub_id.clone(),
+-                msg,
+-            };
+-            #[allow(clippy::let_unit_value)]
+-            let _ = stream.tx_event.send(event).await;
+-            emitted_deltas += 1;
++            pending_delta.extend_from_slice(&tmp[..n]);
++            while emitted_deltas < MAX_EXEC_OUTPUT_DELTAS_PER_CALL
++                && let Some(chunk) = split_utf8_output_prefix(&mut pending_delta, READ_CHUNK_SIZE)
++            {
++                emit_exec_output_delta(stream, is_stderr, chunk).await;
++                emitted_deltas += 1;
++            }
++            if emitted_deltas == MAX_EXEC_OUTPUT_DELTAS_PER_CALL {
++                pending_delta.clear();
++            }
+         }
+ 
+         if let Some(max_bytes) = max_bytes {
+@@ -1148,12 +1142,71 @@ async fn read_output<R: AsyncRead + Unpin + Send + 'static>(
+         // Continue reading to EOF to avoid back-pressure
+     }
+ 
++    // An incomplete sequence at EOF is invalid UTF-8, but it still belongs in the byte stream.
++    // Emit it once so downstream lossy rendering reports the actual invalid input rather than
++    // silently dropping it. Complete UTF-8 sequences never reach this branch.
++    if let Some(stream) = &stream
++        && emitted_deltas < MAX_EXEC_OUTPUT_DELTAS_PER_CALL
++        && !pending_delta.is_empty()
++    {
++        emit_exec_output_delta(stream, is_stderr, pending_delta).await;
++    }
++
+     Ok(StreamOutput {
+         text: buf,
+         truncated_after_lines: None,
+     })
+ }
+ 
++async fn emit_exec_output_delta(stream: &StdoutStream, is_stderr: bool, chunk: Vec<u8>) {
++    let msg = EventMsg::ExecCommandOutputDelta(ExecCommandOutputDeltaEvent {
++        call_id: stream.call_id.clone(),
++        stream: if is_stderr {
++            ExecOutputStream::Stderr
++        } else {
++            ExecOutputStream::Stdout
++        },
++        chunk,
++    });
++    let event = Event {
++        id: stream.sub_id.clone(),
++        msg,
++    };
++    #[allow(clippy::let_unit_value)]
++    let _ = stream.tx_event.send(event).await;
++}
++
++/// Removes the next complete UTF-8 prefix from a streaming byte buffer.
++///
++/// Incomplete trailing code points stay buffered until the next read. Invalid leading bytes are
++/// emitted one at a time so the stream keeps making progress and downstream lossy rendering can
++/// represent genuinely invalid command output.
++pub(crate) fn split_utf8_output_prefix(buffer: &mut Vec<u8>, max_bytes: usize) -> Option<Vec<u8>> {
++    if buffer.is_empty() || max_bytes == 0 {
++        return None;
++    }
++
++    let candidate_len = buffer.len().min(max_bytes);
++    let split = match std::str::from_utf8(&buffer[..candidate_len]) {
++        Ok(_) => candidate_len,
++        Err(err) if err.valid_up_to() > 0 => err.valid_up_to(),
++        Err(err) if err.error_len().is_some() => 1,
++        Err(_) => {
++            // The byte cap may itself bisect the first scalar. Extend by at most the remaining
++            // three UTF-8 bytes, but only far enough to emit that one complete scalar.
++            let extended_limit = buffer.len().min(max_bytes.saturating_add(3));
++            let Some(extended_len) = (candidate_len + 1..=extended_limit)
++                .find(|&len| std::str::from_utf8(&buffer[..len]).is_ok())
++            else {
++                return None;
++            };
++            extended_len
++        }
++    };
++
++    Some(buffer.drain(..split).collect())
++}
++
+ #[cfg(unix)]
+ fn synthetic_exit_status(code: i32) -> ExitStatus {
+     use std::os::unix::process::ExitStatusExt;
+diff --git a/codex-rs/core/src/exec_tests.rs b/codex-rs/core/src/exec_tests.rs
+index 1a44775..32266a7 100644
+--- a/codex-rs/core/src/exec_tests.rs
++++ b/codex-rs/core/src/exec_tests.rs
+@@ -237,6 +237,30 @@ fn aggregate_output_keeps_all_bytes_when_uncapped() {
+     );
+ }
+ 
++#[test]
++fn utf8_output_prefix_round_trips_every_valid_split() {
++    let expected = "我再确认当前线程日志🙂";
++    let bytes = expected.as_bytes();
++
++    for split in 0..=bytes.len() {
++        let mut pending = bytes[..split].to_vec();
++        let mut emitted = Vec::new();
++        while let Some(chunk) = split_utf8_output_prefix(&mut pending, READ_CHUNK_SIZE) {
++            std::str::from_utf8(&chunk).expect("emitted prefix should be valid UTF-8");
++            emitted.extend(chunk);
++        }
++
++        pending.extend_from_slice(&bytes[split..]);
++        while let Some(chunk) = split_utf8_output_prefix(&mut pending, READ_CHUNK_SIZE) {
++            std::str::from_utf8(&chunk).expect("emitted suffix should be valid UTF-8");
++            emitted.extend(chunk);
++        }
++
++        assert!(pending.is_empty(), "split {split} left pending bytes");
++        assert_eq!(emitted, bytes, "split {split} changed output");
++    }
++}
++
+ #[test]
+ fn full_buffer_capture_policy_disables_caps_and_exec_expiration() {
+     assert_eq!(ExecCapturePolicy::FullBuffer.retained_bytes_cap(), None);
+diff --git a/codex-rs/core/src/session/handlers.rs b/codex-rs/core/src/session/handlers.rs
+index d35d341..eb42321 100644
+--- a/codex-rs/core/src/session/handlers.rs
++++ b/codex-rs/core/src/session/handlers.rs
+@@ -130,6 +130,7 @@ async fn thread_settings_update(
+         active_permission_profile,
+         windows_sandbox_level,
+         model,
++        model_context_window,
+         effort,
+         summary,
+         service_tier,
+@@ -157,6 +158,7 @@ async fn thread_settings_update(
+         permission_profile,
+         active_permission_profile,
+         windows_sandbox_level,
++        model_context_window,
+         collaboration_mode: Some(collaboration_mode),
+         reasoning_summary: summary,
+         service_tier,
+@@ -175,6 +177,7 @@ async fn thread_settings_applied_event(sess: &Session) -> EventMsg {
+         thread_settings: ThreadSettingsSnapshot {
+             model: snapshot.model,
+             model_provider_id: snapshot.model_provider_id,
++            model_context_window: snapshot.model_context_window,
+             service_tier: snapshot.service_tier,
+             approval_policy: snapshot.approval_policy,
+             approvals_reviewer: snapshot.approvals_reviewer,
+diff --git a/codex-rs/core/src/session/session.rs b/codex-rs/core/src/session/session.rs
+index 89cb0c8..12b7d34 100644
+--- a/codex-rs/core/src/session/session.rs
++++ b/codex-rs/core/src/session/session.rs
+@@ -194,6 +194,7 @@ impl SessionConfiguration {
+         ThreadConfigSnapshot {
+             model: self.collaboration_mode.model().to_string(),
+             model_provider_id: self.original_config_do_not_use.model_provider_id.clone(),
++            model_context_window: self.original_config_do_not_use.model_context_window,
+             service_tier: self.service_tier.clone(),
+             approval_policy: self.approval_policy.value(),
+             approvals_reviewer: self.approvals_reviewer,
+@@ -264,6 +265,19 @@ impl SessionConfiguration {
+         if let Some(personality) = updates.personality {
+             next_configuration.personality = Some(personality);
+         }
++        if let Some(model_context_window) = updates.model_context_window {
++            if model_context_window <= 0 {
++                return Err(ConstraintError::InvalidValue {
++                    field_name: "model_context_window",
++                    candidate: model_context_window.to_string(),
++                    allowed: "a positive integer".to_string(),
++                    requirement_source: codex_config::RequirementSource::Unknown,
++                });
++            }
++            let mut config = (*next_configuration.original_config_do_not_use).clone();
++            config.model_context_window = Some(model_context_window);
++            next_configuration.original_config_do_not_use = Arc::new(config);
++        }
+         if let Some(approval_policy) = updates.approval_policy {
+             next_configuration.approval_policy.set(approval_policy)?;
+         }
+@@ -420,6 +434,7 @@ pub(crate) struct SessionSettingsUpdate {
+     pub(crate) permission_profile: Option<PermissionProfile>,
+     pub(crate) active_permission_profile: Option<ActivePermissionProfile>,
+     pub(crate) windows_sandbox_level: Option<WindowsSandboxLevel>,
++    pub(crate) model_context_window: Option<i64>,
+     pub(crate) collaboration_mode: Option<CollaborationMode>,
+     pub(crate) reasoning_summary: Option<ReasoningSummaryConfig>,
+     pub(crate) service_tier: Option<Option<String>>,
+diff --git a/codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs b/codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs
+index 96a6212..e980d8a 100644
+--- a/codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs
++++ b/codex-rs/core/src/tools/handlers/multi_agents_spec_tests.rs
+@@ -34,6 +34,9 @@ fn model_preset(id: &str, show_in_picker: bool) -> ModelPreset {
+         availability_nux: None,
+         supported_in_api: true,
+         input_modalities: Vec::new(),
++        context_window: None,
++        max_context_window: None,
++        effective_context_window_percent: 95,
+     }
+ }
+ 
+diff --git a/codex-rs/core/src/unified_exec/async_watcher.rs b/codex-rs/core/src/unified_exec/async_watcher.rs
+index c1d61eb..9750036 100644
+--- a/codex-rs/core/src/unified_exec/async_watcher.rs
++++ b/codex-rs/core/src/unified_exec/async_watcher.rs
+@@ -9,6 +9,7 @@ use tokio::time::Sleep;
+ use super::UnifiedExecContext;
+ use super::process::UnifiedExecProcess;
+ use crate::exec::MAX_EXEC_OUTPUT_DELTAS_PER_CALL;
++use crate::exec::split_utf8_output_prefix;
+ use crate::session::session::Session;
+ use crate::session::turn_context::TurnContext;
+ use crate::tools::events::ToolEmitter;
+@@ -98,6 +99,24 @@ pub(crate) fn start_streaming_output(
+                 }
+             }
+         }
++
++        if !pending.is_empty() {
++            let chunk = std::mem::take(&mut pending);
++            {
++                let mut guard = transcript.lock().await;
++                guard.push_chunk(chunk.clone());
++            }
++            if emitted_deltas < MAX_EXEC_OUTPUT_DELTAS_PER_CALL {
++                let event = ExecCommandOutputDeltaEvent {
++                    call_id,
++                    stream: ExecOutputStream::Stdout,
++                    chunk,
++                };
++                session_ref
++                    .send_event(turn_ref.as_ref(), EventMsg::ExecCommandOutputDelta(event))
++                    .await;
++            }
++        }
+     });
+ }
+ 
+@@ -166,7 +185,8 @@ async fn process_chunk(
+     chunk: Vec<u8>,
+ ) {
+     pending.extend_from_slice(&chunk);
+-    while let Some(prefix) = split_valid_utf8_prefix(pending) {
++    while let Some(prefix) = split_utf8_output_prefix(pending, UNIFIED_EXEC_OUTPUT_DELTA_MAX_BYTES)
++    {
+         {
+             let mut guard = transcript.lock().await;
+             guard.push_chunk(prefix.to_vec());
+@@ -287,36 +307,6 @@ pub(crate) async fn emit_failed_exec_end_for_unified_exec(
+         .await;
+ }
+ 
+-fn split_valid_utf8_prefix(buffer: &mut Vec<u8>) -> Option<Vec<u8>> {
+-    split_valid_utf8_prefix_with_max(buffer, UNIFIED_EXEC_OUTPUT_DELTA_MAX_BYTES)
+-}
+-
+-fn split_valid_utf8_prefix_with_max(buffer: &mut Vec<u8>, max_bytes: usize) -> Option<Vec<u8>> {
+-    if buffer.is_empty() {
+-        return None;
+-    }
+-
+-    let max_len = buffer.len().min(max_bytes);
+-    let mut split = max_len;
+-    while split > 0 {
+-        if std::str::from_utf8(&buffer[..split]).is_ok() {
+-            let prefix = buffer[..split].to_vec();
+-            buffer.drain(..split);
+-            return Some(prefix);
+-        }
+-
+-        if max_len - split > 4 {
+-            break;
+-        }
+-        split -= 1;
+-    }
+-
+-    // If no valid UTF-8 prefix was found, emit the first byte so the stream
+-    // keeps making progress and the transcript reflects all bytes.
+-    let byte = buffer.drain(..1).collect();
+-    Some(byte)
+-}
+-
+ async fn resolve_aggregated_output(
+     transcript: &Arc<Mutex<HeadTailBuffer>>,
+     fallback: String,
+diff --git a/codex-rs/core/src/unified_exec/async_watcher_tests.rs b/codex-rs/core/src/unified_exec/async_watcher_tests.rs
+index 07d1bec..82d27ab 100644
+--- a/codex-rs/core/src/unified_exec/async_watcher_tests.rs
++++ b/codex-rs/core/src/unified_exec/async_watcher_tests.rs
+@@ -1,4 +1,4 @@
+-use super::split_valid_utf8_prefix_with_max;
++use crate::exec::split_utf8_output_prefix;
+ 
+ use pretty_assertions::assert_eq;
+ 
+@@ -6,13 +6,11 @@ use pretty_assertions::assert_eq;
+ fn split_valid_utf8_prefix_respects_max_bytes_for_ascii() {
+     let mut buf = b"hello word!".to_vec();
+ 
+-    let first =
+-        split_valid_utf8_prefix_with_max(&mut buf, /*max_bytes*/ 5).expect("expected prefix");
++    let first = split_utf8_output_prefix(&mut buf, /*max_bytes*/ 5).expect("expected prefix");
+     assert_eq!(first, b"hello".to_vec());
+     assert_eq!(buf, b" word!".to_vec());
+ 
+-    let second =
+-        split_valid_utf8_prefix_with_max(&mut buf, /*max_bytes*/ 5).expect("expected prefix");
++    let second = split_utf8_output_prefix(&mut buf, /*max_bytes*/ 5).expect("expected prefix");
+     assert_eq!(second, b" word".to_vec());
+     assert_eq!(buf, b"!".to_vec());
+ }
+@@ -22,8 +20,7 @@ fn split_valid_utf8_prefix_avoids_splitting_utf8_codepoints() {
+     // "é" is 2 bytes in UTF-8. With a max of 3 bytes, we should only emit 1 char (2 bytes).
+     let mut buf = "ééé".as_bytes().to_vec();
+ 
+-    let first =
+-        split_valid_utf8_prefix_with_max(&mut buf, /*max_bytes*/ 3).expect("expected prefix");
++    let first = split_utf8_output_prefix(&mut buf, /*max_bytes*/ 3).expect("expected prefix");
+     assert_eq!(std::str::from_utf8(&first).unwrap(), "é");
+     assert_eq!(buf, "éé".as_bytes().to_vec());
+ }
+@@ -32,8 +29,21 @@ fn split_valid_utf8_prefix_avoids_splitting_utf8_codepoints() {
+ fn split_valid_utf8_prefix_makes_progress_on_invalid_utf8() {
+     let mut buf = vec![0xff, b'a', b'b'];
+ 
+-    let first =
+-        split_valid_utf8_prefix_with_max(&mut buf, /*max_bytes*/ 2).expect("expected prefix");
++    let first = split_utf8_output_prefix(&mut buf, /*max_bytes*/ 2).expect("expected prefix");
+     assert_eq!(first, vec![0xff]);
+     assert_eq!(buf, b"ab".to_vec());
+ }
++
++#[test]
++fn split_utf8_output_prefix_waits_for_incomplete_codepoint() {
++    let encoded = "前".as_bytes();
++    let mut buf = encoded[..1].to_vec();
++
++    assert_eq!(split_utf8_output_prefix(&mut buf, /*max_bytes*/ 8), None);
++    assert_eq!(buf, encoded[..1]);
++
++    buf.extend_from_slice(&encoded[1..]);
++    let complete = split_utf8_output_prefix(&mut buf, /*max_bytes*/ 8).expect("complete codepoint");
++    assert_eq!(complete, encoded);
++    assert!(buf.is_empty());
++}
+diff --git a/codex-rs/models-manager/src/config.rs b/codex-rs/models-manager/src/config.rs
+index 6c32d54..d1638e3 100644
+--- a/codex-rs/models-manager/src/config.rs
++++ b/codex-rs/models-manager/src/config.rs
+@@ -5,6 +5,7 @@ use codex_protocol::openai_models::ModelsResponse;
+ pub struct ModelsManagerConfig {
+     pub model_context_window: Option<i64>,
+     pub model_auto_compact_token_limit: Option<i64>,
++    pub service_tier: Option<String>,
+     pub tool_output_token_limit: Option<usize>,
+     pub base_instructions: Option<String>,
+     pub personality_enabled: bool,
+diff --git a/codex-rs/models-manager/src/model_info.rs b/codex-rs/models-manager/src/model_info.rs
+index f8c2ee3..018c8a7 100644
+--- a/codex-rs/models-manager/src/model_info.rs
++++ b/codex-rs/models-manager/src/model_info.rs
+@@ -23,6 +23,11 @@ const PERSONALITY_PLACEHOLDER: &str = "{{ personality }}";
+ const PERSONALITY_SECTION_HEADER: &str = "# Personality";
+ 
+ pub fn with_config_overrides(mut model: ModelInfo, config: &ModelsManagerConfig) -> ModelInfo {
++    if config.service_tier.as_deref() == Some("context-long")
++        && let Some(max_context_window) = model.max_context_window
++    {
++        model.context_window = Some(max_context_window);
++    }
+     if let Some(context_window) = config.model_context_window {
+         model.context_window = Some(
+             model
+diff --git a/codex-rs/models-manager/src/model_info_tests.rs b/codex-rs/models-manager/src/model_info_tests.rs
+index 9cc3f3c..0f90d6b 100644
+--- a/codex-rs/models-manager/src/model_info_tests.rs
++++ b/codex-rs/models-manager/src/model_info_tests.rs
+@@ -254,3 +254,19 @@ fn model_context_window_uses_model_value_without_override() {
+ 
+     assert_eq!(updated, model);
+ }
++
++#[test]
++fn long_context_service_tier_uses_max_context_window() {
++    let mut model = model_info_from_slug("unknown-model");
++    model.context_window = Some(272_000);
++    model.max_context_window = Some(922_000);
++    let config = ModelsManagerConfig {
++        service_tier: Some("context-long".to_string()),
++        ..Default::default()
++    };
++
++    let updated = with_config_overrides(model, &config);
++
++    assert_eq!(updated.context_window, Some(922_000));
++    assert_eq!(updated.auto_compact_token_limit(), Some(829_800));
++}
+diff --git a/codex-rs/protocol/src/openai_models.rs b/codex-rs/protocol/src/openai_models.rs
+index 5f53bab..0cd03c3 100644
+--- a/codex-rs/protocol/src/openai_models.rs
++++ b/codex-rs/protocol/src/openai_models.rs
+@@ -244,6 +244,15 @@ pub struct ModelPreset {
+     /// Input modalities accepted when composing user turns for this preset.
+     #[serde(default = "default_input_modalities")]
+     pub input_modalities: Vec<InputModality>,
++    /// Default raw context window advertised by the model catalog.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub context_window: Option<i64>,
++    /// Maximum raw context window accepted for session overrides.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub max_context_window: Option<i64>,
++    /// Percentage of the raw context window available to model input.
++    #[serde(default = "default_effective_context_window_percent")]
++    pub effective_context_window_percent: i64,
+ }
+ 
+ /// Visibility of a model in the picker or APIs.
+@@ -634,6 +643,9 @@ impl From<ModelInfo> for ModelPreset {
+             availability_nux: info.availability_nux,
+             supported_in_api: info.supported_in_api,
+             input_modalities: info.input_modalities,
++            context_window: info.context_window,
++            max_context_window: info.max_context_window,
++            effective_context_window_percent: info.effective_context_window_percent,
+         }
+     }
+ }
+diff --git a/codex-rs/protocol/src/protocol.rs b/codex-rs/protocol/src/protocol.rs
+index 0c16bf6..ddf5a1c 100644
+--- a/codex-rs/protocol/src/protocol.rs
++++ b/codex-rs/protocol/src/protocol.rs
+@@ -484,6 +484,9 @@ pub struct ThreadSettingsOverrides {
+     /// Updated model slug. When set, the model info is derived automatically.
+     pub model: Option<String>,
+ 
++    /// Updated raw context window for the model.
++    pub model_context_window: Option<i64>,
++
+     /// Updated reasoning effort (honored only for reasoning-capable models).
+     ///
+     /// Use `Some(Some(_))` to set a specific effort, `Some(None)` to clear the
+@@ -2038,6 +2041,8 @@ pub struct ThreadSettingsSnapshot {
+     pub model: String,
+     pub model_provider_id: String,
+     #[serde(skip_serializing_if = "Option::is_none")]
++    pub model_context_window: Option<i64>,
++    #[serde(skip_serializing_if = "Option::is_none")]
+     pub service_tier: Option<String>,
+     pub approval_policy: AskForApproval,
+     pub approvals_reviewer: ApprovalsReviewer,
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index c70d1ea..c3738b5 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -789,6 +789,9 @@ impl App {
+         let startup_started_at = Instant::now();
+         let (app_event_tx, mut app_event_rx) = unbounded_channel();
+         let app_event_tx = AppEventSender::new(app_event_tx);
++        crate::external_model_selection::start_external_model_selection_watcher(
++            app_event_tx.clone(),
++        );
+         emit_project_config_warnings(&app_event_tx, &config);
+         emit_system_bwrap_warning(&app_event_tx, &config);
+         tui.set_notification_settings(
+@@ -1304,6 +1307,9 @@ See the Codex keymap documentation for supported actions and examples."
+                     let pasted = pasted.replace("\r", "\n");
+                     self.chat_widget.handle_paste(pasted);
+                 }
++                TuiEvent::Mouse(mouse) => {
++                    self.chat_widget.handle_mouse_event(mouse);
++                }
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     if self.backtrack_render_pending {
+                         self.rebuild_transcript_after_backtrack(tui)?;
+diff --git a/codex-rs/tui/src/app/app_server_event_targets.rs b/codex-rs/tui/src/app/app_server_event_targets.rs
+index 5935e46..a43e062 100644
+--- a/codex-rs/tui/src/app/app_server_event_targets.rs
++++ b/codex-rs/tui/src/app/app_server_event_targets.rs
+@@ -226,6 +226,7 @@ mod tests {
+             },
+             active_permission_profile: None,
+             model: "gpt-5.4".to_string(),
++            model_context_window: None,
+             model_provider: "openai".to_string(),
+             service_tier: None,
+             effort: Some(ReasoningEffort::High),
+diff --git a/codex-rs/tui/src/app/event_dispatch.rs b/codex-rs/tui/src/app/event_dispatch.rs
+index 42dbcae..2984e70 100644
+--- a/codex-rs/tui/src/app/event_dispatch.rs
++++ b/codex-rs/tui/src/app/event_dispatch.rs
+@@ -9,6 +9,7 @@ use super::*;
+ use crate::app_server_session::ForkGoalContinuation;
+ use crate::config_update::format_config_error;
+ use crate::external_agent_config_migration_flow::ExternalAgentConfigMigrationFlowOutcome;
++use crate::status::format_tokens_compact;
+ #[cfg(target_os = "windows")]
+ use codex_config::types::WindowsSandboxModeToml;
+ 
+@@ -1076,6 +1077,72 @@ impl App {
+                 self.sync_active_thread_service_tier_to_cached_session()
+                     .await;
+             }
++            AppEvent::UpdateModelContextWindow {
++                model_context_window,
++                effective_context_window,
++            } => {
++                self.chat_widget
++                    .set_model_context_window(model_context_window, effective_context_window);
++                self.sync_active_thread_model_context_window_setting(
++                    app_server,
++                    model_context_window,
++                )
++                .await;
++                self.chat_widget.add_info_message(
++                    format!(
++                        "Context window changed to {} for this session",
++                        format_tokens_compact(model_context_window)
++                    ),
++                    /*hint*/ None,
++                );
++            }
++            AppEvent::ApplyExternalModelSelection {
++                generation,
++                model,
++                effort,
++                model_context_window,
++            } => {
++                let preset = self
++                    .model_catalog
++                    .try_list_models()
++                    .ok()
++                    .and_then(|models| models.into_iter().find(|preset| preset.model == model));
++                let valid_effort = preset.as_ref().and_then(|preset| {
++                    effort.filter(|requested_effort| {
++                        preset
++                            .supported_reasoning_efforts
++                            .iter()
++                            .any(|option| &option.effort == requested_effort)
++                    })
++                });
++                self.chat_widget.set_model(&model);
++                self.on_update_reasoning_effort(valid_effort.clone());
++                if let Some(mut params) =
++                    self.active_thread_model_setting_update_params(model.clone())
++                {
++                    params.effort = valid_effort.clone();
++                    if let Some(context_window) = model_context_window.filter(|window| *window > 0)
++                    {
++                        params.model_context_window = Some(context_window);
++                    }
++                    self.send_thread_settings_update(app_server, params).await;
++                }
++                if let (Some(preset), Some(context_window)) =
++                    (preset, model_context_window.filter(|window| *window > 0))
++                {
++                    let effective_context_window =
++                        crate::chatwidget::context_window_popup::effective_context_window(
++                            context_window,
++                            preset.effective_context_window_percent,
++                        );
++                    self.chat_widget
++                        .set_model_context_window(context_window, effective_context_window);
++                }
++                self.chat_widget.add_info_message(
++                    format!("CodexCopilot selection updated from another surface ({generation})"),
++                    /*hint*/ None,
++                );
++            }
+             AppEvent::UpdatePersonality(personality) => {
+                 self.on_update_personality(personality);
+                 self.sync_active_thread_personality_setting(app_server, personality)
+@@ -1094,6 +1161,9 @@ impl App {
+             AppEvent::OpenReasoningPopup { model } => {
+                 self.chat_widget.open_reasoning_popup(model);
+             }
++            AppEvent::OpenContextWindowPopup { model } => {
++                self.chat_widget.open_context_window_popup(model);
++            }
+             AppEvent::OpenAdvancedReasoningPopup { model } => {
+                 self.chat_widget.open_advanced_reasoning_popup(model);
+             }
+diff --git a/codex-rs/tui/src/app/tests.rs b/codex-rs/tui/src/app/tests.rs
+index f044c45..c505d4b 100644
+--- a/codex-rs/tui/src/app/tests.rs
++++ b/codex-rs/tui/src/app/tests.rs
+@@ -7131,6 +7131,7 @@ async fn inactive_thread_settings_notification_updates_cached_collaboration_mode
+                 codex_app_server_protocol::ActivePermissionProfile::read_only(),
+             ),
+             model: "gpt-plan".to_string(),
++            model_context_window: None,
+             model_provider: "openai".to_string(),
+             service_tier: None,
+             effort: collaboration_mode.settings.reasoning_effort.clone(),
+diff --git a/codex-rs/tui/src/app/thread_settings.rs b/codex-rs/tui/src/app/thread_settings.rs
+index 1f96b17..1277627 100644
+--- a/codex-rs/tui/src/app/thread_settings.rs
++++ b/codex-rs/tui/src/app/thread_settings.rs
+@@ -47,6 +47,22 @@ impl App {
+         self.send_thread_settings_update(app_server, params).await;
+     }
+ 
++    pub(super) async fn sync_active_thread_model_context_window_setting(
++        &mut self,
++        app_server: &mut AppServerSession,
++        model_context_window: i64,
++    ) {
++        let Some(thread_id) = self.active_thread_id else {
++            return;
++        };
++        let params = ThreadSettingsUpdateParams {
++            thread_id: thread_id.to_string(),
++            model_context_window: Some(model_context_window),
++            ..ThreadSettingsUpdateParams::default()
++        };
++        self.send_thread_settings_update(app_server, params).await;
++    }
++
+     pub(super) fn active_thread_reasoning_setting_update_params(
+         &self,
+         effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+@@ -201,6 +217,7 @@ fn thread_settings_update_has_changes(params: &ThreadSettingsUpdateParams) -> bo
+         || params.sandbox_policy.is_some()
+         || params.permissions.is_some()
+         || params.model.is_some()
++        || params.model_context_window.is_some()
+         || params.service_tier.is_some()
+         || params.effort.is_some()
+         || params.summary.is_some()
+diff --git a/codex-rs/tui/src/app_event.rs b/codex-rs/tui/src/app_event.rs
+index 0bb4990..893b846 100644
+--- a/codex-rs/tui/src/app_event.rs
++++ b/codex-rs/tui/src/app_event.rs
+@@ -757,6 +757,20 @@ pub(crate) enum AppEvent {
+     /// Update the current model slug in the running app and widget.
+     UpdateModel(String),
+ 
++    /// Update the model context window for the running thread only.
++    UpdateModelContextWindow {
++        model_context_window: i64,
++        effective_context_window: i64,
++    },
++
++    /// Apply a selection published by another CodexCopilot surface.
++    ApplyExternalModelSelection {
++        generation: String,
++        model: String,
++        effort: Option<ReasoningEffort>,
++        model_context_window: Option<i64>,
++    },
++
+     /// Update the current personality in the running app and widget.
+     UpdatePersonality(Personality),
+ 
+@@ -786,6 +800,11 @@ pub(crate) enum AppEvent {
+         model: ModelPreset,
+     },
+ 
++    /// Open the session-only context window picker for a model.
++    OpenContextWindowPopup {
++        model: ModelPreset,
++    },
++
+     /// Open the explicit Max/Ultra reasoning selection popup for a model.
+     OpenAdvancedReasoningPopup {
+         model: ModelPreset,
+diff --git a/codex-rs/tui/src/app_server_session.rs b/codex-rs/tui/src/app_server_session.rs
+index 825103c..b91f03f 100644
+--- a/codex-rs/tui/src/app_server_session.rs
++++ b/codex-rs/tui/src/app_server_session.rs
+@@ -1367,6 +1367,9 @@ fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
+         // `model/list` already returns models filtered for the active client/auth context.
+         supported_in_api: true,
+         input_modalities: model.input_modalities,
++        context_window: model.context_window,
++        max_context_window: model.max_context_window,
++        effective_context_window_percent: model.effective_context_window_percent,
+     }
+ }
+ 
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer.rs b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+index 2404ad1..b299e08 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+@@ -497,6 +497,7 @@ pub(crate) struct ChatComposer {
+     history_search_next_keys: Vec<KeyBinding>,
+     editor_keymap: EditorKeymap,
+     vim_normal_keymap: VimNormalKeymap,
++    last_textarea_area: std::cell::Cell<Option<Rect>>,
+ }
+ 
+ /// A resolved legacy `$` target plus any catalog built while disambiguating shell syntax.
+@@ -677,6 +678,7 @@ impl ChatComposer {
+             history_search_next_keys: default_keymap.composer.history_search_next.clone(),
+             editor_keymap: default_editor_keymap,
+             vim_normal_keymap: default_vim_normal_keymap,
++            last_textarea_area: std::cell::Cell::new(None),
+         };
+         // Apply configuration via the setter to keep side-effects centralized.
+         this.set_disable_paste_burst(disable_paste_burst);
+@@ -951,6 +953,38 @@ impl ChatComposer {
+         self.cursor_pos_with_textarea_right_reserve(area, /*textarea_right_reserve*/ 0)
+     }
+ 
++    pub(crate) fn selected_text(&self) -> Option<String> {
++        self.draft.textarea.selected_text().map(str::to_string)
++    }
++
++    pub(crate) fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) -> bool {
++        use crossterm::event::MouseButton;
++        use crossterm::event::MouseEventKind;
++
++        let extend = matches!(event.kind, MouseEventKind::Drag(MouseButton::Left));
++        if !matches!(
++            event.kind,
++            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left)
++        ) {
++            return false;
++        }
++        let Some(area) = self.last_textarea_area.get() else {
++            return false;
++        };
++        let state = *self.draft.textarea_state.borrow();
++        let handled = self.draft.textarea.set_cursor_from_screen(
++            area,
++            state,
++            event.column,
++            event.row,
++            extend,
++        );
++        if handled {
++            self.sync_popups();
++        }
++        handled
++    }
++
+     pub(crate) fn cursor_pos_with_textarea_right_reserve(
+         &self,
+         area: Rect,
+@@ -4413,6 +4447,7 @@ impl ChatComposer {
+     ) {
+         let [composer_rect, remote_images_rect, textarea_rect, popup_rect] =
+             self.layout_areas_with_textarea_right_reserve(area, textarea_right_reserve);
++        self.last_textarea_area.set(Some(textarea_rect));
+         match &self.popups.active {
+             ActivePopup::Command(popup) => {
+                 popup.render_ref(popup_rect, buf);
+diff --git a/codex-rs/tui/src/bottom_pane/footer.rs b/codex-rs/tui/src/bottom_pane/footer.rs
+index 189e2df..c6f89bc 100644
+--- a/codex-rs/tui/src/bottom_pane/footer.rs
++++ b/codex-rs/tui/src/bottom_pane/footer.rs
+@@ -996,14 +996,20 @@ fn build_columns(entries: Vec<Line<'static>>) -> Vec<Line<'static>> {
+ }
+ 
+ pub(crate) fn context_window_line(percent: Option<i64>, used_tokens: Option<i64>) -> Line<'static> {
++    if let (Some(percent), Some(tokens)) = (percent, used_tokens) {
++        let used_fmt = format_tokens_compact(tokens);
++        return Line::from(vec![
++            Span::from(format!("{used_fmt} current · {percent}% context left")).dim(),
++        ]);
++    }
++
+     if let Some(percent) = percent {
+-        let percent = percent.clamp(0, 100);
+         return Line::from(vec![Span::from(format!("{percent}% context left")).dim()]);
+     }
+ 
+     if let Some(tokens) = used_tokens {
+         let used_fmt = format_tokens_compact(tokens);
+-        return Line::from(vec![Span::from(format!("{used_fmt} used")).dim()]);
++        return Line::from(vec![Span::from(format!("{used_fmt} current")).dim()]);
+     }
+ 
+     Line::from(vec![Span::from("100% context left").dim()])
+diff --git a/codex-rs/tui/src/bottom_pane/mod.rs b/codex-rs/tui/src/bottom_pane/mod.rs
+index 72cdc89..8e53ec5 100644
+--- a/codex-rs/tui/src/bottom_pane/mod.rs
++++ b/codex-rs/tui/src/bottom_pane/mod.rs
+@@ -727,6 +727,24 @@ impl BottomPane {
+         }
+     }
+ 
++    pub(crate) fn selected_composer_text(&self) -> Option<String> {
++        self.view_stack
++            .is_empty()
++            .then(|| self.composer.selected_text())
++            .flatten()
++    }
++
++    pub(crate) fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) -> bool {
++        if !self.view_stack.is_empty() {
++            return false;
++        }
++        let handled = self.composer.handle_mouse_event(event);
++        if handled {
++            self.request_redraw();
++        }
++        handled
++    }
++
+     pub fn handle_paste(&mut self, pasted: String) {
+         let has_pasted_text = !pasted.is_empty();
+         if let Some(view) = self.view_stack.last_mut() {
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_setup.rs b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+index 63ce423..da8a9de 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_setup.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+@@ -63,6 +63,9 @@ pub(crate) enum StatusLineItem {
+     /// Current reasoning level.
+     Reasoning,
+ 
++    /// Current context tier/window selection.
++    ContextTier,
++
+     /// Current working directory path.
+     CurrentDir,
+ 
+@@ -121,6 +124,15 @@ pub(crate) enum StatusLineItem {
+     /// Total input tokens consumed.
+     TotalInputTokens,
+ 
++    /// Percentage of input tokens served from the provider cache.
++    CacheHit,
++
++    /// Number of successful context compactions in this thread.
++    CompactionCount,
++
++    /// Active context usage reported after the latest successful compaction.
++    PostCompactionUsage,
++
+     /// Total output tokens generated.
+     TotalOutputTokens,
+ 
+@@ -151,6 +163,7 @@ impl StatusLineItem {
+             StatusLineItem::ModelName => "Current model name",
+             StatusLineItem::ModelWithReasoning => "Current model name with reasoning level",
+             StatusLineItem::Reasoning => "Current reasoning level",
++            StatusLineItem::ContextTier => "Current context tier or explicit context window",
+             StatusLineItem::CurrentDir => "Current working directory",
+             StatusLineItem::ProjectRoot => "Project name (omitted when unavailable)",
+             StatusLineItem::GitBranch => "Current Git branch (omitted when unavailable)",
+@@ -181,6 +194,15 @@ impl StatusLineItem {
+             }
+             StatusLineItem::UsedTokens => "Total tokens used in session (omitted when zero)",
+             StatusLineItem::TotalInputTokens => "Total input tokens used in session",
++            StatusLineItem::CacheHit => {
++                "Input-token cache hit ratio (omitted until cached tokens are reported)"
++            }
++            StatusLineItem::CompactionCount => {
++                "Successful context compactions (omitted until one completes)"
++            }
++            StatusLineItem::PostCompactionUsage => {
++                "Active context after the latest compaction (omitted until reported)"
++            }
+             StatusLineItem::TotalOutputTokens => "Total output tokens used in session",
+             StatusLineItem::SessionId => "Current thread identifier (omitted until thread starts)",
+             StatusLineItem::FastMode => "Whether Fast mode is currently active",
+@@ -202,6 +224,7 @@ impl StatusLineItem {
+             StatusLineItem::ModelName => StatusSurfacePreviewItem::Model,
+             StatusLineItem::ModelWithReasoning => StatusSurfacePreviewItem::ModelWithReasoning,
+             StatusLineItem::Reasoning => StatusSurfacePreviewItem::Reasoning,
++            StatusLineItem::ContextTier => StatusSurfacePreviewItem::ContextTier,
+             StatusLineItem::CurrentDir => StatusSurfacePreviewItem::CurrentDir,
+             StatusLineItem::ProjectRoot => StatusSurfacePreviewItem::ProjectRoot,
+             StatusLineItem::GitBranch => StatusSurfacePreviewItem::GitBranch,
+@@ -218,6 +241,9 @@ impl StatusLineItem {
+             StatusLineItem::ContextWindowSize => StatusSurfacePreviewItem::ContextWindowSize,
+             StatusLineItem::UsedTokens => StatusSurfacePreviewItem::UsedTokens,
+             StatusLineItem::TotalInputTokens => StatusSurfacePreviewItem::TotalInputTokens,
++            StatusLineItem::CacheHit => StatusSurfacePreviewItem::CacheHit,
++            StatusLineItem::CompactionCount => StatusSurfacePreviewItem::CompactionCount,
++            StatusLineItem::PostCompactionUsage => StatusSurfacePreviewItem::PostCompactionUsage,
+             StatusLineItem::TotalOutputTokens => StatusSurfacePreviewItem::TotalOutputTokens,
+             StatusLineItem::SessionId => StatusSurfacePreviewItem::SessionId,
+             StatusLineItem::FastMode => StatusSurfacePreviewItem::FastMode,
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+index 4198943..d37b62f 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+@@ -33,6 +33,7 @@ impl StatusLineAccent {
+             StatusLineItem::ModelName
+             | StatusLineItem::ModelWithReasoning
+             | StatusLineItem::Reasoning => Self::Model,
++            StatusLineItem::ContextTier => Self::Usage,
+             StatusLineItem::CurrentDir | StatusLineItem::ProjectRoot => Self::Path,
+             StatusLineItem::GitBranch
+             | StatusLineItem::PullRequestNumber
+@@ -43,6 +44,9 @@ impl StatusLineAccent {
+             | StatusLineItem::ContextWindowSize
+             | StatusLineItem::UsedTokens
+             | StatusLineItem::TotalInputTokens
++            | StatusLineItem::CacheHit
++            | StatusLineItem::CompactionCount
++            | StatusLineItem::PostCompactionUsage
+             | StatusLineItem::TotalOutputTokens => Self::Usage,
+             StatusLineItem::FiveHourLimit | StatusLineItem::WeeklyLimit => Self::Limit,
+             StatusLineItem::CodexVersion | StatusLineItem::SessionId => Self::Metadata,
+diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+index b8b7a6f..6fed681 100644
+--- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
++++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+@@ -26,6 +26,9 @@ pub(crate) enum StatusSurfacePreviewItem {
+     ContextWindowSize,
+     UsedTokens,
+     TotalInputTokens,
++    CacheHit,
++    CompactionCount,
++    PostCompactionUsage,
+     TotalOutputTokens,
+     SessionId,
+     FastMode,
+@@ -34,6 +37,7 @@ pub(crate) enum StatusSurfacePreviewItem {
+     Model,
+     ModelWithReasoning,
+     Reasoning,
++    ContextTier,
+     TaskProgress,
+ }
+ 
+@@ -52,13 +56,16 @@ impl StatusSurfacePreviewItem {
+             StatusSurfacePreviewItem::Permissions => "Workspace",
+             StatusSurfacePreviewItem::ApprovalMode => "on-request",
+             StatusSurfacePreviewItem::ContextRemaining => "Context 0% left",
+-            StatusSurfacePreviewItem::ContextUsed => "Context 0% used",
++            StatusSurfacePreviewItem::ContextUsed => "Context 0/0 (0.0%)",
+             StatusSurfacePreviewItem::FiveHourLimit => "primary 0%",
+             StatusSurfacePreviewItem::WeeklyLimit => "secondary 0%",
+             StatusSurfacePreviewItem::CodexVersion => "0.0.0",
+             StatusSurfacePreviewItem::ContextWindowSize => "0 window",
+             StatusSurfacePreviewItem::UsedTokens => "0 used",
+             StatusSurfacePreviewItem::TotalInputTokens => "0 in",
++            StatusSurfacePreviewItem::CacheHit => "Cache 0%",
++            StatusSurfacePreviewItem::CompactionCount => "Compact ×0",
++            StatusSurfacePreviewItem::PostCompactionUsage => "Post-compact 0/0 (0.0%)",
+             StatusSurfacePreviewItem::TotalOutputTokens => "0 out",
+             StatusSurfacePreviewItem::SessionId => "550e8400-e29b-41d4",
+             StatusSurfacePreviewItem::FastMode => "Fast on",
+@@ -67,6 +74,7 @@ impl StatusSurfacePreviewItem {
+             StatusSurfacePreviewItem::Model => "gpt-5.2-codex",
+             StatusSurfacePreviewItem::ModelWithReasoning => "gpt-5.2-codex medium",
+             StatusSurfacePreviewItem::Reasoning => "medium",
++            StatusSurfacePreviewItem::ContextTier => "Context 400K",
+             StatusSurfacePreviewItem::TaskProgress => "Tasks 0/0",
+         }
+     }
+@@ -92,6 +100,9 @@ impl StatusSurfacePreviewItem {
+             Self::ContextWindowSize,
+             Self::UsedTokens,
+             Self::TotalInputTokens,
++            Self::CacheHit,
++            Self::CompactionCount,
++            Self::PostCompactionUsage,
+             Self::TotalOutputTokens,
+             Self::SessionId,
+             Self::FastMode,
+@@ -100,6 +111,7 @@ impl StatusSurfacePreviewItem {
+             Self::Model,
+             Self::ModelWithReasoning,
+             Self::Reasoning,
++            Self::ContextTier,
+             Self::TaskProgress,
+         ]
+         .into_iter()
+diff --git a/codex-rs/tui/src/bottom_pane/textarea.rs b/codex-rs/tui/src/bottom_pane/textarea.rs
+index 62421ac..2f5d34d 100644
+--- a/codex-rs/tui/src/bottom_pane/textarea.rs
++++ b/codex-rs/tui/src/bottom_pane/textarea.rs
+@@ -1,5 +1,5 @@
+-//! The textarea owns editable composer text, placeholder elements, cursor/wrap state, and a
+-//! single-entry kill buffer.
++//! The textarea owns editable composer text, placeholder elements, cursor/wrap state, a
++//! single-entry kill buffer, and bounded prompt undo history.
+ //!
+ //! Whole-buffer replacement APIs intentionally rebuild only the visible draft state. They clear
+ //! element ranges and derived cursor/wrapping caches, but they keep the kill buffer intact so a
+@@ -45,6 +45,7 @@ use self::vim::VimPending;
+ use self::vim::VimTextObjectScope;
+ 
+ const WORD_SEPARATORS: &str = "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?";
++const MAX_UNDO_HISTORY: usize = 100;
+ 
+ fn is_word_separator(ch: char) -> bool {
+     WORD_SEPARATORS.contains(ch)
+@@ -88,12 +89,20 @@ fn text_for_display(text: &str) -> Cow<'_, str> {
+     }
+ }
+ 
+-#[derive(Debug, Clone)]
++#[derive(Debug, Clone, PartialEq, Eq)]
+ struct TextElement {
+     id: u64,
+     range: Range<usize>,
+ }
+ 
++#[derive(Debug, Clone, PartialEq, Eq)]
++struct EditSnapshot {
++    text: String,
++    cursor_pos: usize,
++    selection_anchor: Option<usize>,
++    elements: Vec<TextElement>,
++}
++
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub(crate) struct TextElementSnapshot {
+     pub(crate) id: u64,
+@@ -113,12 +122,15 @@ pub(crate) struct TextElementSnapshot {
+ pub(crate) struct TextArea {
+     text: String,
+     cursor_pos: usize,
++    selection_anchor: Option<usize>,
+     wrap_cache: RefCell<Option<WrapCache>>,
+     preferred_col: Option<usize>,
+     elements: Vec<TextElement>,
+     next_element_id: u64,
+     kill_buffer: String,
+     kill_buffer_kind: KillBufferKind,
++    undo_history: Vec<EditSnapshot>,
++    restoring_undo: bool,
+     vim_enabled: bool,
+     vim_mode: VimMode,
+     vim_pending: VimPending,
+@@ -154,12 +166,15 @@ impl TextArea {
+         Self {
+             text: String::new(),
+             cursor_pos: 0,
++            selection_anchor: None,
+             wrap_cache: RefCell::new(None),
+             preferred_col: None,
+             elements: Vec::new(),
+             next_element_id: 1,
+             kill_buffer: String::new(),
+             kill_buffer_kind: KillBufferKind::Characterwise,
++            undo_history: Vec::new(),
++            restoring_undo: false,
+             vim_enabled: false,
+             vim_mode: VimMode::Insert,
+             vim_pending: VimPending::None,
+@@ -202,7 +217,51 @@ impl TextArea {
+         self.set_text_inner(text, Some(elements));
+     }
+ 
++    fn snapshot(&self) -> EditSnapshot {
++        EditSnapshot {
++            text: self.text.clone(),
++            cursor_pos: self.cursor_pos,
++            selection_anchor: self.selection_anchor,
++            elements: self.elements.clone(),
++        }
++    }
++
++    fn record_undo(&mut self) {
++        if self.restoring_undo {
++            return;
++        }
++        let snapshot = self.snapshot();
++        if self.undo_history.last() == Some(&snapshot) {
++            return;
++        }
++        if self.undo_history.len() == MAX_UNDO_HISTORY {
++            self.undo_history.remove(0);
++        }
++        self.undo_history.push(snapshot);
++    }
++
++    pub(crate) fn undo(&mut self) -> bool {
++        let Some(snapshot) = self.undo_history.pop() else {
++            return false;
++        };
++        self.restoring_undo = true;
++        self.text = snapshot.text;
++        self.cursor_pos = snapshot.cursor_pos.min(self.text.len());
++        self.selection_anchor = snapshot
++            .selection_anchor
++            .map(|anchor| anchor.min(self.text.len()));
++        self.elements = snapshot.elements;
++        self.wrap_cache.replace(None);
++        self.preferred_col = None;
++        self.restoring_undo = false;
++        true
++    }
++
+     fn set_text_inner(&mut self, text: &str, elements: Option<&[UserTextElement]>) {
++        let changed = self.text != text || elements.is_some();
++        if changed {
++            self.record_undo();
++        }
+         // Stage 1: replace the raw text and keep the cursor in a safe byte range.
+         self.text = text.to_string();
+         self.cursor_pos = self.cursor_pos.clamp(0, self.text.len());
+@@ -229,6 +288,7 @@ impl TextArea {
+         // The kill buffer is editing history rather than visible-buffer state, so full-buffer
+         // replacements intentionally leave it alone.
+         self.cursor_pos = self.clamp_pos_to_nearest_boundary(self.cursor_pos);
++        self.selection_anchor = None;
+         self.wrap_cache.replace(None);
+         self.preferred_col = None;
+     }
+@@ -353,10 +413,19 @@ impl TextArea {
+     }
+ 
+     pub fn insert_str(&mut self, text: &str) {
+-        self.insert_str_at(self.cursor_pos, text);
++        if let Some(range) = self.selection_range() {
++            self.replace_range(range, text);
++            self.selection_anchor = None;
++        } else {
++            self.insert_str_at(self.cursor_pos, text);
++        }
+     }
+ 
+     pub fn insert_str_at(&mut self, pos: usize, text: &str) {
++        if text.is_empty() {
++            return;
++        }
++        self.record_undo();
+         let pos = self.clamp_pos_for_insertion(pos);
+         self.text.insert_str(pos, text);
+         self.wrap_cache.replace(None);
+@@ -381,6 +450,7 @@ impl TextArea {
+         if removed_len == 0 && inserted_len == 0 {
+             return;
+         }
++        self.record_undo();
+         let diff = inserted_len as isize - removed_len as isize;
+ 
+         self.text.replace_range(range, text);
+@@ -401,8 +471,9 @@ impl TextArea {
+         }
+         .min(self.text.len());
+ 
+-        // Ensure cursor is not inside an element
++        // Ensure cursor is not inside an element.
+         self.cursor_pos = self.clamp_pos_to_nearest_boundary(self.cursor_pos);
++        self.selection_anchor = None;
+     }
+ 
+     pub fn cursor(&self) -> usize {
+@@ -412,7 +483,75 @@ impl TextArea {
+     pub fn set_cursor(&mut self, pos: usize) {
+         self.cursor_pos = pos.clamp(0, self.text.len());
+         self.cursor_pos = self.clamp_pos_to_nearest_boundary(self.cursor_pos);
++        self.selection_anchor = None;
++        self.preferred_col = None;
++    }
++
++    pub(crate) fn selection_range(&self) -> Option<Range<usize>> {
++        let anchor = self.selection_anchor?;
++        (anchor != self.cursor_pos)
++            .then_some(anchor.min(self.cursor_pos)..anchor.max(self.cursor_pos))
++    }
++
++    pub(crate) fn selected_text(&self) -> Option<&str> {
++        let range = self.selection_range()?;
++        self.text.get(range)
++    }
++
++    pub(crate) fn select_all(&mut self) -> bool {
++        if self.text.is_empty() {
++            self.selection_anchor = None;
++            return false;
++        }
++        self.selection_anchor = Some(0);
++        self.cursor_pos = self.text.len();
+         self.preferred_col = None;
++        true
++    }
++
++    pub(crate) fn set_cursor_from_screen(
++        &mut self,
++        area: Rect,
++        state: TextAreaState,
++        column: u16,
++        row: u16,
++        extend_selection: bool,
++    ) -> bool {
++        if !area.contains(ratatui::layout::Position::new(column, row)) {
++            return false;
++        }
++        let (line_end, pos) = {
++            let lines = self.wrapped_lines(area.width);
++            let scroll = self.effective_scroll(area.height, &lines, state.scroll) as usize;
++            let line_index = scroll.saturating_add(row.saturating_sub(area.y) as usize);
++            let Some(line) = lines.get(line_index) else {
++                return false;
++            };
++            let line_start = line.start;
++            let line_end = line.end.saturating_sub(1).max(line_start);
++            let target_col = column.saturating_sub(area.x) as usize;
++            let mut pos = line_start;
++            let mut width = 0usize;
++            for (offset, grapheme) in self.text[line_start..line_end].grapheme_indices(true) {
++                let next = width.saturating_add(grapheme.width());
++                if target_col < next {
++                    pos = line_start + offset;
++                    break;
++                }
++                width = next;
++                pos = line_start + offset + grapheme.len();
++            }
++            (line_end, pos)
++        };
++        let previous_cursor = self.cursor_pos;
++        if extend_selection {
++            self.selection_anchor.get_or_insert(previous_cursor);
++        } else {
++            self.selection_anchor = None;
++        }
++        self.cursor_pos = self.clamp_pos_to_nearest_boundary(pos.min(line_end));
++        self.preferred_col = None;
++        true
+     }
+ 
+     pub fn desired_height(&self, width: u16) -> u16 {
+@@ -515,6 +654,55 @@ impl TextArea {
+     }
+ 
+     pub fn input_with_keymap(&mut self, event: KeyEvent, keymap: &EditorKeymap) {
++        if matches!(
++            event,
++            KeyEvent {
++                code: KeyCode::Char('z' | 'Z'),
++                modifiers: KeyModifiers::CONTROL,
++                ..
++            }
++        ) {
++            self.undo();
++            return;
++        }
++
++        if matches!(
++            event,
++            KeyEvent {
++                code: KeyCode::Char('a' | 'A'),
++                modifiers: KeyModifiers::CONTROL,
++                ..
++            }
++        ) {
++            self.select_all();
++            return;
++        }
++
++        if let Some(range) = self.selection_range() {
++            if keymap.delete_backward.is_pressed(event)
++                || keymap.delete_forward.is_pressed(event)
++                || keymap.delete_backward_word.is_pressed(event)
++                || keymap.delete_forward_word.is_pressed(event)
++            {
++                self.replace_range(range, "");
++                return;
++            }
++            if keymap.move_left.is_pressed(event)
++                || keymap.move_up.is_pressed(event)
++                || keymap.move_line_start.is_pressed(event)
++            {
++                self.set_cursor(range.start);
++                return;
++            }
++            if keymap.move_right.is_pressed(event)
++                || keymap.move_down.is_pressed(event)
++                || keymap.move_line_end.is_pressed(event)
++            {
++                self.set_cursor(range.end);
++                return;
++            }
++        }
++
+         if keymap.insert_newline.is_pressed(event) {
+             self.insert_str("\n");
+             return;
+@@ -1445,6 +1633,10 @@ impl TextArea {
+ 
+         let removed_len = end - start;
+         let inserted_len = new.len();
++        if self.text.get(range.clone()) == Some(new) {
++            return false;
++        }
++        self.record_undo();
+         let diff = inserted_len as isize - removed_len as isize;
+ 
+         self.text.replace_range(range, new);
+@@ -1921,7 +2113,20 @@ impl StatefulWidgetRef for &TextArea {
+ 
+         let start = scroll as usize;
+         let end = (scroll + area.height).min(lines.len() as u16) as usize;
+-        self.render_lines(area, buf, &lines, start..end, Style::default(), &[]);
++        let selection_highlights = self.selection_range().map_or_else(Vec::new, |range| {
++            vec![(
++                range,
++                Style::default().add_modifier(ratatui::style::Modifier::REVERSED),
++            )]
++        });
++        self.render_lines(
++            area,
++            buf,
++            &lines,
++            start..end,
++            Style::default(),
++            &selection_highlights,
++        );
+     }
+ }
+ 
+@@ -1960,7 +2165,14 @@ impl TextArea {
+ 
+         let start = scroll as usize;
+         let end = (scroll + area.height).min(lines.len() as u16) as usize;
+-        self.render_lines(area, buf, &lines, start..end, base_style, highlights);
++        let mut combined = highlights.to_vec();
++        if let Some(selection) = self.selection_range() {
++            combined.push((
++                selection,
++                Style::default().add_modifier(ratatui::style::Modifier::REVERSED),
++            ));
++        }
++        self.render_lines(area, buf, &lines, start..end, base_style, &combined);
+     }
+ 
+     fn render_lines(
+@@ -2090,6 +2302,38 @@ mod tests {
+         t
+     }
+ 
++    #[test]
++    fn ctrl_z_undoes_unicode_edits_and_restores_selection() {
++        let mut textarea = TextArea::new();
++        textarea.insert_str("a👍b");
++        textarea.select_all();
++        textarea.insert_str("替换");
++        assert_eq!(textarea.text(), "替换");
++
++        textarea.input(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
++        assert_eq!(textarea.text(), "a👍b");
++        assert_eq!(textarea.selected_text(), Some("a👍b"));
++
++        textarea.input(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::CONTROL));
++        assert_eq!(textarea.text(), "");
++        assert_eq!(textarea.cursor(), 0);
++    }
++
++    #[test]
++    fn undo_history_is_bounded_and_empty_undo_is_a_noop() {
++        let mut textarea = TextArea::new();
++        assert!(!textarea.undo());
++        for _ in 0..(MAX_UNDO_HISTORY + 20) {
++            textarea.insert_str("x");
++        }
++        assert_eq!(textarea.undo_history.len(), MAX_UNDO_HISTORY);
++        for _ in 0..MAX_UNDO_HISTORY {
++            assert!(textarea.undo());
++        }
++        assert!(!textarea.undo());
++        assert_eq!(textarea.text().len(), 20);
++    }
++
+     #[test]
+     fn insert_and_replace_update_cursor_and_text() {
+         // insert helpers
+@@ -2154,6 +2398,58 @@ mod tests {
+         assert_eq!(t.text(), "a你");
+     }
+ 
++    #[test]
++    fn select_all_replaces_or_deletes_the_entire_buffer() {
++        let mut textarea = TextArea::new();
++        textarea.set_text_clearing_elements("alpha βeta");
++        assert!(textarea.select_all());
++        assert_eq!(textarea.selected_text(), Some("alpha βeta"));
++
++        textarea.insert_str("replacement");
++        assert_eq!(textarea.text(), "replacement");
++        assert!(textarea.selection_range().is_none());
++
++        textarea.select_all();
++        textarea.input(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
++        assert_eq!(textarea.text(), "");
++    }
++
++    #[test]
++    fn mouse_cursor_placement_is_grapheme_safe_and_drag_selects() {
++        let mut textarea = TextArea::new();
++        textarea.set_text_clearing_elements("a👍b\nsecond");
++        let area = Rect::new(10, 5, 20, 2);
++
++        assert!(textarea.set_cursor_from_screen(
++            area,
++            TextAreaState::default(),
++            13,
++            5,
++            /*extend_selection*/ false,
++        ));
++        assert!(textarea.text().is_char_boundary(textarea.cursor()));
++        let anchor = textarea.cursor();
++        assert!(textarea.set_cursor_from_screen(
++            area,
++            TextAreaState::default(),
++            16,
++            6,
++            /*extend_selection*/ true,
++        ));
++        let selection = textarea.selection_range().expect("mouse drag selection");
++        assert_eq!(selection.start, anchor.min(textarea.cursor()));
++        assert_eq!(selection.end, anchor.max(textarea.cursor()));
++    }
++
++    #[test]
++    fn ctrl_a_selects_all_instead_of_moving_to_line_start() {
++        let mut textarea = TextArea::new();
++        textarea.set_text_clearing_elements("one\ntwo");
++        textarea.set_cursor(textarea.text().len());
++        textarea.input(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL));
++        assert_eq!(textarea.selected_text(), Some("one\ntwo"));
++    }
++
+     #[test]
+     fn delete_backward_and_forward_edges() {
+         let mut t = ta_with("abc");
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index a3d539e..19aa77d 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -329,6 +329,7 @@ use crate::tui::FrameRequester;
+ mod command_lifecycle;
+ mod connectors;
+ mod constructor;
++mod context_usage;
+ use self::connectors::ConnectorsState;
+ mod exec_state;
+ use self::exec_state::RunningCommand;
+@@ -375,6 +376,7 @@ use self::plugins::PluginListFetchState;
+ use self::plugins::PluginsCacheState;
+ mod plan_implementation;
+ use self::plan_implementation::PLAN_IMPLEMENTATION_TITLE;
++pub(crate) mod context_window_popup;
+ mod model_popups;
+ mod notifications;
+ use self::notifications::Notification;
+@@ -555,6 +557,9 @@ pub(crate) struct ChatWidget {
+     runtime_model_provider_base_url: Option<String>,
+     pub(crate) remote_connection: Option<RemoteConnectionStatus>,
+     token_info: Option<TokenUsageInfo>,
++    successful_compaction_count: u64,
++    awaiting_post_compaction_usage: bool,
++    last_post_compaction_tokens: Option<i64>,
+     rate_limit_snapshots_by_limit_id: BTreeMap<String, RateLimitSnapshotDisplay>,
+     refreshing_status_outputs: Vec<(u64, StatusHistoryHandle)>,
+     next_status_refresh_request_id: u64,
+@@ -1142,11 +1147,21 @@ impl ChatWidget {
+ 
+     fn apply_token_info(&mut self, info: TokenUsageInfo) {
+         let percent = self.context_remaining_percent(&info);
+-        let used_tokens = self.context_used_tokens(&info, percent.is_some());
++        let used_tokens = Some(info.last_token_usage.tokens_in_context_window());
+         self.bottom_pane.set_context_window(percent, used_tokens);
++        if self.awaiting_post_compaction_usage {
++            self.last_post_compaction_tokens = used_tokens;
++            self.awaiting_post_compaction_usage = false;
++        }
+         self.token_info = Some(info);
+     }
+ 
++    fn record_successful_compaction(&mut self) {
++        self.successful_compaction_count = self.successful_compaction_count.saturating_add(1);
++        self.awaiting_post_compaction_usage = true;
++        self.refresh_status_line();
++    }
++
+     fn context_remaining_percent(&self, info: &TokenUsageInfo) -> Option<i64> {
+         info.model_context_window.map(|window| {
+             info.last_token_usage
+@@ -1154,14 +1169,6 @@ impl ChatWidget {
+         })
+     }
+ 
+-    fn context_used_tokens(&self, info: &TokenUsageInfo, percent_known: bool) -> Option<i64> {
+-        if percent_known {
+-            return None;
+-        }
+-
+-        Some(info.total_token_usage.tokens_in_context_window())
+-    }
+-
+     fn restore_pre_review_token_info(&mut self) {
+         if let Some(saved) = self.review.pre_review_token_info.take() {
+             match saved {
+diff --git a/codex-rs/tui/src/chatwidget/command_lifecycle.rs b/codex-rs/tui/src/chatwidget/command_lifecycle.rs
+index 03ca9c8..ee9dec5 100644
+--- a/codex-rs/tui/src/chatwidget/command_lifecycle.rs
++++ b/codex-rs/tui/src/chatwidget/command_lifecycle.rs
+@@ -52,7 +52,7 @@ impl ChatWidget {
+     }
+ 
+     pub(super) fn on_exec_command_output_delta(&mut self, call_id: &str, delta: &str) {
+-        self.track_unified_exec_output_chunk(call_id, delta.as_bytes());
++        self.track_unified_exec_output_chunk(call_id, delta);
+         if !self.bottom_pane.is_task_running() {
+             return;
+         }
+@@ -214,7 +214,7 @@ impl ChatWidget {
+     }
+ 
+     /// Record recent stdout/stderr lines for the unified exec footer.
+-    pub(super) fn track_unified_exec_output_chunk(&mut self, call_id: &str, chunk: &[u8]) {
++    pub(super) fn track_unified_exec_output_chunk(&mut self, call_id: &str, chunk: &str) {
+         let Some(process) = self
+             .unified_exec_processes
+             .iter_mut()
+@@ -223,8 +223,7 @@ impl ChatWidget {
+             return;
+         };
+ 
+-        let text = String::from_utf8_lossy(chunk);
+-        for line in text
++        for line in chunk
+             .lines()
+             .map(str::trim_end)
+             .filter(|line| !line.is_empty())
+diff --git a/codex-rs/tui/src/chatwidget/constructor.rs b/codex-rs/tui/src/chatwidget/constructor.rs
+index eb979ce..56de08e 100644
+--- a/codex-rs/tui/src/chatwidget/constructor.rs
++++ b/codex-rs/tui/src/chatwidget/constructor.rs
+@@ -123,6 +123,9 @@ impl ChatWidget {
+             runtime_model_provider_base_url,
+             remote_connection: None,
+             token_info: None,
++            successful_compaction_count: 0,
++            awaiting_post_compaction_usage: false,
++            last_post_compaction_tokens: None,
+             rate_limit_snapshots_by_limit_id: BTreeMap::new(),
+             refreshing_status_outputs: Vec::new(),
+             next_status_refresh_request_id: 0,
+diff --git a/codex-rs/tui/src/chatwidget/context_usage.rs b/codex-rs/tui/src/chatwidget/context_usage.rs
+new file mode 100644
+index 0000000..5c30df2
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/context_usage.rs
+@@ -0,0 +1,158 @@
++//! Context-window usage output for the `/context` slash command.
++
++use super::*;
++
++const CONTEXT_BAR_WIDTH: usize = 20;
++
++fn context_bar(used_tokens: i64, context_window: i64) -> String {
++    let used_ratio = if context_window > 0 {
++        used_tokens.max(0) as f64 / context_window as f64
++    } else {
++        0.0
++    };
++    let filled = (used_ratio * CONTEXT_BAR_WIDTH as f64)
++        .round()
++        .clamp(0.0, CONTEXT_BAR_WIDTH as f64) as usize;
++    format!(
++        "{}{}",
++        "●".repeat(filled),
++        "·".repeat(CONTEXT_BAR_WIDTH - filled)
++    )
++}
++
++fn percentage(numerator: i64, denominator: i64) -> Option<f64> {
++    (denominator > 0).then(|| numerator.max(0) as f64 / denominator as f64 * 100.0)
++}
++
++impl ChatWidget {
++    pub(super) fn add_context_usage_output(&mut self) {
++        let mut lines: Vec<Line<'static>> =
++            vec!["/context".magenta().into(), " Context Usage".bold().into()];
++        let Some(token_info) = self.token_info.as_ref() else {
++            lines.push(
++                format!(
++                    "   {} · usage is available after the first provider response",
++                    self.model_display_name()
++                )
++                .dim()
++                .into(),
++            );
++            self.add_to_history(PlainHistoryCell::new(lines));
++            return;
++        };
++
++        let active = &token_info.last_token_usage;
++        let session = &token_info.total_token_usage;
++        let used_tokens = active.tokens_in_context_window().max(0);
++        let context_window = self.status_line_context_window_size().unwrap_or_default();
++        let context_tier = self
++            .current_service_tier()
++            .filter(|tier| *tier == "context-long")
++            .map(|_| "long")
++            .unwrap_or("default");
++
++        if context_window > 0 {
++            let used_percent = percentage(used_tokens, context_window).unwrap_or_default();
++            lines.push(
++                vec![
++                    "   ".into(),
++                    context_bar(used_tokens, context_window).cyan(),
++                    "  ".into(),
++                    format!(
++                        "{} · {} · {}/{} tokens ({used_percent:.1}%)",
++                        self.model_display_name(),
++                        context_tier,
++                        format_tokens_compact(used_tokens),
++                        format_tokens_compact(context_window)
++                    )
++                    .into(),
++                ]
++                .into(),
++            );
++        } else {
++            lines.push(
++                format!(
++                    "   {} · {} · {} active tokens",
++                    self.model_display_name(),
++                    context_tier,
++                    format_tokens_compact(used_tokens)
++                )
++                .into(),
++            );
++        }
++
++        if active.input_tokens > 0 {
++            lines.push(format!("   Input: {}", format_tokens_compact(active.input_tokens)).into());
++        }
++        if active.cached_input_tokens > 0 {
++            let cache_hit =
++                percentage(active.cached_input_tokens, active.input_tokens).unwrap_or_default();
++            lines.push(
++                format!(
++                    "   Cached input: {} ({cache_hit:.1}% hit)",
++                    format_tokens_compact(active.cached_input_tokens)
++                )
++                .into(),
++            );
++        }
++        if active.output_tokens > 0 {
++            lines
++                .push(format!("   Output: {}", format_tokens_compact(active.output_tokens)).into());
++        }
++        if active.reasoning_output_tokens > 0 {
++            lines.push(
++                format!(
++                    "   Reasoning output: {}",
++                    format_tokens_compact(active.reasoning_output_tokens)
++                )
++                .into(),
++            );
++        }
++        if context_window > 0 {
++            let free_tokens = (context_window - used_tokens).max(0);
++            let free_percent = percentage(free_tokens, context_window).unwrap_or_default();
++            lines.push(
++                format!(
++                    "   Free space: {} ({free_percent:.1}%)",
++                    format_tokens_compact(free_tokens)
++                )
++                .dim()
++                .into(),
++            );
++        }
++        if !session.is_zero() {
++            lines.push(
++                format!(
++                    "   Session total: {}",
++                    format_tokens_compact(session.total_tokens.max(0))
++                )
++                .dim()
++                .into(),
++            );
++        }
++        if self.successful_compaction_count > 0 {
++            lines.push(
++                format!("   Compactions: ×{}", self.successful_compaction_count)
++                    .dim()
++                    .into(),
++            );
++        }
++        if let Some(post_compaction_tokens) = self.last_post_compaction_tokens
++            && context_window > 0
++        {
++            let post_percent =
++                percentage(post_compaction_tokens, context_window).unwrap_or_default();
++            lines.push(
++                format!(
++                    "   Post-compact: {}/{} ({post_percent:.1}%)",
++                    format_tokens_compact(post_compaction_tokens),
++                    format_tokens_compact(context_window)
++                )
++                .dim()
++                .into(),
++            );
++        }
++
++        self.add_to_history(PlainHistoryCell::new(lines));
++    }
++}
+diff --git a/codex-rs/tui/src/chatwidget/context_window_popup.rs b/codex-rs/tui/src/chatwidget/context_window_popup.rs
+new file mode 100644
+index 0000000..e94bc01
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/context_window_popup.rs
+@@ -0,0 +1,141 @@
++//! Session-only model context window selection.
++
++use super::*;
++
++const COMPACT_CONTEXT_WINDOW: i64 = 64_000;
++const STANDARD_CONTEXT_WINDOW: i64 = 128_000;
++
++impl ChatWidget {
++    pub(super) fn context_window_selection_item(
++        &self,
++        preset: &ModelPreset,
++    ) -> Option<SelectionItem> {
++        let full_context_window = preset.max_context_window.or(preset.context_window)?;
++        if full_context_window <= 0 {
++            return None;
++        }
++        let current_context_window = self
++            .config
++            .model_context_window
++            .or(preset.context_window)
++            .unwrap_or(full_context_window)
++            .min(full_context_window);
++        let effective_context_window = effective_context_window(
++            current_context_window,
++            preset.effective_context_window_percent,
++        );
++        let preset_for_action = preset.clone();
++        let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
++            tx.send(AppEvent::OpenContextWindowPopup {
++                model: preset_for_action.clone(),
++            });
++        })];
++
++        Some(SelectionItem {
++            name: "Context window".to_string(),
++            description: Some(format!(
++                "Choose a session-only context size (current: {} raw, {} usable)",
++                format_tokens_compact(current_context_window),
++                format_tokens_compact(effective_context_window),
++            )),
++            actions,
++            dismiss_on_select: true,
++            ..Default::default()
++        })
++    }
++
++    pub(crate) fn open_context_window_popup(&mut self, preset: ModelPreset) {
++        let Some(full_context_window) = preset.max_context_window.or(preset.context_window) else {
++            self.add_info_message(
++                "Context window metadata is unavailable for this model.".to_string(),
++                /*hint*/ None,
++            );
++            return;
++        };
++        if full_context_window <= 0 {
++            self.add_info_message(
++                "Context window metadata is unavailable for this model.".to_string(),
++                /*hint*/ None,
++            );
++            return;
++        }
++
++        let current_context_window = self
++            .config
++            .model_context_window
++            .or(preset.context_window)
++            .unwrap_or(full_context_window)
++            .min(full_context_window);
++        let percent = preset.effective_context_window_percent;
++        let choices = [
++            ("64K", COMPACT_CONTEXT_WINDOW),
++            ("128K", STANDARD_CONTEXT_WINDOW),
++            ("Full", full_context_window),
++        ];
++        let items = choices
++            .into_iter()
++            .map(|(name, model_context_window)| {
++                let model_context_window = model_context_window.min(full_context_window);
++                let effective_context_window =
++                    effective_context_window(model_context_window, percent);
++                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
++                    tx.send(AppEvent::UpdateModelContextWindow {
++                        model_context_window,
++                        effective_context_window,
++                    });
++                })];
++                let description = if name == "Full" {
++                    format!(
++                        "{} raw, {} usable at {}%",
++                        format_tokens_compact(model_context_window),
++                        format_tokens_compact(effective_context_window),
++                        percent.clamp(0, 100),
++                    )
++                } else {
++                    format!(
++                        "{} usable at {}%",
++                        format_tokens_compact(effective_context_window),
++                        percent.clamp(0, 100),
++                    )
++                };
++                SelectionItem {
++                    name: name.to_string(),
++                    description: Some(description),
++                    is_current: model_context_window == current_context_window,
++                    actions,
++                    dismiss_on_select: true,
++                    ..Default::default()
++                }
++            })
++            .collect();
++
++        self.bottom_pane.show_selection_view(SelectionViewParams {
++            title: Some("Select Context Window".to_string()),
++            subtitle: Some(
++                "Applies to this session only; config.toml remains unchanged.".to_string(),
++            ),
++            footer_hint: Some(standard_popup_hint_line()),
++            items,
++            ..Default::default()
++        });
++    }
++
++    pub(crate) fn set_model_context_window(
++        &mut self,
++        model_context_window: i64,
++        effective_context_window: i64,
++    ) {
++        self.config.model_context_window = Some(model_context_window);
++        let mut token_info = self.token_info.clone().unwrap_or(TokenUsageInfo {
++            total_token_usage: TokenUsage::default(),
++            last_token_usage: TokenUsage::default(),
++            model_context_window: Some(effective_context_window),
++        });
++        token_info.model_context_window = Some(effective_context_window);
++        self.apply_token_info(token_info);
++    }
++}
++
++pub(crate) fn effective_context_window(context_window: i64, percent: i64) -> i64 {
++    context_window.saturating_mul(percent.clamp(0, 100)) / 100
++}
+diff --git a/codex-rs/tui/src/chatwidget/interaction.rs b/codex-rs/tui/src/chatwidget/interaction.rs
+index c59a818..57fc6fe 100644
+--- a/codex-rs/tui/src/chatwidget/interaction.rs
++++ b/codex-rs/tui/src/chatwidget/interaction.rs
+@@ -54,6 +54,22 @@ impl ChatWidget {
+                 kind: KeyEventKind::Press,
+                 ..
+             } if modifiers.contains(KeyModifiers::CONTROL) && c.eq_ignore_ascii_case(&'c') => {
++                if let Some(selection) = self.bottom_pane.selected_composer_text() {
++                    match crate::clipboard_copy::copy_to_clipboard(&selection) {
++                        Ok(lease) => {
++                            self.clipboard_lease = lease;
++                            self.add_info_message(
++                                "Copied selected prompt text".to_string(),
++                                /*hint*/ None,
++                            );
++                        }
++                        Err(error) => {
++                            self.add_error_message(format!("Failed to copy selection: {error}"));
++                        }
++                    }
++                    self.request_redraw();
++                    return;
++                }
+                 self.on_ctrl_c();
+                 return;
+             }
+@@ -188,6 +204,14 @@ impl ChatWidget {
+         }
+     }
+ 
++    pub(crate) fn handle_mouse_event(&mut self, event: crossterm::event::MouseEvent) {
++        if self.bottom_pane.handle_mouse_event(event) {
++            self.bottom_pane.clear_quit_shortcut_hint();
++            self.quit_shortcut_expires_at = None;
++            self.quit_shortcut_key = None;
++        }
++    }
++
+     /// Attach a local image to the composer when the active model supports image inputs.
+     ///
+     /// When the model does not advertise image support, we keep the draft unchanged and surface a
+diff --git a/codex-rs/tui/src/chatwidget/model_popups.rs b/codex-rs/tui/src/chatwidget/model_popups.rs
+index c8ace98..6b40a3e 100644
+--- a/codex-rs/tui/src/chatwidget/model_popups.rs
++++ b/codex-rs/tui/src/chatwidget/model_popups.rs
+@@ -78,6 +78,10 @@ impl ChatWidget {
+             .collect();
+ 
+         let current_model = self.current_model();
++        let current_preset = presets
++            .iter()
++            .find(|preset| preset.model.as_str() == current_model)
++            .cloned();
+         let current_label = presets
+             .iter()
+             .find(|preset| preset.model.as_str() == current_model)
+@@ -161,6 +165,13 @@ impl ChatWidget {
+             });
+         }
+ 
++        if let Some(context_item) = current_preset
++            .as_ref()
++            .and_then(|preset| self.context_window_selection_item(preset))
++        {
++            items.push(context_item);
++        }
++
+         let header = self.model_menu_header(
+             "Select Model",
+             "Pick a quick auto mode or browse all models.",
+@@ -195,6 +206,10 @@ impl ChatWidget {
+             return;
+         }
+ 
++        let context_item = presets
++            .iter()
++            .find(|preset| preset.model.as_str() == self.current_model())
++            .and_then(|preset| self.context_window_selection_item(preset));
+         let mut items: Vec<SelectionItem> = Vec::new();
+         for preset in presets.into_iter() {
+             let description =
+@@ -219,6 +234,9 @@ impl ChatWidget {
+                 ..Default::default()
+             });
+         }
++        if let Some(context_item) = context_item {
++            items.push(context_item);
++        }
+ 
+         let header = self.model_menu_header(
+             "Select Model and Effort",
+diff --git a/codex-rs/tui/src/chatwidget/replay.rs b/codex-rs/tui/src/chatwidget/replay.rs
+index 2a16254..3fba24d 100644
+--- a/codex-rs/tui/src/chatwidget/replay.rs
++++ b/codex-rs/tui/src/chatwidget/replay.rs
+@@ -186,6 +186,7 @@ impl ChatWidget {
+                 self.exit_review_mode_after_item();
+             }
+             ThreadItem::ContextCompaction { .. } => {
++                self.record_successful_compaction();
+                 self.add_info_message("Context compacted".to_string(), /*hint*/ None);
+             }
+             ThreadItem::HookPrompt { .. } => {}
+diff --git a/codex-rs/tui/src/chatwidget/service_tiers.rs b/codex-rs/tui/src/chatwidget/service_tiers.rs
+index 7338673..1c87810 100644
+--- a/codex-rs/tui/src/chatwidget/service_tiers.rs
++++ b/codex-rs/tui/src/chatwidget/service_tiers.rs
+@@ -10,6 +10,8 @@ use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+ use codex_protocol::config_types::ServiceTier;
+ use codex_protocol::openai_models::SPEED_TIER_FAST;
+ 
++const LOCAL_CONTEXT_SERVICE_TIER: &str = "context-long";
++
+ impl ChatWidget {
+     pub(crate) fn set_service_tier(&mut self, service_tier: Option<String>) {
+         self.config.service_tier = service_tier;
+@@ -92,6 +94,7 @@ impl ChatWidget {
+                         preset
+                             .service_tiers
+                             .into_iter()
++                            .filter(|tier| tier.id != LOCAL_CONTEXT_SERVICE_TIER)
+                             .map(|tier| ServiceTierCommand {
+                                 id: tier.id,
+                                 name: tier.name.to_lowercase(),
+diff --git a/codex-rs/tui/src/chatwidget/slash_dispatch.rs b/codex-rs/tui/src/chatwidget/slash_dispatch.rs
+index 877d2a8..626fe26 100644
+--- a/codex-rs/tui/src/chatwidget/slash_dispatch.rs
++++ b/codex-rs/tui/src/chatwidget/slash_dispatch.rs
+@@ -276,6 +276,9 @@ impl ChatWidget {
+                 self.open_model_popup();
+                 self.defer_input_until_settings_applied();
+             }
++            SlashCommand::Context => {
++                self.add_context_usage_output();
++            }
+             SlashCommand::Personality => {
+                 self.open_personality_popup();
+                 self.defer_input_until_settings_applied();
+@@ -1047,6 +1050,7 @@ impl ChatWidget {
+         match cmd {
+             SlashCommand::Ide
+             | SlashCommand::Status
++            | SlashCommand::Context
+             | SlashCommand::Usage
+             | SlashCommand::DebugConfig
+             | SlashCommand::Ps
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap
+new file mode 100644
+index 0000000..bcd7c9e
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap
+@@ -0,0 +1,13 @@
++---
++source: tui/src/chatwidget/tests/popups_and_settings.rs
++assertion_line: 3101
++expression: popup
++---
++  Select Context Window
++  Applies to this session only; config.toml remains unchanged.
++
++› 1. 64K (current)  60.8K usable at 95%
++  2. 128K           122K usable at 95%
++  3. Full           1M raw, 950K usable at 95%
++
++  Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+index d214ce2..42bda2d 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+@@ -1,5 +1,6 @@
+ ---
+ source: tui/src/chatwidget/tests/popups_and_settings.rs
++assertion_line: 3088
+ expression: popup
+ ---
+   Select Model and Effort
+@@ -12,5 +13,7 @@ expression: popup
+                             real-world work.
+ › 5. gpt-5.2 (current)      Optimized for professional work and long-running
+                             agents.
++  6. Context window         Choose a session-only context size (current: 272K
++                            raw, 258K usable)
+ 
+   Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/status_controls.rs b/codex-rs/tui/src/chatwidget/status_controls.rs
+index 8bae8b6..97655b9 100644
+--- a/codex-rs/tui/src/chatwidget/status_controls.rs
++++ b/codex-rs/tui/src/chatwidget/status_controls.rs
+@@ -374,9 +374,16 @@ impl ChatWidget {
+         )
+     }
+ 
+-    pub(super) fn status_line_context_used_percent(&self) -> Option<i64> {
+-        let remaining = self.status_line_context_remaining_percent().unwrap_or(100);
+-        Some((100 - remaining).clamp(0, 100))
++    pub(super) fn status_line_context_used_percent(&self) -> Option<f64> {
++        let context_window = self.status_line_context_window_size()?;
++        let usage = &self.token_info.as_ref()?.last_token_usage;
++        Some(usage.percent_of_context_window_used(context_window))
++    }
++
++    pub(super) fn status_line_current_context_tokens(&self) -> Option<i64> {
++        self.token_info
++            .as_ref()
++            .map(|info| info.last_token_usage.tokens_in_context_window())
+     }
+ 
+     pub(super) fn status_line_total_usage(&self) -> TokenUsage {
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 7120462..255d9ed 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -657,6 +657,16 @@ impl ChatWidget {
+             StatusLineItem::ModelName => Some(self.model_display_name().to_string()),
+             StatusLineItem::ModelWithReasoning => Some(self.model_with_reasoning_display_name()),
+             StatusLineItem::Reasoning => Some(self.reasoning_display_name()),
++            StatusLineItem::ContextTier => {
++                let tier = self
++                    .current_service_tier()
++                    .filter(|value| *value == "context-long")
++                    .map(|_| "long")
++                    .unwrap_or("default");
++                self.status_line_context_window_size()
++                    .map(|window| format!("Context {tier} ({})", format_tokens_compact(window)))
++                    .or_else(|| Some(format!("Context {tier}")))
++            }
+             StatusLineItem::CurrentDir => {
+                 Some(format_directory_display(
+                     self.status_line_cwd(),
+@@ -696,9 +706,16 @@ impl ChatWidget {
+             StatusLineItem::ContextRemaining => self
+                 .status_line_context_remaining_percent()
+                 .map(|remaining| format!("Context {remaining}% left")),
+-            StatusLineItem::ContextUsed => self
+-                .status_line_context_used_percent()
+-                .map(|used| format!("Context {used}% used")),
++            StatusLineItem::ContextUsed => {
++                let tokens = self.status_line_current_context_tokens()?;
++                let window = self.status_line_context_window_size()?;
++                let percent = self.status_line_context_used_percent()?;
++                Some(format!(
++                    "Context {}/{} ({percent:.1}%)",
++                    format_tokens_compact(tokens),
++                    format_tokens_compact(window),
++                ))
++            }
+             StatusLineItem::FiveHourLimit => {
+                 let (window, is_secondary) = self
+                     .rate_limit_snapshots_by_limit_id
+@@ -723,6 +740,29 @@ impl ChatWidget {
+                 "{} in",
+                 format_tokens_compact(self.status_line_total_usage().input_tokens)
+             )),
++            StatusLineItem::CacheHit => {
++                let usage = self.status_line_total_usage();
++                let cached = usage.cached_input();
++                let total_input = usage.input_tokens.max(0);
++                if cached <= 0 || total_input <= 0 {
++                    None
++                } else {
++                    let percent = ((cached as f64 / total_input as f64) * 100.0).clamp(0.0, 100.0);
++                    Some(format!("Cache {percent:.1}%"))
++                }
++            }
++            StatusLineItem::CompactionCount => (self.successful_compaction_count > 0)
++                .then(|| format!("Compact ×{}", self.successful_compaction_count)),
++            StatusLineItem::PostCompactionUsage => {
++                let tokens = self.last_post_compaction_tokens?;
++                let window = self.status_line_context_window_size()?;
++                let percent = tokens.max(0) as f64 / window.max(1) as f64 * 100.0;
++                Some(format!(
++                    "Post-compact {}/{} ({percent:.1}%)",
++                    format_tokens_compact(tokens),
++                    format_tokens_compact(window),
++                ))
++            }
+             StatusLineItem::TotalOutputTokens => Some(format!(
+                 "{} out",
+                 format_tokens_compact(self.status_line_total_usage().output_tokens)
+@@ -784,6 +824,9 @@ impl ChatWidget {
+             StatusSurfacePreviewItem::ContextWindowSize => StatusLineItem::ContextWindowSize,
+             StatusSurfacePreviewItem::UsedTokens => StatusLineItem::UsedTokens,
+             StatusSurfacePreviewItem::TotalInputTokens => StatusLineItem::TotalInputTokens,
++            StatusSurfacePreviewItem::CacheHit => StatusLineItem::CacheHit,
++            StatusSurfacePreviewItem::CompactionCount => StatusLineItem::CompactionCount,
++            StatusSurfacePreviewItem::PostCompactionUsage => StatusLineItem::PostCompactionUsage,
+             StatusSurfacePreviewItem::TotalOutputTokens => StatusLineItem::TotalOutputTokens,
+             StatusSurfacePreviewItem::SessionId => StatusLineItem::SessionId,
+             StatusSurfacePreviewItem::FastMode => StatusLineItem::FastMode,
+@@ -792,6 +835,7 @@ impl ChatWidget {
+             StatusSurfacePreviewItem::Model => StatusLineItem::ModelName,
+             StatusSurfacePreviewItem::ModelWithReasoning => StatusLineItem::ModelWithReasoning,
+             StatusSurfacePreviewItem::Reasoning => StatusLineItem::Reasoning,
++            StatusSurfacePreviewItem::ContextTier => StatusLineItem::ContextTier,
+         };
+         self.status_line_value_for_item(status_line_item)
+     }
+diff --git a/codex-rs/tui/src/chatwidget/tests/app_server.rs b/codex-rs/tui/src/chatwidget/tests/app_server.rs
+index a0728e0..01d4f72 100644
+--- a/codex-rs/tui/src/chatwidget/tests/app_server.rs
++++ b/codex-rs/tui/src/chatwidget/tests/app_server.rs
+@@ -21,6 +21,7 @@ fn thread_settings_for_test(
+                 codex_app_server_protocol::ActivePermissionProfile::read_only(),
+             ),
+             model: model.to_string(),
++            model_context_window: None,
+             model_provider: "openai".to_string(),
+             service_tier: Some(ServiceTier::Fast.request_value().to_string()),
+             effort: Some(ReasoningEffortConfig::High),
+diff --git a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+index 9bd4493..debcd1e 100644
+--- a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
++++ b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+@@ -3088,6 +3088,27 @@ async fn model_selection_popup_snapshot() {
+     assert_chatwidget_snapshot!("model_selection_popup", popup);
+ }
+ 
++#[tokio::test]
++async fn context_window_popup_snapshot_and_selection_event() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    chat.thread_id = Some(ThreadId::new());
++    chat.config.model_context_window = Some(64_000);
++    let preset = get_available_model(&chat, "gpt-5.4");
++
++    chat.open_context_window_popup(preset);
++
++    let popup = render_bottom_popup(&chat, /*width*/ 80);
++    assert_chatwidget_snapshot!("context_window_popup", popup);
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++    assert_matches!(
++        rx.try_recv(),
++        Ok(AppEvent::UpdateModelContextWindow {
++            model_context_window: 64_000,
++            effective_context_window: 60_800,
++        })
++    );
++}
++
+ #[tokio::test]
+ async fn personality_selection_popup_snapshot() {
+     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
+@@ -3132,6 +3153,9 @@ async fn model_picker_hides_show_in_picker_false_models_from_cache() {
+         availability_nux: None,
+         supported_in_api: true,
+         input_modalities: default_input_modalities(),
++        context_window: None,
++        max_context_window: None,
++        effective_context_window_percent: 95,
+     };
+ 
+     chat.open_model_popup_with_presets(vec![
+@@ -3623,6 +3647,9 @@ async fn single_reasoning_option_skips_selection() {
+         availability_nux: None,
+         supported_in_api: true,
+         input_modalities: default_input_modalities(),
++        context_window: None,
++        max_context_window: None,
++        effective_context_window_percent: 95,
+     };
+     chat.open_reasoning_popup(preset);
+ 
+diff --git a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+index 04a3032..98d0167 100644
+--- a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
++++ b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+@@ -138,6 +138,26 @@ async fn service_tier_commands_lowercase_catalog_names() {
+     );
+ }
+ 
++#[tokio::test]
++async fn local_context_tier_is_not_exposed_as_a_slash_command() {
++    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = get_available_model(&chat, "gpt-5.4");
++    preset
++        .service_tiers
++        .push(codex_protocol::openai_models::ModelServiceTier {
++            id: "context-long".to_string(),
++            name: "1.1M".to_string(),
++            description: "400K".to_string(),
++        });
++    chat.model_catalog = std::sync::Arc::new(ModelCatalog::new(vec![preset]));
++
++    assert!(
++        chat.current_model_service_tier_commands()
++            .iter()
++            .all(|command| command.id != "context-long" && command.name != "1.1m")
++    );
++}
++
+ #[tokio::test]
+ async fn slash_compact_eagerly_queues_follow_up_before_turn_start() {
+     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index 7c0e2e9..ed884c9 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -41,6 +41,91 @@ async fn token_count_none_resets_context_indicator() {
+     assert_eq!(chat.bottom_pane.context_window_percent(), None);
+ }
+ 
++#[tokio::test]
++async fn status_line_cache_hit_is_truthful_and_omitted_without_cache_usage() {
++    let (mut chat, _rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
++
++    let uncached = TokenUsage {
++        input_tokens: 1_000,
++        cached_input_tokens: 0,
++        total_tokens: 1_000,
++        ..TokenUsage::default()
++    };
++    handle_token_count(
++        &mut chat,
++        Some(TokenUsageInfo {
++            total_token_usage: uncached.clone(),
++            last_token_usage: uncached,
++            model_context_window: Some(200_000),
++        }),
++    );
++    assert_eq!(
++        chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::CacheHit),
++        None
++    );
++
++    let cached = TokenUsage {
++        input_tokens: 1_000,
++        cached_input_tokens: 750,
++        total_tokens: 1_000,
++        ..TokenUsage::default()
++    };
++    handle_token_count(
++        &mut chat,
++        Some(TokenUsageInfo {
++            total_token_usage: cached.clone(),
++            last_token_usage: cached,
++            model_context_window: Some(200_000),
++        }),
++    );
++    assert_eq!(
++        chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::CacheHit),
++        Some("Cache 75.0%".to_string())
++    );
++}
++
++#[tokio::test]
++async fn slash_context_renders_active_usage_and_truthful_optional_metrics() {
++    let (mut chat, mut rx, _ops) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    handle_token_count(
++        &mut chat,
++        Some(TokenUsageInfo {
++            total_token_usage: TokenUsage {
++                total_tokens: 450_000,
++                ..TokenUsage::default()
++            },
++            last_token_usage: TokenUsage {
++                input_tokens: 100_000,
++                cached_input_tokens: 75_000,
++                output_tokens: 5_000,
++                reasoning_output_tokens: 2_000,
++                total_tokens: 120_000,
++            },
++            model_context_window: Some(400_000),
++        }),
++    );
++    chat.successful_compaction_count = 2;
++    chat.last_post_compaction_tokens = Some(80_000);
++
++    chat.dispatch_command(SlashCommand::Context);
++
++    let cells = drain_insert_history(&mut rx);
++    let rendered = lines_to_single_string(cells.last().expect("context output inserted"));
++    insta::assert_snapshot!(rendered, @r"
++    /context
++     Context Usage
++       ●●●●●●··············  gpt-5.4 · default · 120K/400K tokens (30.0%)
++       Input: 100K
++       Cached input: 75K (75.0% hit)
++       Output: 5K
++       Reasoning output: 2K
++       Free space: 280K (70.0%)
++       Session total: 450K
++       Compactions: ×2
++       Post-compact: 80K/400K (20.0%)
++    ");
++}
++
+ #[tokio::test]
+ async fn app_server_cyber_policy_error_renders_dedicated_notice() {
+     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
+@@ -2703,20 +2788,42 @@ async fn status_line_invalid_items_warn_once() {
+ }
+ 
+ #[tokio::test]
+-async fn status_line_context_used_renders_labeled_percent() {
++async fn status_line_context_used_renders_actual_tokens_above_window() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+     chat.thread_id = Some(ThreadId::new());
+     chat.config.tui_status_line = Some(vec!["context-used".to_string()]);
++    handle_token_count(&mut chat, Some(make_token_info(1_100_000, 1_050_000)));
+ 
+     chat.refresh_status_line();
+ 
+-    assert_eq!(status_line_text(&chat), Some("Context 0% used".to_string()));
++    assert_eq!(
++        status_line_text(&chat),
++        Some("Context 1.1M/1.05M (104.8%)".to_string())
++    );
+     assert!(
+         drain_insert_history(&mut rx).is_empty(),
+         "context-used should remain a valid status line item"
+     );
+ }
+ 
++#[tokio::test]
++async fn status_line_compaction_reports_success_count_and_post_usage() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
++    chat.thread_id = Some(ThreadId::new());
++    chat.config.tui_status_line = Some(vec![
++        "compaction-count".to_string(),
++        "post-compaction-usage".to_string(),
++    ]);
++    chat.record_successful_compaction();
++    handle_token_count(&mut chat, Some(make_token_info(20_000, 1_050_000)));
++    chat.refresh_status_line();
++    assert_eq!(
++        status_line_text(&chat),
++        Some("Compact ×1 · Post-compact 20K/1.05M (1.9%)".to_string())
++    );
++    assert!(drain_insert_history(&mut rx).is_empty());
++}
++
+ #[tokio::test]
+ async fn status_line_context_remaining_renders_labeled_percent() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+@@ -2743,10 +2850,10 @@ async fn status_line_legacy_context_usage_renders_context_used_percent() {
+ 
+     chat.refresh_status_line();
+ 
+-    assert_eq!(status_line_text(&chat), Some("Context 0% used".to_string()));
++    assert_eq!(status_line_text(&chat), None);
+     assert!(
+         drain_insert_history(&mut rx).is_empty(),
+-        "legacy context-usage should remain a valid status line item"
++        "legacy context-usage should remain valid and omit unavailable data"
+     );
+ }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/turn_runtime.rs b/codex-rs/tui/src/chatwidget/turn_runtime.rs
+index 67d4353..123de1a 100644
+--- a/codex-rs/tui/src/chatwidget/turn_runtime.rs
++++ b/codex-rs/tui/src/chatwidget/turn_runtime.rs
+@@ -282,24 +282,19 @@ impl ChatWidget {
+     /// the clear-context option does not imply urgency without evidence.
+     pub(super) fn plan_implementation_context_usage_label(&self) -> Option<String> {
+         let info = self.token_info.as_ref()?;
+-        let percent = self.context_remaining_percent(info);
+-
+-        let used_tokens = self.context_used_tokens(info, percent.is_some());
+-        if let Some(percent) = percent {
+-            let used_percent = 100 - percent.clamp(0, 100);
+-            if used_percent <= 0 {
+-                return None;
+-            }
+-            return Some(format!("{used_percent}% used"));
++        let tokens = info.last_token_usage.tokens_in_context_window();
++        if tokens <= 0 {
++            return None;
+         }
+-
+-        if let Some(tokens) = used_tokens
+-            && tokens > 0
+-        {
+-            return Some(format!("{} used", format_tokens_compact(tokens)));
++        if let Some(window) = info.model_context_window {
++            let used_percent = info.last_token_usage.percent_of_context_window_used(window);
++            return Some(format!(
++                "{} / {} ({used_percent:.1}%) used",
++                format_tokens_compact(tokens),
++                format_tokens_compact(window),
++            ));
+         }
+-
+-        None
++        Some(format!("{} used", format_tokens_compact(tokens)))
+     }
+ 
+     pub(super) fn has_queued_follow_up_messages(&self) -> bool {
+diff --git a/codex-rs/tui/src/cwd_prompt.rs b/codex-rs/tui/src/cwd_prompt.rs
+index 1d89c8b..f14c50e 100644
+--- a/codex-rs/tui/src/cwd_prompt.rs
++++ b/codex-rs/tui/src/cwd_prompt.rs
+@@ -131,7 +131,7 @@ pub(crate) async fn run_cwd_selection_prompt(
+         if let Some(event) = events.next().await {
+             match event {
+                 TuiEvent::Key(key_event) => screen.handle_key(key_event),
+-                TuiEvent::Paste(_) => {}
++                TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     tui.draw(u16::MAX, |frame| {
+                         frame.render_widget_ref(&screen, frame.area());
+diff --git a/codex-rs/tui/src/external_agent_config_migration.rs b/codex-rs/tui/src/external_agent_config_migration.rs
+index 2722f49..ea0804a 100644
+--- a/codex-rs/tui/src/external_agent_config_migration.rs
++++ b/codex-rs/tui/src/external_agent_config_migration.rs
+@@ -99,7 +99,7 @@ pub(crate) async fn run_external_agent_config_migration_prompt(
+         if let Some(event) = events.next().await {
+             match event {
+                 TuiEvent::Key(key_event) => screen.handle_key(key_event),
+-                TuiEvent::Paste(_) => {}
++                TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     let _ = tui.draw(u16::MAX, |frame| {
+                         frame.render_widget_ref(&screen, frame.area());
+diff --git a/codex-rs/tui/src/external_agent_config_migration_source.rs b/codex-rs/tui/src/external_agent_config_migration_source.rs
+index 463313c..802ff00 100644
+--- a/codex-rs/tui/src/external_agent_config_migration_source.rs
++++ b/codex-rs/tui/src/external_agent_config_migration_source.rs
+@@ -60,7 +60,7 @@ pub(crate) async fn run_external_agent_config_source_prompt(
+         if let Some(event) = events.next().await {
+             match event {
+                 TuiEvent::Key(key_event) => screen.handle_key(key_event),
+-                TuiEvent::Paste(_) => {}
++                TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     let _ = tui.draw(u16::MAX, |frame| {
+                         frame.render_widget_ref(&screen, frame.area());
+diff --git a/codex-rs/tui/src/external_model_selection.rs b/codex-rs/tui/src/external_model_selection.rs
+new file mode 100644
+index 0000000..ec8fe0d
+--- /dev/null
++++ b/codex-rs/tui/src/external_model_selection.rs
+@@ -0,0 +1,84 @@
++//! Watches CodexCopilot's shared selection generation and forwards changes to the TUI.
++
++use crate::app_event::AppEvent;
++use crate::app_event_sender::AppEventSender;
++use codex_protocol::openai_models::ReasoningEffort;
++use serde::Deserialize;
++use std::path::PathBuf;
++use std::thread;
++use std::time::Duration;
++use tracing::warn;
++
++#[derive(Debug, Deserialize)]
++#[serde(rename_all = "camelCase")]
++pub(crate) struct ExternalSelection {
++    pub(crate) schema_version: u32,
++    pub(crate) generation: String,
++    pub(crate) model: String,
++    pub(crate) effort: Option<ReasoningEffort>,
++    pub(crate) context_window: Option<i64>,
++}
++
++pub(crate) fn start_external_model_selection_watcher(app_event_tx: AppEventSender) {
++    let Some(path) = std::env::var_os("CODEX_COPILOT_SELECTION_FILE").map(PathBuf::from) else {
++        return;
++    };
++    let watched_path = path.clone();
++    let spawn_result = thread::Builder::new()
++        .name("codex-copilot-selection-refresh".to_string())
++        .spawn(move || {
++            let mut observed_generation =
++                read_external_selection(&watched_path).map(|value| value.generation);
++            loop {
++                thread::sleep(Duration::from_millis(500));
++                let Some(selection) = read_external_selection(&watched_path) else {
++                    continue;
++                };
++                if observed_generation.as_deref() == Some(selection.generation.as_str()) {
++                    continue;
++                }
++                observed_generation = Some(selection.generation.clone());
++                app_event_tx.send(AppEvent::ApplyExternalModelSelection {
++                    generation: selection.generation,
++                    model: selection.model,
++                    effort: selection.effort,
++                    model_context_window: selection.context_window,
++                });
++            }
++        });
++    if let Err(error) = spawn_result {
++        warn!(selection_path = %path.display(), "failed to start selection watcher: {error}");
++    }
++}
++
++pub(crate) fn read_external_selection(path: &PathBuf) -> Option<ExternalSelection> {
++    let contents = std::fs::read(path).ok()?;
++    let selection: ExternalSelection = serde_json::from_slice(&contents).ok()?;
++    (selection.schema_version == 1
++        && !selection.generation.is_empty()
++        && !selection.model.is_empty())
++    .then_some(selection)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use pretty_assertions::assert_eq;
++
++    #[test]
++    fn parses_shared_selection() {
++        let temp = tempfile::NamedTempFile::new().expect("temporary selection");
++        std::fs::write(
++            temp.path(),
++            br#"{"schemaVersion":1,"generation":"next","model":"gpt-test","effort":"high","contextWindow":400000}"#,
++        )
++        .expect("write selection");
++
++        let selection =
++            read_external_selection(&temp.path().to_path_buf()).expect("parse selection");
++        assert_eq!(selection.generation, "next");
++        assert_eq!(selection.model, "gpt-test");
++        assert_eq!(selection.effort, Some(ReasoningEffort::High));
++        assert_eq!(selection.context_window, Some(400_000));
++    }
++}
+diff --git a/codex-rs/tui/src/lib.rs b/codex-rs/tui/src/lib.rs
+index b2de1c3..623c746 100644
+--- a/codex-rs/tui/src/lib.rs
++++ b/codex-rs/tui/src/lib.rs
+@@ -121,6 +121,7 @@ mod external_agent_config_migration_flow;
+ mod external_agent_config_migration_model;
+ mod external_agent_config_migration_source;
+ mod external_editor;
++mod external_model_selection;
+ mod file_search;
+ mod frames;
+ mod get_git_diff;
+@@ -1119,7 +1120,7 @@ pub async fn run_main(
+         ..Default::default()
+     };
+ 
+-    let config = load_config_or_exit(
++    let mut config = load_config_or_exit(
+         cli_kv_overrides.clone(),
+         overrides.clone(),
+         loader_overrides.clone(),
+@@ -1127,6 +1128,15 @@ pub async fn run_main(
+         strict_config,
+     )
+     .await;
++    if let Some(selection_path) =
++        std::env::var_os("CODEX_COPILOT_SELECTION_FILE").map(std::path::PathBuf::from)
++        && let Some(selection) =
++            crate::external_model_selection::read_external_selection(&selection_path)
++    {
++        config.model = Some(selection.model);
++        config.model_reasoning_effort = selection.effort;
++        config.model_context_window = selection.context_window;
++    }
+ 
+     remove_legacy_tui_log_file(config.codex_home.as_path());
+ 
+diff --git a/codex-rs/tui/src/model_catalog.rs b/codex-rs/tui/src/model_catalog.rs
+index 69c9ded..d558984 100644
+--- a/codex-rs/tui/src/model_catalog.rs
++++ b/codex-rs/tui/src/model_catalog.rs
+@@ -1,17 +1,103 @@
+ use codex_protocol::openai_models::ModelPreset;
++use codex_protocol::openai_models::ModelsResponse;
+ use std::convert::Infallible;
++use std::path::PathBuf;
++use std::sync::Arc;
++use std::sync::RwLock;
++use std::sync::Weak;
++use std::thread;
++use std::time::Duration;
++use tracing::warn;
+ 
+ #[derive(Debug, Clone)]
+ pub(crate) struct ModelCatalog {
+-    models: Vec<ModelPreset>,
++    models: Arc<RwLock<Vec<ModelPreset>>>,
+ }
+ 
+ impl ModelCatalog {
+     pub(crate) fn new(models: Vec<ModelPreset>) -> Self {
++        let models = Arc::new(RwLock::new(models));
++        if let Some(catalog_path) =
++            std::env::var_os("CODEX_COPILOT_CATALOG_FILE").map(PathBuf::from)
++        {
++            let generation_path = catalog_path.with_file_name("catalog-generation.json");
++            start_external_refresh(
++                Arc::downgrade(&models),
++                catalog_path,
++                generation_path,
++                Duration::from_secs(2),
++            );
++        }
+         Self { models }
+     }
+ 
+     pub(crate) fn try_list_models(&self) -> Result<Vec<ModelPreset>, Infallible> {
+-        Ok(self.models.clone())
++        Ok(self
++            .models
++            .read()
++            .unwrap_or_else(std::sync::PoisonError::into_inner)
++            .clone())
+     }
+ }
++
++fn start_external_refresh(
++    models: Weak<RwLock<Vec<ModelPreset>>>,
++    catalog_path: PathBuf,
++    generation_path: PathBuf,
++    interval: Duration,
++) {
++    let spawn_result = thread::Builder::new()
++        .name("codex-model-catalog-refresh".to_string())
++        .spawn(move || {
++            let mut observed_generation = std::fs::read_to_string(&generation_path).ok();
++            loop {
++                thread::sleep(interval);
++                let Some(models) = models.upgrade() else {
++                    return;
++                };
++                let Ok(generation) = std::fs::read_to_string(&generation_path) else {
++                    continue;
++                };
++                if observed_generation.as_deref() == Some(generation.as_str()) {
++                    continue;
++                }
++                let refreshed = std::fs::read(&catalog_path)
++                    .map_err(|error| error.to_string())
++                    .and_then(|contents| {
++                        serde_json::from_slice::<ModelsResponse>(&contents)
++                            .map_err(|error| error.to_string())
++                    })
++                    .map(|response| {
++                        let mut presets = response
++                            .models
++                            .into_iter()
++                            .map(ModelPreset::from)
++                            .collect::<Vec<_>>();
++                        ModelPreset::mark_default_by_picker_visibility(&mut presets);
++                        presets
++                    });
++                match refreshed {
++                    Ok(presets) => {
++                        *models
++                            .write()
++                            .unwrap_or_else(std::sync::PoisonError::into_inner) = presets;
++                        observed_generation = Some(generation);
++                    }
++                    Err(error) => {
++                        warn!(
++                            catalog_path = %catalog_path.display(),
++                            generation_path = %generation_path.display(),
++                            "failed to refresh external model catalog: {error}"
++                        );
++                    }
++                }
++            }
++        });
++    if let Err(error) = spawn_result {
++        warn!("failed to start external model catalog refresh: {error}");
++    }
++}
++
++#[cfg(test)]
++#[path = "model_catalog_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/model_catalog_tests.rs b/codex-rs/tui/src/model_catalog_tests.rs
+new file mode 100644
+index 0000000..11840b1
+--- /dev/null
++++ b/codex-rs/tui/src/model_catalog_tests.rs
+@@ -0,0 +1,68 @@
++use super::*;
++use codex_models_manager::model_info::model_info_from_slug;
++use codex_protocol::openai_models::ModelVisibility;
++use pretty_assertions::assert_eq;
++use tempfile::tempdir;
++
++fn model_info(slug: &str) -> codex_protocol::openai_models::ModelInfo {
++    let mut model = model_info_from_slug(slug);
++    model.visibility = ModelVisibility::List;
++    model
++}
++
++#[test]
++fn external_generation_change_replaces_picker_catalog() {
++    let temp = tempdir().expect("temp dir");
++    let catalog_path = temp.path().join("models.json");
++    let generation_path = temp.path().join("catalog-generation.json");
++    let catalog = ModelCatalog::new(vec![model_info("old-model").into()]);
++
++    std::fs::write(
++        &catalog_path,
++        serde_json::to_vec(&ModelsResponse {
++            models: vec![model_info("old-model")],
++        })
++        .expect("serialize initial catalog"),
++    )
++    .expect("write initial catalog");
++    std::fs::write(&generation_path, "generation-1").expect("write initial generation");
++    start_external_refresh(
++        Arc::downgrade(&catalog.models),
++        catalog_path.clone(),
++        generation_path.clone(),
++        Duration::from_millis(10),
++    );
++    thread::sleep(Duration::from_millis(50));
++
++    let expected = (1..=18)
++        .map(|index| format!("new-model-{index}"))
++        .collect::<Vec<_>>();
++    std::fs::write(
++        &catalog_path,
++        serde_json::to_vec(&ModelsResponse {
++            models: expected.iter().map(|slug| model_info(slug)).collect(),
++        })
++        .expect("serialize refreshed catalog"),
++    )
++    .expect("write refreshed catalog");
++    std::fs::write(&generation_path, "generation-2").expect("write refreshed generation");
++
++    let deadline = std::time::Instant::now() + Duration::from_secs(2);
++    loop {
++        let actual = catalog
++            .try_list_models()
++            .expect("catalog read")
++            .into_iter()
++            .map(|model| model.model)
++            .collect::<Vec<_>>();
++        if actual == expected {
++            assert_eq!(actual, expected);
++            break;
++        }
++        assert!(
++            std::time::Instant::now() < deadline,
++            "catalog did not refresh before the deadline: {actual:?}"
++        );
++        thread::sleep(Duration::from_millis(20));
++    }
++}
+diff --git a/codex-rs/tui/src/model_migration.rs b/codex-rs/tui/src/model_migration.rs
+index c307abb..619425c 100644
+--- a/codex-rs/tui/src/model_migration.rs
++++ b/codex-rs/tui/src/model_migration.rs
+@@ -152,7 +152,7 @@ pub(crate) async fn run_model_migration_prompt(
+         if let Some(event) = events.next().await {
+             match event {
+                 TuiEvent::Key(key_event) => screen.handle_key(key_event),
+-                TuiEvent::Paste(_) => {}
++                TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     let _ = alt.tui.draw(u16::MAX, |frame| {
+                         frame.render_widget_ref(&screen, frame.area());
+diff --git a/codex-rs/tui/src/onboarding/onboarding_screen.rs b/codex-rs/tui/src/onboarding/onboarding_screen.rs
+index 405b377..e6cd283 100644
+--- a/codex-rs/tui/src/onboarding/onboarding_screen.rs
++++ b/codex-rs/tui/src/onboarding/onboarding_screen.rs
+@@ -509,6 +509,7 @@ pub(crate) async fn run_onboarding_app(
+                         TuiEvent::Paste(text) => {
+                             onboarding_screen.handle_paste(text);
+                         }
++                        TuiEvent::Mouse(_) => {}
+                         TuiEvent::Draw | TuiEvent::Resize => {
+                             if !did_full_clear_after_success
+                                 && onboarding_screen.steps.iter().any(|step| {
+diff --git a/codex-rs/tui/src/resume_picker.rs b/codex-rs/tui/src/resume_picker.rs
+index 46c99f5..ad26bd0 100644
+--- a/codex-rs/tui/src/resume_picker.rs
++++ b/codex-rs/tui/src/resume_picker.rs
+@@ -478,6 +478,7 @@ async fn run_session_picker_with_loader(
+                     TuiEvent::Paste(pasted) => {
+                         state.handle_paste(pasted);
+                     }
++                    TuiEvent::Mouse(_) => {}
+                     TuiEvent::Draw | TuiEvent::Resize => {
+                         if let Ok(size) = alt.tui.terminal.size() {
+                             let list_height =
+diff --git a/codex-rs/tui/src/slash_command.rs b/codex-rs/tui/src/slash_command.rs
+index b3a2ddc..993568e 100644
+--- a/codex-rs/tui/src/slash_command.rs
++++ b/codex-rs/tui/src/slash_command.rs
+@@ -13,6 +13,7 @@ pub enum SlashCommand {
+     // DO NOT ALPHA-SORT! Enum order is presentation order in the popup, so
+     // more frequently used commands should be listed first.
+     Model,
++    Context,
+     Ide,
+     Permissions,
+     Keymap,
+@@ -103,6 +104,7 @@ impl SlashCommand {
+             SlashCommand::Import => "import setup, this project, and recent chats from Claude Code",
+             SlashCommand::Hooks => "view and manage lifecycle hooks",
+             SlashCommand::Status => "show current session configuration and token usage",
++            SlashCommand::Context => "show current context-window usage",
+             SlashCommand::Usage => "view account usage or use a usage limit reset",
+             SlashCommand::DebugConfig => "show config layers and requirement sources for debugging",
+             SlashCommand::Title => "configure which items appear in the terminal title",
+@@ -179,6 +181,7 @@ impl SlashCommand {
+                 | SlashCommand::Diff
+                 | SlashCommand::Mention
+                 | SlashCommand::Status
++                | SlashCommand::Context
+                 | SlashCommand::Usage
+                 | SlashCommand::Ide
+         )
+@@ -209,6 +212,7 @@ impl SlashCommand {
+             SlashCommand::Diff
+             | SlashCommand::Resume
+             | SlashCommand::Model
++            | SlashCommand::Context
+             | SlashCommand::Personality
+             | SlashCommand::Permissions
+             | SlashCommand::Copy
+@@ -291,6 +295,7 @@ mod tests {
+         assert!(SlashCommand::Ide.available_during_task());
+         assert!(SlashCommand::Title.available_during_task());
+         assert!(SlashCommand::Statusline.available_during_task());
++        assert!(SlashCommand::Context.available_during_task());
+         assert!(SlashCommand::Raw.available_during_task());
+         assert!(SlashCommand::Raw.available_in_side_conversation());
+         assert!(SlashCommand::Raw.supports_inline_args());
+diff --git a/codex-rs/tui/src/startup_hooks_review.rs b/codex-rs/tui/src/startup_hooks_review.rs
+index da12cd9..b9969f6 100644
+--- a/codex-rs/tui/src/startup_hooks_review.rs
++++ b/codex-rs/tui/src/startup_hooks_review.rs
+@@ -166,7 +166,7 @@ async fn run_startup_hooks_review_app(
+                     }
+                 }
+             }
+-            TuiEvent::Paste(_) => {}
++            TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+             TuiEvent::Draw | TuiEvent::Resize => draw_view(tui, &view)?,
+         }
+     }
+diff --git a/codex-rs/tui/src/token_usage.rs b/codex-rs/tui/src/token_usage.rs
+index ac9a20b..3f68175 100644
+--- a/codex-rs/tui/src/token_usage.rs
++++ b/codex-rs/tui/src/token_usage.rs
+@@ -6,8 +6,6 @@ use codex_protocol::num_format::format_with_separators;
+ use serde::Deserialize;
+ use serde::Serialize;
+ 
+-const BASELINE_TOKENS: i64 = 12000;
+-
+ #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+ pub struct TokenUsage {
+     pub input_tokens: i64,
+@@ -41,16 +39,17 @@ impl TokenUsage {
+     }
+ 
+     pub(crate) fn percent_of_context_window_remaining(&self, context_window: i64) -> i64 {
+-        if context_window <= BASELINE_TOKENS {
+-            return 0;
+-        }
+-        let effective_window = context_window - BASELINE_TOKENS;
+-        let used = (self.tokens_in_context_window() - BASELINE_TOKENS).max(0);
+-        let remaining = (effective_window - used).max(0);
+-        ((remaining as f64 / effective_window as f64) * 100.0)
++        (100.0 - self.percent_of_context_window_used(context_window))
+             .clamp(0.0, 100.0)
+             .round() as i64
+     }
++
++    pub(crate) fn percent_of_context_window_used(&self, context_window: i64) -> f64 {
++        if context_window <= 0 {
++            return 0.0;
++        }
++        self.tokens_in_context_window().max(0) as f64 / context_window as f64 * 100.0
++    }
+ }
+ 
+ #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index 149790d..7df20db 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -18,8 +18,10 @@ use crossterm::SynchronizedUpdate;
+ use crossterm::cursor::SetCursorStyle;
+ use crossterm::event::DisableBracketedPaste;
+ use crossterm::event::DisableFocusChange;
++use crossterm::event::DisableMouseCapture;
+ use crossterm::event::EnableBracketedPaste;
+ use crossterm::event::EnableFocusChange;
++use crossterm::event::EnableMouseCapture;
+ use crossterm::event::KeyEvent;
+ use crossterm::terminal::EnterAlternateScreen;
+ use crossterm::terminal::LeaveAlternateScreen;
+@@ -191,6 +193,7 @@ pub fn set_modes() -> Result<()> {
+     ensure_virtual_terminal_processing()?;
+ 
+     execute!(stdout(), EnableBracketedPaste)?;
++    let _ = execute!(stdout(), EnableMouseCapture);
+ 
+     enable_raw_mode()?;
+     // Enable keyboard enhancement flags so modifiers for keys like Enter are disambiguated.
+@@ -273,6 +276,7 @@ fn restore_common(
+     if let Err(err) = execute!(stdout(), DisableBracketedPaste) {
+         first_error.get_or_insert(err);
+     }
++    let _ = execute!(stdout(), DisableMouseCapture);
+     let _ = execute!(stdout(), DisableFocusChange);
+     if matches!(raw_mode_restore, RawModeRestore::Disable)
+         && let Err(err) = disable_raw_mode()
+@@ -530,6 +534,8 @@ pub enum TuiEvent {
+     Key(KeyEvent),
+     /// A bracketed paste payload normalized by the app layer before it reaches the composer.
+     Paste(String),
++    /// A terminal mouse event used for native composer cursor placement and selection.
++    Mouse(crossterm::event::MouseEvent),
+     /// A terminal size notification that should be handled as resize-sensitive draw work.
+     ///
+     /// Resize is separate from `Draw` so the app can run feature-gated pre-render logic without
+diff --git a/codex-rs/tui/src/tui/event_stream.rs b/codex-rs/tui/src/tui/event_stream.rs
+index 9a5e416..5a0c3fc 100644
+--- a/codex-rs/tui/src/tui/event_stream.rs
++++ b/codex-rs/tui/src/tui/event_stream.rs
+@@ -172,8 +172,8 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
+ 
+     /// Poll the shared crossterm stream for the next mapped `TuiEvent`.
+     ///
+-    /// This skips events we don't use (mouse events, etc.) and keeps polling until it yields
+-    /// a mapped event, hits `Pending`, or sees EOF/error. When the broker is paused, it drops
++    /// This skips events we don't use and keeps polling until it yields a mapped event,
++    /// hits `Pending`, or sees EOF/error. When the broker is paused, it drops
+     /// the underlying stream and returns `Pending` to fully release stdin.
+     pub fn poll_crossterm_event(&mut self, cx: &mut Context<'_>) -> Poll<Option<TuiEvent>> {
+         // Some crossterm events map to None (e.g. FocusLost, mouse); loop so we keep polling
+@@ -233,7 +233,7 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
+         }
+     }
+ 
+-    /// Map a crossterm event to a [`TuiEvent`], skipping events we don't use (mouse events, etc.).
++    /// Map a crossterm event to a [`TuiEvent`], skipping unsupported terminal events.
+     fn map_crossterm_event(&mut self, event: Event) -> Option<TuiEvent> {
+         match event {
+             Event::Key(key_event) => {
+@@ -255,6 +255,7 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
+             }
+             Event::Resize(_, _) => Some(TuiEvent::Resize),
+             Event::Paste(pasted) => Some(TuiEvent::Paste(pasted)),
++            Event::Mouse(mouse) => Some(TuiEvent::Mouse(mouse)),
+             Event::FocusGained => {
+                 self.terminal_focused.store(true, Ordering::Relaxed);
+                 crate::terminal_palette::requery_default_colors();
+@@ -264,7 +265,6 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
+                 self.terminal_focused.store(false, Ordering::Relaxed);
+                 None
+             }
+-            _ => None,
+         }
+     }
+ }
+@@ -460,6 +460,26 @@ mod tests {
+         assert!(matches!(first, Some(TuiEvent::Draw)));
+     }
+ 
++    #[tokio::test(flavor = "current_thread")]
++    async fn mouse_event_maps_to_mouse() {
++        use crossterm::event::MouseButton;
++        use crossterm::event::MouseEvent;
++        use crossterm::event::MouseEventKind;
++
++        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
++        let mut stream = make_stream(broker, draw_rx, terminal_focused);
++        let expected = MouseEvent {
++            kind: MouseEventKind::Down(MouseButton::Left),
++            column: 7,
++            row: 3,
++            modifiers: KeyModifiers::NONE,
++        };
++        handle.send(Ok(Event::Mouse(expected)));
++
++        let next = stream.next().await;
++        assert!(matches!(next, Some(TuiEvent::Mouse(actual)) if actual == expected));
++    }
++
+     #[tokio::test(flavor = "current_thread")]
+     async fn resize_event_maps_to_resize() {
+         let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
+diff --git a/codex-rs/tui/src/update_prompt.rs b/codex-rs/tui/src/update_prompt.rs
+index 28360a5..91b46b2 100644
+--- a/codex-rs/tui/src/update_prompt.rs
++++ b/codex-rs/tui/src/update_prompt.rs
+@@ -57,7 +57,7 @@ pub(crate) async fn run_update_prompt_if_needed(
+         if let Some(event) = events.next().await {
+             match event {
+                 TuiEvent::Key(key_event) => screen.handle_key(key_event),
+-                TuiEvent::Paste(_) => {}
++                TuiEvent::Paste(_) | TuiEvent::Mouse(_) => {}
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     tui.draw(u16::MAX, |frame| {
+                         frame.render_widget_ref(&screen, frame.area());

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-03",
+  "timezone": "Asia/Shanghai",
+  "scope": "P3.0 iteration 2: durable reactions and guarded delivery/receipt recovery over the existing native frontend",
+  "status": {
+    "sourceIteration": "verified",
+    "p3_0": "in_progress",
+    "productAutomaticDispatch": "disabled until authoritative WorkItem/Brief and resource providers are implemented",
+    "published": false,
+    "currentDesktopLoaded": false,
+    "nativeCoreChanged": false
+  },
+  "sourceVersion": "1.2.36",
+  "branch": "codex/mycodex-app-server-design",
+  "sourceHashes": {
+    "gateway/host-threads.mts": "7e04f33c4745c7c74728ec5f545368b14139d194a1b5b2fbfff27c5765329447",
+    "gateway/native-host-peer.mts": "ce99a331b711ee4904c3a531325b2daef7a287a25a16776115a083f7dc4b9d96",
+    "gateway/server.mts": "6e3e619a5cec89ccd2669dbee93026331ebb0bbb5ef50cad87e808815925248a",
+    "gateway/routed-stdio.mts": "7dca97db992d609612ae449f752a481e98d922452ea9e0a312fdb37962a7448a",
+    "gateway/router.mts": "f89b88800a65abf2adcc22101b4fff12ed70abcc129ecb9791021ac28b78d91f",
+    "gateway/ipc.mts": "bb01643d7315653055eda12fccd8bedf665b3178c113650d76855a080b5b577f",
+    "gateway/spine/contracts.mts": "2fb0133975ebf52624d7e320a0de8acda3a117f1cd0b24658814a7278dd806dd",
+    "gateway/spine/host-thread-contracts.mts": "7b001777837a73cd2536edef8cc8b7429a3060cd34a5ac413c138e5cc04ec257",
+    "gateway/spine/io.mts": "885954d86ab6f8f44c920e588d585f794d49106ce21a02efee0bdb98fc4248bb",
+    "gateway/spine/reaction-store.mts": "d2b670f8cb46c1035b86c5b466c0673789979c199069542cf5437c310b6a5c34",
+    "gateway/spine/work-dispatch-contracts.mts": "eff0c36e7e32a08a6d998c052adbd311f25e5b3bc9e600abe5a3edd6f9c7e859",
+    "gateway/spine/work-dispatch.mts": "ef79e389f30d7da4fc59b54ef016c6533d83d7b7dcc2de4ee84d922278cbd2fe",
+    "gateway/spine/mcp-server.mts": "dfcc338b5d57939d402f8d1b56efacc0ae656adc1f9f7f97712f20c28c02c0d0",
+    "tests/spine-p3-dispatch-test.mjs": "286659152b0f98212f792379bd908561711e69851980d6ba2acbe871079ff297",
+    "tests/spine-p3-host-test.mjs": "c48ce7e930c27f1e662f9174f92be8b2b104fbdb5addcad44cfdd0be9b526e7a",
+    "tests/spine-p3-isolation-test.mjs": "7a11dd586fec74e33f02a2180dc7bda0bb408d15425a75de555dc1a3b96ccdc1",
+    "tests/spine-mcp-test.mjs": "f218987c6413a6a90e56c8aee0cfe5f43f1358a804d2727bc27f03e3fc5c4ffd",
+    "tools/typescript-task.mjs": "0a7237af6311e0431e9c04272a5b2fdcf753bed81ea7becc06657c762379b5ae"
+  },
+  "typescript": {
+    "sources": 67,
+    "outputs": 134,
+    "strictBuildPassed": true
+  },
+  "tests": {
+    "command": "node tools/typescript-task.mjs test",
+    "scheduler": "repository heavy-task wrapper; maximum six workers",
+    "total": 289,
+    "passed": 289,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 12024.805333
+  },
+  "moduleCheck": {
+    "modules": 200,
+    "relativeImportsVerified": 464,
+    "evaluatedCode": false
+  },
+  "nativeTransport": {
+    "cliVersion": "codex-cli 0.166.0-alpha.5.1",
+    "cliSha256": "58a91f6ea19bea477ae3a2ec48d619f0039afe75d3476260747e11d201fa7cea",
+    "profile": "isolated temporary HOME/CODEX_HOME",
+    "provider": "offline loopback synthetic Responses fixture",
+    "syntheticProviderRequests": 4,
+    "manualControlTurns": 1,
+    "continuationTurns": 1,
+    "nativeIdempotencyProbeTurns": 2,
+    "gatewayRestartVerified": true,
+    "sameNativeProcessAndRuntimeRetained": true,
+    "restartConnectionScope": "unchanged gateway generation and private token",
+    "acceptedRecordWriteFailureInjected": true,
+    "receiptRecoveredWithoutResend": true,
+    "mcpReadVerified": true,
+    "liveWorkingDesktopVerified": false,
+    "liveAccountInferenceVerified": false,
+    "liveGitLabVerified": false
+  },
+  "nativeIdempotency": {
+    "requestIdempotencyCapability": false,
+    "probe": "Two identical clientUserMessageId values start two distinct native turns; two provider requests",
+    "adapterReceiptScope": "bounded runtime memory; survives gateway restart only while the same native frontend and binding survive",
+    "strictExactlyOnceClaimed": false
+  },
+  "authorityBoundary": {
+    "providers": "trusted in-process callbacks only; no JSON/MCP authorization parameters",
+    "productWorkItemProviderImplemented": false,
+    "resourceVerification": "synthetic fixture version checks only; production Git/worktree and source-binding verifier remains pending",
+    "exactPayloadBoundAtConfirmation": true,
+    "adoptedContextPersisted": true,
+    "externalInputMarkedUntrusted": true,
+    "authorityReadDeadlineMs": 2500,
+    "reconnectGraceMs": 30000,
+    "modelPermissionOverrides": false,
+    "publicRawDispatchTool": false
+  },
+  "coverage": [
+    "source/action deduplication independent of watch or policy versions",
+    "brief/policy/responsibility correction",
+    "pause/takeover/withdrawal",
+    "exact input and workspace authority binding",
+    "resource read racing an authority update",
+    "busy target and local queued cancellation",
+    "persisted dispatch intent before remote effect",
+    "accepted receipt write failure and same-runtime gateway restart",
+    "unknown and expired receipts do not resend",
+    "single automatic writer and persistent uncertainty fence",
+    "private state, dangling links and corrupt-record preservation",
+    "shutdown during authority reads and accepted work",
+    "frontend native mutation reservation preserves user input",
+    "independent optional module loading failures",
+    "delayed optional host import does not delay initialization",
+    "MCP reads reaction and actual execution result"
+  ],
+  "startupRegression": {
+    "observedFailure": "One full run timed out in the existing sandboxed fixture initialize budget; targeted rerun passed close to that budget",
+    "change": "Load the optional host module after native initialization and detach it from the startup critical path",
+    "timeoutThresholdIncreased": false,
+    "delayedOptionalImportMs": 4000,
+    "nativeInitializationTestBudgetMs": 2500,
+    "finalFullGatePassed": true
+  },
+  "remaining": [
+    "authoritative WorkItem/Brief service and actual adopted policy/resource binding",
+    "real Desktop conversation and mouse-head work-summary acceptance",
+    "token rotation or native runtime replacement cannot recover old runtime-only receipts automatically",
+    "manual resolution/retry of uncertain work and native cancellation of started work",
+    "GitLab Watch/Observation adapters, companion panel and review runner"
+  ],
+  "releaseAttempt": {
+    "command": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 '& ./tools/Publish-Release.ps1'",
+    "exitCode": 127,
+    "reason": "pwsh not found",
+    "distPresent": false,
+    "releaseManifestsPresent": false,
+    "releaseTestsPresent": false,
+    "installedCoreCurrentPresent": false,
+    "promotionStarted": false
+  },
+  "sharedState": {
+    "protectedSourceHashes": {
+      "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+      "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+      "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28"
+    },
+    "protectedFilesUnchanged": true,
+    "committed": false,
+    "pushed": false,
+    "workingProcessesRestarted": false
+  },
+  "cleanup": {
+    "ownedTestProfilesRemoved": true,
+    "ownedBuildStagesRemoved": true,
+    "ownedTestAndBuildDescendantsExited": true
+  },
+  "officialReference": "https://learn.chatgpt.com/docs/app-server",
+  "sourceAudit": {
+    "scope": "P3 iteration 2 explicit source files",
+    "passed": true,
+    "files": 20,
+    "bytes": 215307,
+    "findings": []
+  },
+  "generatedBuild": {
+    "applicable": true,
+    "sources": 67,
+    "outputs": 134
+  }
+}

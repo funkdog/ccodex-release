@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "25af12f7e61572b0bc18ddb1008be543b91519b0",
+  "patchedTree": "d9850e1215c768ffc172d8b5171c0c71c46d811f",
+  "patches": [
+    "codex-context-picker.patch",
+    "codex-render-status-v2.patch",
+    "codex-interaction-v3.patch",
+    "codex-responsive-tui-v4.patch",
+    "codex-windows-input-record.patch",
+    "codex-clipboard-terminal-selection-animation.patch",
+    "codex-docked-composer.patch",
+    "codex-build-consistency-v5.patch",
+    "codex-file-attachments-v5.patch",
+    "codex-unified-transcript-v5.patch",
+    "codex-copilot-status-v5.patch",
+    "codex-context-picker-v2.patch",
+    "codex-terminal-input-quota-compaction-v6.patch",
+    "codex-windows-keyboard-reset-v6.patch",
+    "codex-windows-parent-input-mode-v6.patch",
+    "codex-native-test-isolation-v6.patch",
+    "codex-copilot-credits-v7.patch"
+  ]
+}

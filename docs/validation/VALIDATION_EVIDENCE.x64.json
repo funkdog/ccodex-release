@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 4,
+  "target": "windows-x64",
+  "packageVersion": "1.2.35",
+  "releaseId": "1.2.35-x64-385e13d3da8c",
+  "validatedAt": "2026-10-11T19:39:36.068Z",
+  "publication": {
+    "existingTag": "v1.2.35-desktop26.928.3736.0-maintenance1",
+    "originalFilenameRetained": true,
+    "publicVersionUnchanged": true
+  },
+  "installer": {
+    "file": "CCodex-1.2.35-Desktop-26.928.3736.0-Windows-X64-Setup.exe",
+    "bytes": 2097444710,
+    "sha256": "00a7b53c29e14a8f1063656c946f88739965c45ee283e67f29eebd0eae0f75b0"
+  },
+  "resources": {
+    "files": 44224,
+    "bytes": 5172500985,
+    "fileManifestSha256": "6d5b0bea56077682ae6f877a0af607ab0919323e68776bd843ab6b6864363394",
+    "completeZipDecompressionSha256Verified": true,
+    "containsCredentials": false,
+    "containsSessions": false
+  },
+  "versions": {
+    "enhancedCore": "codex-cli 0.145.0",
+    "coreSha256": "235eff2e503bc188c6e2a0e4034ce10a8bf22e4baf4a6264d2866fe591b43d2d",
+    "desktop": "26.928.3736.0",
+    "desktopSnapshot": "26.928.3736.0-599366b58cb0",
+    "node": "24.18.0",
+    "copilot": "1.0.94-3",
+    "primaryRuntime": "26.1007.11041"
+  },
+  "currentValidation": {
+    "regressions": {
+      "tests": 220,
+      "pass": 220,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "mode": "final-complete-exe-upgrade-and-installed-startup",
+    "initialPreviousCandidateExitCodeCaptured": true,
+    "finalCompleteExeExitCodeCaptured": true,
+    "finalCompleteExeExitCode": 0,
+    "noGlobalPrerequisites": true,
+    "noExplicitInstallOrProfilePaths": true,
+    "offlineChecksPassed": 14,
+    "languageAndPermissionVisibilityPreservedOnUpgrade": false,
+    "cleanChineseDefaultVerified": true,
+    "originalFilesWatched": 6,
+    "noRegistrationFixtureUserPathUnchanged": true,
+    "globalReleaseEntryChangesOnlyItsOwnedCommandDirectory": true,
+    "credentialsImported": false,
+    "desktop": {
+      "passed": true,
+      "source": "installed resources from this exact EXE",
+      "upstream": "synthetic model catalog; no real login or paid model requests",
+      "chineseUiRendered": true,
+      "contextControlsBound": true,
+      "endpointOwnershipVerified": true,
+      "actualGuiEntryTested": true,
+      "visibleConsoleCreated": false,
+      "desktopBackendHandshakeVerified": true,
+      "sqliteStartupFailureAbsent": true,
+      "bridgeInitiallyStopped": true,
+      "launcherReadyMilliseconds": 18288,
+      "usableUiMilliseconds": 42382,
+      "onboardingActions": [
+        "select-test-engineering-role",
+        "continue-first-run",
+        "skip-optional-personalized-task",
+        "confirm-skip-optional-task"
+      ],
+      "repeatActivationMilliseconds": 5902,
+      "repeatActivationReusesOwnInstance": true,
+      "testProcessesCleaned": true,
+      "fixturePreferencesRestored": true
+    },
+    "cli": {
+      "passed": true,
+      "source": "installed public ccodex entry to native composer",
+      "syntheticModel": true,
+      "paidRequests": false,
+      "workingDirectoryIsIsolatedTestRepository": true,
+      "testControllerArchitecture": "arm64",
+      "composerReadyMilliseconds": 8588,
+      "terminalExitedNormally": true,
+      "versionQueryMilliseconds": [
+        444,
+        510,
+        435
+      ]
+    },
+    "developerReleaseRoleChecks": {
+      "legacyPublicEntryRemoved": true,
+      "schemaVersion": 1,
+      "releaseCommand": "ccodex",
+      "releaseCredentialsAndCliPreferencesPreserved": true,
+      "developerAuxiliaryModulesLoad": true,
+      "legacyHistoryShortcutRemoved": true,
+      "developerSourceEntryVerified": true,
+      "checkedAt": "2026-10-12T03:38:47.8363822+08:00",
+      "developerActiveProcessesPreserved": true,
+      "releaseId": "1.2.35-arm64-673dd840023c",
+      "releaseDesktop": "Ccodex Desktop",
+      "shortcuts": [
+        {
+          "name": "Ccodex Dev Desktop",
+          "role": "developer",
+          "executableAndWorkingDirectoryVerified": true
+        },
+        {
+          "name": "Ccodex Dev CLI",
+          "role": "developer",
+          "executableAndWorkingDirectoryVerified": true
+        },
+        {
+          "name": "Ccodex Desktop",
+          "role": "release",
+          "executableAndWorkingDirectoryVerified": true
+        },
+        {
+          "name": "Ccodex CLI",
+          "role": "release",
+          "executableAndWorkingDirectoryVerified": true
+        }
+      ],
+      "commands": [
+        {
+          "command": "ccodex",
+          "unique": true,
+          "role": "release"
+        },
+        {
+          "command": "ccodex-dev",
+          "unique": true,
+          "role": "developer"
+        }
+      ],
+      "developerNativeCorePreserved": true,
+      "personalPathsPublished": false,
+      "preservedDeveloperFiles": [
+        {
+          "unchangedExceptOwnedBridgePort": true,
+          "file": "config.toml"
+        },
+        {
+          "file": "ccodex.config.toml",
+          "unchanged": true
+        },
+        {
+          "file": "github-auth.json",
+          "unchanged": true
+        }
+      ],
+      "passed": true,
+      "releaseProfileSeparateFromDeveloper": true,
+      "developerSyncVerified": true,
+      "developerCommand": "ccodex-dev"
+    },
+    "actualInstalledDesktopScreenshot": {
+      "file": "Desktop-Verified-X64.png",
+      "sha256": "9a95f3fad63b5d7387694d06296e943c2ae7c02f92242234787a08c6f5c88c46",
+      "source": "exact installed private Desktop with synthetic model catalog"
+    }
+  },
+  "improvements": {
+    "installationPreparesStartupCache": true,
+    "cachedHashesBoundToCompleteFileIdentity": true,
+    "changedResourcesRehashed": true,
+    "nativeProcessAndEndpointProbe": true,
+    "guiFirstSignIn": true,
+    "normalDesktopLaunchHasNoConsole": true,
+    "publishedCatalogDoesNotBlockOnNetwork": true,
+    "desktopBackendVerifiedBeforeHelper": true,
+    "cliSetupStepsRunInProcess": true,
+    "globalCommand": "ccodex",
+    "developerCommand": "ccodex-dev",
+    "desktopName": "Ccodex Desktop",
+    "inheritedWorkingDirectoryPreserved": true,
+    "unknownCommandsAndOriginalProductsNotOverwritten": true,
+    "nativeCoreBytesUnchanged": true
+  },
+  "isolation": {
+    "installsPrerequisitesGlobally": false,
+    "changesUserPath": true,
+    "changesStockCommands": false,
+    "importsStockProfiles": false,
+    "usesPrivateRuntimeVersions": true,
+    "desktopArchiveModified": false,
+    "copilotAutoUpdateDisabled": true,
+    "userPathChange": "registers only its own ccodex directory when no unknown command conflicts",
+    "unknownSameNameCommandsPreserved": true
+  },
+  "limitations": [
+    "X64 validation ran under Windows ARM64 x64 emulation, not on a physical x64 host.",
+    "This round did not repeat real GitHub login, paid inference or every enterprise/Computer Use integration.",
+    "GUI startup testing uses a prepublished synthetic catalog. First authorization and a catalog-less first run require network and user interaction.",
+    "First onboarding, explicit workspace trust, security scanning, disk state and endpoint policies can add latency.",
+    "Shared project files and project-local configuration, system proxies/firewalls and a cloud account's entitlements remain shared boundaries.",
+    "Startup integrity caching detects resource identity changes; full inventory checks remain available through release-doctor.",
+    "Installer has no organization code signature. Team redistribution rights and endpoint admission remain organizational responsibilities.",
+    "The x64 ConPTY test-controller process crashed under emulation before recording its result. Final x64 CLI validation used a native ARM64 ConPTY controller driving the unchanged installed x64 ccodex command; physical x64 acceptance is still needed."
+  ]
+}

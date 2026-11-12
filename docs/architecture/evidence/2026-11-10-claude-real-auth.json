@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-10T20:24:52.791502+08:00",
+  "scope": "Real configured Claude API account integration attempt",
+  "sourceHashes": {
+    "tools/configure-claude.mjs": "7816abf52d4ba2114764da4f80791007854338c7a1d0695b11d0b955597edbba",
+    "gateway/engines/claude-code.mts": "438cdbf5ea0ce05d5bfce7109bd0c829c2a4f81d2fe41a3cfe90e295d7195822",
+    "tests/claude-api-test.mjs": "a0c6866cce89ee205c6db85b4b36c47348af22faa6e7c5aa428497fb81d29341"
+  },
+  "account": {
+    "keyConfigured": true,
+    "configuredBaseUrl": "https://api.anthropic.com",
+    "accountInferenceVerified": false,
+    "modelsApiHttpStatus": 401,
+    "errorType": "authentication_error",
+    "errorMessage": "invalid x-api-key",
+    "matchingOuterQuotes": false,
+    "environmentAssignmentPasted": false,
+    "matchingExistingUserConfiguredEndpointFound": false,
+    "secretRecorded": false
+  },
+  "client": {
+    "claudeRegisteredInDesiredConfig": true,
+    "loadedInRunningGateway": false,
+    "activeExistingWorkPreserved": true,
+    "desktopRestarted": false
+  },
+  "diagnosticFix": {
+    "nativeResultErrorDetailPreserved": true,
+    "knownSecretVariantsMasked": true,
+    "configuredEndpointDisplayedBeforeHiddenInput": true
+  },
+  "checks": {
+    "targeted": {
+      "tests": 17,
+      "passed": 17,
+      "failed": 0,
+      "durationMs": 3039.38875
+    },
+    "full": {
+      "tests": 334,
+      "passed": 328,
+      "failed": 6,
+      "durationMs": 14692.804958
+    }
+  },
+  "remainingPrerequisite": "The service Base URL corresponding to the stored key, or a valid official Anthropic key configured locally. Do not send the key in chat.",
+  "release": {
+    "published": false,
+    "missingPrerequisites": [
+      "pwsh executable",
+      "previous verified dist manifests and archives",
+      "release-readiness/current.json"
+    ]
+  }
+}

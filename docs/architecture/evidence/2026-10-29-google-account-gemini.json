@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T11:32:13Z",
+  "scope": "mac-google-account-experiment-not-enabled",
+  "sourceVersion": "1.2.36",
+  "googleOAuth": {
+    "userSelected": "google-account-gemini-cli",
+    "browserAuthorizationSucceeded": true,
+    "userConfirmedCompletion": true,
+    "credentialsStoredLocallyOnly": true,
+    "officialCliVersion": "0.66.0",
+    "officialCoreVersion": "0.66.0",
+    "codeAssistInitializationSucceeded": false,
+    "error": "This client is no longer supported for Gemini Code Assist for individuals.",
+    "realModelCatalogObtained": false,
+    "realModelInferencePerformed": false
+  },
+  "isolatedRegression": {
+    "scheduler": "tools/Invoke-HeavyTask.sh",
+    "tests": 78,
+    "passed": 78,
+    "failed": 0,
+    "skipped": 0,
+    "fullRepositoryTestRun": false,
+    "nativeRuntimeActuallyExecuted": true,
+    "googleUpstream": "deterministic-fixture",
+    "nativeToolExecuted": "exec_command",
+    "nativeImageInputVerified": true,
+    "nativeColdResumeAndToolSignatureVerified": true,
+    "geminiAcp": "owned-child-process-fixture",
+    "modulesParsed": 146,
+    "relativeImportsVerified": 309,
+    "ownedLoginProbeExited": true,
+    "ownedTemporaryTestDirectoriesRemaining": 0
+  },
+  "currentHost": {
+    "clientLifetimePreserved": true,
+    "restarted": false,
+    "configurationChanged": false,
+    "configuredEngines": ["copilot", "codex-copilot"],
+    "googleExperimentalEnginesEnabled": false,
+    "existingGoogleCliProfileMigrated": false
+  },
+  "publishedRelease": false,
+  "pending": [
+    "user-choice-independent-gemini-api-key-or-antigravity-subscription-agent",
+    "supported-google-account-model-access",
+    "real-model-inference-and-native-tool-roundtrip",
+    "coordinated-current-host-activation-and-ui-acceptance"
+  ],
+  "officialSources": [
+    "https://github.com/google-gemini/gemini-cli/discussions/28017",
+    "https://antigravity.google/docs/install",
+    "https://antigravity.google/docs/cli/gcli-migration/",
+    "https://antigravity.google/docs/sdk/overview"
+  ]
+}

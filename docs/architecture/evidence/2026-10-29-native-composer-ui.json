@@ -1,0 +1,29 @@
+{
+  "recordedAt": "2026-10-29T08:36:22.800Z",
+  "environment": "owned-browser-native-contract-fixture",
+  "desktopTouched": false,
+  "checks": {
+    "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+    "inlinePickerWithoutFloatingPanel": true,
+    "nativeDraftSelection": true,
+    "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+    "persistedThreadSelection": true,
+    "nativeNewDraftResetsAndRemounts": true,
+    "catalogReusedAcrossComposerRemounts": true,
+    "genericChatGptComposerExcluded": true,
+    "disposeRemovesPicker": true,
+    "remountRestoresFromGatewayHistory": true,
+    "generatedInstallerBindingRoundTrip": true,
+    "generatedInstallerIdempotent": true,
+    "generatedInstallerDisposed": true,
+    "noBrowserErrors": true
+  },
+  "pointerSelection": {
+    "selection": "mycodex/copilot/account-model",
+    "value": "mycodex/copilot/account-model",
+    "mouseDowns": 0,
+    "submits": 0,
+    "focused": "SELECT"
+  },
+  "passed": true
+}

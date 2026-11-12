@@ -1,0 +1,156 @@
+diff --git a/codex-rs/tui/src/chatwidget/model_popups.rs b/codex-rs/tui/src/chatwidget/model_popups.rs
+index 6b40a3e68c..955d2bc064 100644
+--- a/codex-rs/tui/src/chatwidget/model_popups.rs
++++ b/codex-rs/tui/src/chatwidget/model_popups.rs
+@@ -4,6 +4,7 @@
+ //! into another, especially while Plan mode is active.
+ 
+ use super::*;
++use crate::bottom_pane::SelectionRowDisplay;
+ 
+ const ULTRA_REASONING_CONCURRENCY_WARNING_THRESHOLD: usize = 8;
+ 
+@@ -180,6 +181,8 @@ impl ChatWidget {
+             footer_hint: Some(standard_popup_hint_line()),
+             items,
+             header,
++            col_width_mode: ColumnWidthMode::AutoAllRows,
++            row_display: SelectionRowDisplay::SingleLine,
+             ..Default::default()
+         });
+     }
+@@ -246,6 +249,8 @@ impl ChatWidget {
+             footer_hint: Some(self.bottom_pane.standard_popup_hint_line()),
+             items,
+             header,
++            col_width_mode: ColumnWidthMode::AutoAllRows,
++            row_display: SelectionRowDisplay::SingleLine,
+             ..Default::default()
+         });
+     }
+diff --git a/codex-rs/tui/src/chatwidget/status_controls.rs b/codex-rs/tui/src/chatwidget/status_controls.rs
+index 97655b99d3..54a93dc1a2 100644
+--- a/codex-rs/tui/src/chatwidget/status_controls.rs
++++ b/codex-rs/tui/src/chatwidget/status_controls.rs
+@@ -355,6 +355,20 @@ impl ChatWidget {
+             .as_ref()
+             .and_then(|info| info.model_context_window)
+             .or(self.config.model_context_window)
++            .or_else(|| {
++                let current_model = self.current_model();
++                let preset = self
++                    .model_catalog
++                    .try_list_models()
++                    .ok()?
++                    .into_iter()
++                    .find(|preset| preset.model == current_model)?;
++                let raw = preset.context_window.or(preset.max_context_window)?;
++                Some(crate::chatwidget::context_window_popup::effective_context_window(
++                    raw,
++                    preset.effective_context_window_percent,
++                ))
++            })
+     }
+ 
+     pub(super) fn status_line_context_remaining_percent(&self) -> Option<i64> {
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 255d9edcb5..6fee670650 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -707,9 +707,9 @@ impl ChatWidget {
+                 .status_line_context_remaining_percent()
+                 .map(|remaining| format!("Context {remaining}% left")),
+             StatusLineItem::ContextUsed => {
+-                let tokens = self.status_line_current_context_tokens()?;
+                 let window = self.status_line_context_window_size()?;
+-                let percent = self.status_line_context_used_percent()?;
++                let tokens = self.status_line_current_context_tokens().unwrap_or(0);
++                let percent = tokens.max(0) as f64 / window.max(1) as f64 * 100.0;
+                 Some(format!(
+                     "Context {}/{} ({percent:.1}%)",
+                     format_tokens_compact(tokens),
+@@ -741,11 +741,12 @@ impl ChatWidget {
+                 format_tokens_compact(self.status_line_total_usage().input_tokens)
+             )),
+             StatusLineItem::CacheHit => {
++                // Keep the configured field visible before the provider reports cache usage.
+                 let usage = self.status_line_total_usage();
+                 let cached = usage.cached_input();
+                 let total_input = usage.input_tokens.max(0);
+                 if cached <= 0 || total_input <= 0 {
+-                    None
++                    Some("Cache --".to_string())
+                 } else {
+                     let percent = ((cached as f64 / total_input as f64) * 100.0).clamp(0.0, 100.0);
+                     Some(format!("Cache {percent:.1}%"))
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index ed884c9ba1..a6e5bb5f8f 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -42,7 +42,7 @@ async fn token_count_none_resets_context_indicator() {
+ }
+ 
+ #[tokio::test]
+-async fn status_line_cache_hit_is_truthful_and_omitted_without_cache_usage() {
++async fn status_line_cache_hit_is_truthful_and_marks_unavailable_cache_usage() {
+     let (mut chat, _rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
+ 
+     let uncached = TokenUsage {
+@@ -61,7 +61,7 @@ async fn status_line_cache_hit_is_truthful_and_omitted_without_cache_usage() {
+     );
+     assert_eq!(
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::CacheHit),
+-        None
++        Some("Cache --".to_string())
+     );
+ 
+     let cached = TokenUsage {
+@@ -84,6 +84,26 @@ async fn status_line_cache_hit_is_truthful_and_omitted_without_cache_usage() {
+     );
+ }
+ 
++#[tokio::test]
++async fn status_line_shows_zero_context_and_unknown_cache_before_first_request() {
++    let (mut chat, _rx, _ops) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let window = chat
++        .status_line_context_window_size()
++        .expect("catalog context window");
++    chat.config.tui_status_line = Some(vec![
++        "context-used".to_string(),
++        "cache-hit".to_string(),
++    ]);
++    chat.refresh_status_line();
++    assert_eq!(
++        status_line_text(&chat),
++        Some(format!(
++            "Context 0/{} (0.0%) · Cache --",
++            format_tokens_compact(window)
++        ))
++    );
++}
++
+ #[tokio::test]
+ async fn slash_context_renders_active_usage_and_truthful_optional_metrics() {
+     let (mut chat, mut rx, _ops) = make_chatwidget_manual(Some("gpt-5.4")).await;
+@@ -2847,13 +2867,19 @@ async fn status_line_legacy_context_usage_renders_context_used_percent() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+     chat.thread_id = Some(ThreadId::new());
+     chat.config.tui_status_line = Some(vec!["context-usage".to_string()]);
++    let window = chat
++        .status_line_context_window_size()
++        .expect("catalog context window");
+ 
+     chat.refresh_status_line();
+ 
+-    assert_eq!(status_line_text(&chat), None);
++    assert_eq!(
++        status_line_text(&chat),
++        Some(format!("Context 0/{} (0.0%)", format_tokens_compact(window)))
++    );
+     assert!(
+         drain_insert_history(&mut rx).is_empty(),
+-        "legacy context-usage should remain valid and omit unavailable data"
++        "legacy context-usage should remain a valid context-used alias"
+     );
+ }
+ 

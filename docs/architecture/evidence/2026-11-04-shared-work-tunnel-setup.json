@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-04T02:16:45.404760+00:00",
+  "userTimezone": "Asia/Shanghai",
+  "scope": "User requested completing the custom MCP addition after confirming the Tunnel option.",
+  "status": "shared_goal_and_work_revision_2_read_verified_ui_acceptance_pending",
+  "localClient": {
+    "release": "v0.0.19",
+    "asset": "tunnel-client-v0.0.19-darwin-arm64.zip",
+    "archiveSha256": "2243d024b77af8ee4b4ab7a1447949e5fc8d82bcd2d51b178927f2da9e47ecfd",
+    "executableSha256": "4a82a4591933241850966ab3484cb39e65fad11b7e83b43891f6599f9638bd7f",
+    "officialChecksumVerified": true,
+    "quickstartAndInitHelpRead": true,
+    "daemonStarted": true,
+    "credentialReference": "env:CONTROL_PLANE_API_KEY",
+    "runtimeCredentialPresentInAgentEnvironment": false
+  },
+  "platform": {
+    "organizationLabel": "Personal",
+    "organizationId": "<redacted-organizationId>",
+    "selectedChatgptWorkspaceId": "<redacted-chatgptWorkspaceId>",
+    "existingOtherTunnelPreserved": true,
+    "createForm": {
+      "name": "MyCodex 工作台",
+      "description": "供小鼠头通过同一个连接读取、登记和更新 MyCodex 工作台的目标与工作，维护共同依据、进展和下一步。写入需记录 ID 与版本校验。当前不提供代码执行、Agent 派发、删除或其他会话读取。",
+      "submitted": true
+    },
+    "tunnelId": "<redacted-tunnelId>",
+    "creationVerifiedBy": "Visible Platform tunnel table row: MyCodex 工作台, correct organization and ChatGPT workspace, created 2026-11-04."
+  },
+  "localLiveMcpHealth": {
+    "server": "mycodex-work",
+    "tools": [
+      "mycodex.goal_upsert",
+      "mycodex.goals_list",
+      "mycodex.shared_work_list",
+      "mycodex.spine_status",
+      "mycodex.work_context",
+      "mycodex.work_record"
+    ],
+    "allReadOnly": false,
+    "gatewayStartedAt": "2026-11-04T02:07:53.498Z",
+    "sharedRecordMethodsLoaded": true,
+    "modelCalls": 0,
+    "directInstalledPluginReads": [
+      "mycodex.spine_status",
+      "mycodex.goals_list",
+      "mycodex.shared_work_list"
+    ],
+    "generalWorkCountBeforeDotWrite": 0
+  },
+  "boundary": {
+    "newPersistentAccessConfirmationRequested": false,
+    "tunnelCreated": true,
+    "chatgptPluginCreated": true,
+    "apiKeyCreated": false,
+    "literalCredentialsCaptured": false,
+    "existingClientOrGatewayRestarted": false,
+    "humanCreationConfirmation": "确认创建这一个读写连接",
+    "chatgptPluginConnected": true,
+    "connectionCreatedVia": "Supported Chrome UI at chatgpt.com/plugins, not native ChatGPT automation."
+  },
+  "remaining": [
+    "Receive the user-visible workbench result and verify changed-card visibility plus context continuation; actual record creation/update/read already returned revision 2.",
+    "Confirm the user-reported dot execution result and review the minimum actionable record information with the actual card.",
+    "Complete the approved companion workbench and independent squad/group-chat integration.",
+    "Formal installer publication still lacks pwsh and promoted release/installed hashes."
+  ],
+  "officialGuide": "https://developers.openai.com/api/docs/guides/secure-mcp-tunnels",
+  "userDirection": {
+    "oneConnectionForReadAndWrite": true,
+    "readOnlyWasDiagnosticScope": true,
+    "previousReadOnlyCreateConfirmationSuperseded": true
+  },
+  "proposedMcp": {
+    "flag": "--shared-work",
+    "server": "mycodex-work",
+    "connectionsPlanned": 1,
+    "tunnelsPlanned": 1,
+    "reads": [
+      "mycodex.spine_status",
+      "mycodex.goals_list",
+      "mycodex.shared_work_list",
+      "mycodex.work_context"
+    ],
+    "writes": [
+      "mycodex.goal_upsert",
+      "mycodex.work_record"
+    ],
+    "writeIdentityAndRevisionValidatedBeforeDispatch": true,
+    "agentDispatchOrCodeExecutionExposed": false
+  },
+  "verification": {
+    "focusedTests": 22,
+    "focusedPassed": 22,
+    "fullTests": 313,
+    "fullPassed": 313,
+    "fullFailed": 0,
+    "fullConcurrency": 6,
+    "testDurationMs": 15212.917792,
+    "modules": 207,
+    "relativeImports": 482,
+    "defaultSixWorkerGatePassed": true,
+    "defaultSixWorkerFailure": null,
+    "gateLog": "workbench-tunnel-handshake-gate.log",
+    "previousGateNote": "Prior default six-worker runs hit an existing startup timeout; latest complete default six-worker run passed all 313 tests."
+  },
+  "localRuntime": {
+    "profileName": "mycodex-work",
+    "alias": "mycodex-work",
+    "profileFile": "profiles/mycodex-work.yaml",
+    "apiKeyReference": "env:CONTROL_PLANE_API_KEY",
+    "actualTunnelId": "<redacted-tunnelId>",
+    "mcpFlag": "--shared-work",
+    "healthBind": "127.0.0.1:0",
+    "launcherFile": "启动MyCodex工作台连接.command",
+    "launcherSha256": "07990ad871d2fdcc1c0d357753f98bf44d7719da2658687ef8609a34f5694a22",
+    "launcherShellSyntaxValidated": true,
+    "secretInputMethod": "User-operated local terminal hidden read; environment reference only, no literal key in command arguments, chat or YAML.",
+    "startupMethod": "Official tunnel-client runtimes connect; existing tunnel attach, no admin CRUD.",
+    "lastPreflight": {
+      "profileLoad": "pass",
+      "credential": "supplied_by_user_to_daemon_environment",
+      "processRunning": true,
+      "pid": 16689,
+      "healthy": true,
+      "ready": true,
+      "runtimeState": "ready",
+      "uiUrl": "http://127.0.0.1:63970/ui"
+    },
+    "activePollingVerified": true,
+    "healthRegistrationRepair": {
+      "reason": "Owned launcher overrode the managed runtime health URL file. Daemon was independently verified healthy; expected manager file was populated with its verified loopback URL and the launcher override was removed.",
+      "managedHealthUrlFile": "/Users/<user>/Library/Application Support/tunnel-client/health/mycodex-work.url",
+      "runningDaemonPreserved": true,
+      "literalCredentialRead": false
+    },
+    "pollingEvidence": {
+      "command": "tunnel-client health --url http://127.0.0.1:63970 --pid 16689 --require-control-plane-poll --json",
+      "result": "ok",
+      "controlPlanePoll": {
+        "url": "http://127.0.0.1:63970/metrics",
+        "value": 1793756530,
+        "ok": true
+      },
+      "nativeRuntimesStatusPollState": "unknown",
+      "nativeRuntimesStatusPollReason": "no live admin UI system snapshot",
+      "observedMcp": {
+        "schema_version": 1,
+        "snapshot_at": "2026-11-04T01:56:01.058128Z",
+        "component": "mcp",
+        "status": "ok",
+        "state": "initialized",
+        "observed_at": "2026-11-04T01:54:20.47474Z",
+        "limited": false,
+        "details": {
+          "channel": "main",
+          "transport": "stdio",
+          "child_state": "running",
+          "child_generation": "c78b21646e770525b2f89697e6fea865",
+          "initialize_epoch": 4,
+          "server_discover_epoch": 2,
+          "evidence": "same_child",
+          "initialize": {
+            "ok": true,
+            "identity_complete": true,
+            "limited": false,
+            "observed_at": "2026-11-04T01:54:20.47474Z",
+            "protocol_version": "2025-06-18",
+            "server_name": "mycodex-work",
+            "server_version": "0.1.0",
+            "capability_names": [
+              "tools"
+            ]
+          },
+          "tools_list": {
+            "ok": false,
+            "tool_names": [],
+            "retained_count": 0,
+            "complete": false,
+            "partial": false,
+            "limited": false
+          }
+        }
+      }
+    },
+    "ownedMcpChildReload": {
+      "oldPid": 16690,
+      "daemonPidPreserved": 16689,
+      "activeRequestsBeforeReload": 0,
+      "oldChildGeneration": "0eafc5e691c8100944d16a850b27c2f4",
+      "newChildGeneration": "c78b21646e770525b2f89697e6fea865",
+      "daemonRestarted": false,
+      "literalCredentialRead": false
+    },
+    "postHostActivationHealth": {
+      "live": true,
+      "ready": true,
+      "controlPlane": {
+        "status": "ok",
+        "state": "polling",
+        "observed_at": "2026-11-04T02:12:21.438063Z",
+        "limited": false,
+        "details": {
+          "last_attempt": "2026-11-04T02:12:21.438063Z",
+          "last_success": "2026-11-04T02:12:21.43805Z",
+          "consecutive_failures": 0,
+          "current_poll_age_seconds": 19.172073292,
+          "configured_wait_seconds": 30,
+          "effective_wait_seconds": 30,
+          "deadline_seconds": 35
+        }
+      },
+      "mcp": {
+        "status": "ok",
+        "state": "initialized",
+        "observed_at": "2026-11-04T02:10:48.76302Z",
+        "limited": false,
+        "details": {
+          "channel": "main",
+          "transport": "stdio",
+          "child_state": "running",
+          "child_generation": "dae55c7ba08b91a13c302930662b82fe",
+          "initialize_epoch": 6,
+          "server_discover_epoch": 3,
+          "evidence": "same_child",
+          "initialize": {
+            "ok": true,
+            "identity_complete": true,
+            "limited": false,
+            "observed_at": "2026-11-04T02:10:48.76302Z",
+            "protocol_version": "2025-06-18",
+            "server_name": "mycodex-work",
+            "server_version": "0.1.0",
+            "capability_names": [
+              "tools"
+            ]
+          },
+          "tools_list": {
+            "ok": false,
+            "tool_names": [],
+            "retained_count": 0,
+            "complete": false,
+            "partial": false,
+            "limited": false
+          }
+        }
+      }
+    }
+  },
+  "credentialHandoff": {
+    "required": true,
+    "rawCredentialRequestedInChat": false,
+    "userStepsPrepared": true,
+    "finderLauncherSelected": true,
+    "officialRuntimeKeyUrl": "https://platform.openai.com/settings/organization/api-keys",
+    "browserPageIssue": "API keys page remained blank and Page.getFrameTree reads timed out; no credentials were generated or read by the agent.",
+    "userInstruction": "Prepare or reuse a suitable Tunnels Read + Use runtime key, enter it only into the local hidden-input launcher, report completion without the key or logs.",
+    "completed": true,
+    "userCompletion": "已完成本地输入并启动"
+  },
+  "chatgptPlugin": {
+    "name": "MyCodex 工作台",
+    "id": "plugin_asdk_app_6aea8f8239048191a409b90d896878d3",
+    "url": "https://chatgpt.com/plugins/plugin_asdk_app_6aea8f8239048191a409b90d896878d3",
+    "created": true,
+    "connected": true,
+    "authentication": "No authentication for the stdio MCP server; tunnel access remains authenticated by the runtime key and organization/workspace authorization.",
+    "toolsDiscovery": {
+      "schema_version": 1,
+      "snapshot_at": "2026-11-04T01:51:11.379747Z",
+      "component": "mcp",
+      "status": "ok",
+      "state": "discovered",
+      "observed_at": "2026-11-04T01:51:01.724627Z",
+      "limited": false,
+      "details": {
+        "channel": "main",
+        "transport": "stdio",
+        "child_state": "running",
+        "child_generation": "c78b21646e770525b2f89697e6fea865",
+        "initialize_epoch": 2,
+        "server_discover_epoch": 1,
+        "evidence": "same_child",
+        "initialize": {
+          "ok": true,
+          "identity_complete": true,
+          "limited": false,
+          "observed_at": "2026-11-04T01:51:00.130992Z",
+          "protocol_version": "2025-06-18",
+          "server_name": "mycodex-work",
+          "server_version": "0.1.0",
+          "capability_names": [
+            "tools"
+          ]
+        },
+        "tools_list": {
+          "ok": true,
+          "observed_at": "2026-11-04T01:51:01.724627Z",
+          "tool_names": [
+            "mycodex.goal_upsert",
+            "mycodex.goals_list",
+            "mycodex.shared_work_list",
+            "mycodex.spine_status",
+            "mycodex.work_context",
+            "mycodex.work_record"
+          ],
+          "retained_count": 6,
+          "complete": true,
+          "partial": false,
+          "limited": false
+        }
+      }
+    },
+    "latestMcpSnapshot": {
+      "schema_version": 1,
+      "snapshot_at": "2026-11-04T01:56:01.058128Z",
+      "component": "mcp",
+      "status": "ok",
+      "state": "initialized",
+      "observed_at": "2026-11-04T01:54:20.47474Z",
+      "limited": false,
+      "details": {
+        "channel": "main",
+        "transport": "stdio",
+        "child_state": "running",
+        "child_generation": "c78b21646e770525b2f89697e6fea865",
+        "initialize_epoch": 4,
+        "server_discover_epoch": 2,
+        "evidence": "same_child",
+        "initialize": {
+          "ok": true,
+          "identity_complete": true,
+          "limited": false,
+          "observed_at": "2026-11-04T01:54:20.47474Z",
+          "protocol_version": "2025-06-18",
+          "server_name": "mycodex-work",
+          "server_version": "0.1.0",
+          "capability_names": [
+            "tools"
+          ]
+        },
+        "tools_list": {
+          "ok": false,
+          "tool_names": [],
+          "retained_count": 0,
+          "complete": false,
+          "partial": false,
+          "limited": false
+        }
+      }
+    },
+    "latestSnapshotNote": "Each new legacy initialize resets the tunnel observer catalog. Preserve the actual completed discovery receipt separately from a newer initialization receipt.",
+    "screenshot": "mycodex-work-plugin-installed.png",
+    "browserResult": "Installed sidebar row and plugin detail page with Manage and Try in chat actions."
+  },
+  "handshakeRepair": {
+    "observedFailure": "ChatGPT rejected MCP setup; actual tunnel receipt had initialize_epoch 2 and server_discover_epoch 1, with mcp_discovery_error.",
+    "sourceFiles": [
+      "gateway/spine/mcp-server.mts",
+      "tests/spine-mcp-test.mjs"
+    ],
+    "behavior": "Unsupported modern discovery returns JSON-RPC Method not found before the readiness gate. A supervised stdio child accepts a fresh legacy initialization only when no other request is pending, requires a new initialized notification, and never replays a record dispatch. No modern protocol support is claimed.",
+    "redTest": "Discovery fallback regression failed with -32000 instead of -32601.",
+    "liveOutcome": "Same tunnel/daemon discovered all six tools after source build and owned MCP child reload.",
+    "officialClientSource": "openai/tunnel-client tag v0.0.19: pkg/mcpclient/stdio_initialization_test.go TestStdioInitializationReinitializeRequiresNewNotification and testsupport/mockmcpserver/stdio_server.sh discovery fixture."
+  },
+  "release": {
+    "version": "1.2.36",
+    "nativePatchChainChanged": false,
+    "formalPublicationAttempted": true,
+    "command": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 invoking tools/Publish-Release.ps1",
+    "exitCode": 127,
+    "missingPrerequisite": "pwsh",
+    "publishedInstallerVerified": false,
+    "distManifestAvailable": false
+  },
+  "dotPluginProbe": {
+    "origin": "User initiated in the real dot chat and returned its complete JSON in this conversation. This assistant did not send a chat message or create a delegated task.",
+    "userReportedResult": "调用成功",
+    "tool": "mycodex.spine_status",
+    "gatewayStartedAt": "2026-11-03T06:00:31.089Z",
+    "activeTasks": 0,
+    "backgroundActivities": 0,
+    "sharedRecordMethodsLoaded": false,
+    "missingMethods": [
+      "diy/work/shared_list",
+      "diy/work/record",
+      "diy/work/context"
+    ],
+    "workOperationsSent": false,
+    "rawCredentialCaptured": false,
+    "evidenceBoundary": "The user-provided dot result identifies the same gateway independently read through the existing MyCodex connector. Actual tunnel discovery is recorded separately; no dot transcript was read."
+  },
+  "runtimeLoadingPreparation": {
+    "status": "runtime_loaded_ui_acceptance_pending",
+    "operationArtifact": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/load-shared-work-after-quit.mjs",
+    "artifactSha256": "c5c5677f6ead3d5e6606764a66c8f4d9639ae29c8d33c831ff91980abeb02f8c",
+    "syntaxCheck": "passed",
+    "readOnlyPreflight": "passed",
+    "sourceGeneration": "9db90fc6ad1fc3891009bfb455a17a14d4d8d3aac42f9558e1624408346d20a8",
+    "oldPreparedSourceGeneration": "6fdd222e60c904ac0a304daf444a4aa54d09528b566a7ec97cbc42cfb5fdbf8a",
+    "applicationVersion": "26.1027.51404",
+    "archiveSha256": "52e0a65f9fea51f4287bbd98c63343761f9424517bb793652bb554764bc0bcc8",
+    "cliSha256": "58a91f6ea19bea477ae3a2ec48d619f0039afe75d3476260747e11d201fa7cea",
+    "hostPid": 15556,
+    "oldGatewayPid": 14748,
+    "tunnelDaemonPid": 16689,
+    "activeTasks": 0,
+    "backgroundActivities": 0,
+    "activeCliTurns": 0,
+    "gatewayStopped": true,
+    "sourcePreparedReceiptUpdated": true,
+    "hostActivated": true,
+    "literalCredentialRead": false,
+    "requiredUserAction": "Save current work and quit ChatGPT normally. Keep it quit until the guarded runtime operation finishes.",
+    "executionBoundary": "Activation refuses a running host, changed source/host/gateway/tunnel identity or active gateway tasks. Only the bound idle old gateway is signaled, after user quit. Canonical backend preparation retains the existing private capability, then canonical prepare-only and activate run. The tunnel daemon stays running. UI and actual dot write acceptance remain pending.",
+    "waitingOperationPid": 50293,
+    "waitingOperationState": "waiting_for_user_normal_quit",
+    "replyWhileClientClosedRequired": false,
+    "userRequiredAction": "Quit ChatGPT normally; the detached task observes that exact host lifetime ending, rechecks idle state, loads canonical runtime and reopens the client. Resume verification after reopening.",
+    "statusFile": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/shared-work-runtime-loading-status.json",
+    "logFile": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/shared-work-runtime-loading.log",
+    "firstWaiterFailure": "A task-owned helper hit a local variable shadowing error before arming; it exited without any signal or write operation. Corrected and the replacement waiter is verified armed.",
+    "timeoutMinutes": 30,
+    "failureRecovery": "If loading fails after the observed quit, canonical protected-current-host launch is attempted to restore the client; no forced gateway termination is used.",
+    "waitingOperationFinished": true,
+    "runtimeResult": {
+      "schemaVersion": 1,
+      "updatedAt": "2026-11-04T02:08:09.592Z",
+      "operationPid": 50293,
+      "state": "runtime_loaded_ui_acceptance_pending",
+      "phase": "started",
+      "hostPid": 53444,
+      "backendState": "ready",
+      "uiState": "starting",
+      "gatewayStartedAt": "2026-11-04T02:07:53.498Z",
+      "sharedRecordMethodsLoaded": true,
+      "tunnelDaemonPreserved": true,
+      "nativeProfileOverride": false,
+      "workRecordWritten": false,
+      "liveUiAcceptancePending": true,
+      "formalInstallerPublished": false
+    }
+  },
+  "sharedRecordRoundTrip": {
+    "requestedInitiator": "real dot chat via user handoff",
+    "goalId": "goal-dot-workbench-collaboration",
+    "goalRevision": 1,
+    "workId": "work-dot-workbench-collaboration",
+    "workRevision": 2,
+    "workKind": "general",
+    "goalCreatedAt": "2026-11-04T02:14:06.034Z",
+    "workCreatedAt": "2026-11-04T02:14:32.659Z",
+    "workUpdatedAt": "2026-11-04T02:14:38.353Z",
+    "readEvidence": "The installed plugin shared_work_list returned revision 1 and work_context subsequently returned revision 2 with the same goal/work IDs.",
+    "userReportPending": true,
+    "rootAssistantRecordWrites": 0,
+    "userIntentPreserved": true,
+    "repositoryBindingRequired": false,
+    "status": "in_progress",
+    "expectedOutput": "协同体验的设计与核验结果。",
+    "nextStepOwner": "用户与小鼠头",
+    "nextStepDescription": "核验工作台卡片变化及接续体验，由用户确认页面是否可见。",
+    "pageVisibilityConfirmed": false,
+    "adoptedReferencesIndependentlyRead": false
+  },
+  "productReviewObservations": [
+    {
+      "origin": "agent_inference_after_reading_actual_record_and_schema",
+      "observation": "Overall outcome and owner are empty, but expectedOutput and a nextStep owner are present. The schema intentionally uses expectedOutput, doneCriteria and nextStep for actionable work. Empty overall owner alone is not proof that work cannot progress.",
+      "proposal": "Review overlap among user intent, desired outcome, expected output, overall owner and next-step owner so missing duplicate fields do not obscure the shared focus.",
+      "userAdopted": false
+    }
+  ],
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved.",
+    "Cloud organization, workspace and tunnel identifiers are redacted; credential values were not present."
+  ]
+}

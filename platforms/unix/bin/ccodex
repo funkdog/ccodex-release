@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_PATH" ]]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" == /* ]] || SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+ROOT="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+WORKSPACE="${CCODEX_WORKSPACE:-$HOME/Ccodex Workspace}"
+if [[ -z "${CCODEX_NO_CD:-}" && "${1:-}" != "-C" && "${1:-}" != "--cd" &&
+  "${1:-}" != "showcase" ]]; then
+  mkdir -p "$WORKSPACE"
+  cd "$WORKSPACE"
+fi
+export FORCE_COLOR=3
+export COLORTERM=truecolor
+exec "$ROOT/codex-copilot" "$@"

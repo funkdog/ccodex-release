@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_PATH" ]]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" == /* ]] || SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd -P)"
+NODE="$ROOT/runtime/node/bin/node"
+HOME_DIR="${CODEX_COPILOT_HOME:-$HOME/.codex-copilot}"
+COMMAND="${1:-}"
+export CODEX_COPILOT_HOME="$HOME_DIR"
+if [[ "$COMMAND" == "history" ]]; then
+  export HISTORY_DEFAULT_PRODUCT=ccodex
+  export CODEX_COPILOT_INSTALL_ROOT="$ROOT"
+  exec "$NODE" "$ROOT/tools/history/cli.mjs" "$@"
+fi
+if [[ "$COMMAND" == "showcase" ]]; then
+  exec "$ROOT/install.sh" --showcase-only
+fi
+source "$ROOT/bin/bridge-port.sh"
+cc_resolve_bridge_port "$HOME_DIR"
+export CODEX_COPILOT_CATALOG_FILE="$HOME_DIR/models.json"
+export CODEX_COPILOT_SELECTION_FILE="$HOME_DIR/selection-generation.json"
+if [[ -d "$ROOT/bin/codex-path" ]]; then
+  export PATH="$ROOT/bin/codex-path:$ROOT/bin:$PATH"
+else
+  export PATH="$ROOT/bin:$PATH"
+fi
+COPILOT_PKG_NAME="copilot-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')"
+if [[ -d "$ROOT/runtime/copilot/node_modules/@github/$COPILOT_PKG_NAME" ]]; then
+  export CODEX_COPILOT_CLI_SDK="$ROOT/runtime/copilot/node_modules/@github/$COPILOT_PKG_NAME/copilot-sdk/index.js"
+  export CODEX_COPILOT_COPILOT_CLI="$ROOT/runtime/copilot/node_modules/@github/$COPILOT_PKG_NAME/copilot"
+  export COPILOT_CLI_PATH="$CODEX_COPILOT_COPILOT_CLI"
+  export COPILOT_CLI_DIST_DIR="$ROOT/runtime/copilot/node_modules/@github/$COPILOT_PKG_NAME"
+  export COPILOT_HOME="$HOME_DIR/copilot"
+  export COPILOT_CACHE_HOME="$HOME_DIR/copilot-cache"
+  export COPILOT_PKG_CACHE_HOME="$COPILOT_CACHE_HOME"
+  export COPILOT_AUTO_UPDATE="false"
+  export COPILOT_DISABLE_KEYTAR="1"
+fi
+# Desktop builds its own child environment; never open the stock app as a fallback.
+if [[ "$COMMAND" != "desktop" ]]; then export CODEX_HOME="$HOME_DIR"; fi
+if [[ ! -f "$HOME_DIR/config.toml" && -x "$ROOT/install.sh" && "$COMMAND" != "setup" && "$COMMAND" != "workiq" ]]; then
+  "$ROOT/install.sh" --configure-only
+fi
+
+if [[ ! -f "$HOME_DIR/config.toml" && "$COMMAND" != "workiq" ]]; then
+  CODEX_COPILOT_SOURCE_HOME="${CODEX_COPILOT_SOURCE_HOME:-$HOME/.codex}" \
+    "$NODE" "$ROOT/tools/gen-config.mjs"
+fi
+
+case "$COMMAND" in
+  setup)
+    exec "$ROOT/install.sh" --configure-only
+    ;;
+  login|logout|status|models|use|context|credits|usage|sessions|catalog|autostart|account|doctor|workiq|verify|inspect-request|export)
+    exec "$NODE" "$ROOT/bridge/cli.mjs" "$@"
+    ;;
+  repair)
+    "$NODE" "$ROOT/tools/gen-config.mjs"
+    exec "$NODE" "$ROOT/bridge/cli.mjs" catalog
+    ;;
+  update)
+    shift
+    exec "$NODE" "$ROOT/bridge/cli-update.mjs" "$@"
+    ;;
+  release-update)
+    shift
+    exec "$NODE" "$ROOT/bridge/release-update.mjs" "$@"
+    ;;
+  desktop)
+    shift
+    if [[ "${1:-}" == "update" ]]; then
+      shift
+      exec "$NODE" "$ROOT/bridge/desktop-update-cli.mjs" "$@"
+    fi
+    exec "$ROOT/bin/codex-copilot-desktop" "$@"
+    ;;
+  bridge)
+    case "${2:-start}" in
+      stop|status) exec "$NODE" "$ROOT/bridge/control.mjs" "${2}" ;;
+      *) exec "$NODE" "$ROOT/bridge/ensure.mjs" --verbose ;;
+    esac
+    ;;
+esac
+
+CORE="$ROOT/bin/codex-copilot-core"
+if [[ -f "$HOME_DIR/cli-updates/core-current.txt" ]]; then
+  CORE="$("$NODE" --input-type=module -e \
+    'import {pathToFileURL} from "node:url";const m=await import(pathToFileURL(process.argv[1]));console.log(m.cliCoreSelection({root:process.argv[2],home:process.argv[3]}).core);' \
+    "$ROOT/bridge/cli-update.mjs" "$ROOT" "$HOME_DIR")"
+fi
+case "$COMMAND" in
+  --version|-V|--help|-h)
+    exec "$CORE" "$@"
+    ;;
+esac
+
+if [[ -f "$ROOT/tools/native-runtime.mjs" ]]; then
+  "$NODE" "$ROOT/tools/native-runtime.mjs" --cli
+fi
+"$NODE" "$ROOT/bridge/ensure.mjs"
+"$NODE" "$ROOT/bridge/cli-update-notice.mjs" || true
+"$NODE" "$ROOT/bridge/release-update.mjs" --startup-notice || true
+if [[ -f "$ROOT/bridge/cli-session.mjs" ]]; then
+  exec "$NODE" "$ROOT/bridge/cli-session.mjs" "$CORE" "$@"
+fi
+CLI_ARGS=(-c "model_catalog_json=$CODEX_COPILOT_CATALOG_FILE")
+CONTEXT_OVERRIDE="$("$NODE" "$ROOT/bridge/cli-launch-overrides.mjs")"
+if [[ -n "$CONTEXT_OVERRIDE" ]]; then
+  IFS='|' read -r CONTEXT_MODEL CONTEXT_TIER <<< "$CONTEXT_OVERRIDE"
+  CLI_ARGS+=(-c "model=$CONTEXT_MODEL" -c "service_tier=$CONTEXT_TIER")
+fi
+exec "$CORE" "${CLI_ARGS[@]}" "$@"

@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-11T15:10:28.265118+08:00",
+  "sourceBaseline": "55508eb25aa49216abc808b7760be5765b372331",
+  "sourceHashes": {
+    "bridge/desktop-backends/app-server-gateway.mjs": "f8c84be211dc57c0f972f5d476703458fec2232b2bd7c876b1ae3d12ee9be7e5",
+    "bridge/desktop-current-host-contract.mjs": "9efc9fd6e8d86705f11742dfacf7435496b329e15f08b03253e1790b6e46be1f",
+    "bridge/desktop-native-composer.mts": "ee78b3cd1e2845934804567805e7d58c47343168f55f2e37aff9bc78dde6444f",
+    "bridge/desktop-shortcut.mjs": "bf647df8852b88e75c63d640118a90c49c830cbc430168f9c8beb4a7e34f69a0",
+    "bridge/desktop-status.mts": "c100945afcc21ede27d72518a5939f5eadda17bc721dec4318a4ec13401bd398",
+    "tests/desktop-host-cache-test.mjs": "73c7b848cd9f7abcc42d9ff0f3b15487dd8d41a43e3989eec4ffc59e791acb7c",
+    "tests/desktop-host-draft-test.mjs": "63387752d8db7b6d32a12540b691b33d1949d4b0dbcf61a75dd7cce9b453700f",
+    "tests/desktop-native-session-test.mjs": "fcee6a41098159a052b23860b569d3fdf492981e62d0855a78633ff1d26e18cc",
+    "tests/desktop-shortcut-test.mjs": "602d44c393df410a5bc6cb62a6c32cd30dec64cfa450830e41df80dacad6b93a",
+    "tests/desktop-status-test.mjs": "8f68e2698f8385a70cae3e7f7da64d368a47090a28f31e93a5602a7b702de36b",
+    "tests/gateway-backend-stage-test.mjs": "e6d3e89a93780bbe70f2f00498e056af0a701ff922bbf16bf7fdc417002b9f36",
+    "tests/session-contract-test.mjs": "9684135eab333eeb5375035f063ef767e214833ceff79ca646462b0c17d50c87",
+    "tests/spine-mcp-test.mjs": "3cc2399bc7273acf23d7e084a21a4b8367ef42869551c8e787b0f9faa4c87162",
+    "tools/probe-native-composer.mjs": "2c4ab30b53fce1f44e0df427b21eba65b8ab865ba22828642fda044503bc259a",
+    "tools/typescript-task.mjs": "e4ecc123a0a97051bf54c9629c9f1b93eea081b02d5d1dbe43b9d580fa874ace"
+  },
+  "scope": "macOS source candidate, isolated protocol and browser fixtures; current native window acceptance pending",
+  "host": {
+    "version": "26.1103.60933",
+    "build": "25894",
+    "archiveSha256": "a77588b2dcfa9b394d722dd8c2c8b13d3a09bacd49c839cc715245742dba6048",
+    "cliSha256": "a636331ed87605efc4cf84028ac2884a75363f9d10ead63cffb57ea0016d486e",
+    "moduleFormat": "rspack-cache",
+    "cacheObservationOnly": true
+  },
+  "verification": {
+    "developmentGate": {
+      "tests": 340,
+      "passed": 340,
+      "failed": 0,
+      "skipped": 0,
+      "sources": 76,
+      "outputs": 152,
+      "esmModules": 214,
+      "relativeImports": 501
+    },
+    "browser": [
+      {
+        "version": "26.1023.50603",
+        "passed": true,
+        "checks": 36,
+        "currentWindowAccessed": false
+      },
+      {
+        "version": "26.1023.51421",
+        "passed": true,
+        "checks": 36,
+        "currentWindowAccessed": false
+      },
+      {
+        "version": "26.1027.51404",
+        "passed": true,
+        "checks": 36,
+        "currentWindowAccessed": false
+      },
+      {
+        "version": "26.1103.60933",
+        "passed": true,
+        "checks": 36,
+        "currentWindowAccessed": false
+      }
+    ],
+    "realNativeProvider": {
+      "model": "gpt-6.1-sol",
+      "passed": true,
+      "checks": {
+        "imageUnderstood": true,
+        "nativeProvider": true,
+        "sameNativeHistoryAfterRestart": true,
+        "settingsAfterRestart": true,
+        "continuationRetainsContext": true,
+        "noCliGateway": true,
+        "workspaceUntouched": true
+      },
+      "isolatedProfiles": true
+    },
+    "realClaude": {
+      "passed": true,
+      "checks": {
+        "realToolAndAllowOnce": true,
+        "modelSwitchColdResumeAndContext": true,
+        "realPermissionDenial": true,
+        "sameNativeSessionId": true
+      },
+      "allowed": 1,
+      "denied": 1,
+      "models": [
+        "claude/claude-opus-5-5",
+        "claude/claude-haiku-4-5-20251001"
+      ],
+      "temporaryProfileRemoved": true
+    },
+    "preparation": {
+      "phase": "prepared",
+      "launchPerformed": false,
+      "preservation": {
+        "filesUnchanged": true,
+        "appLifetimeUnchanged": true,
+        "gatewayLifetimeUnchanged": true
+      }
+    },
+    "currentStatus": {
+      "level": "info",
+      "title": "页面增强待加载",
+      "incident": "activate-existing:ready::unsupported:reload-required",
+      "features": [
+        {
+          "id": "backend",
+          "label": "Provider 与 CLI 网关",
+          "state": "ready",
+          "detail": "路由接入检查通过；模型额度、登录和实际回复另行确认。"
+        },
+        {
+          "id": "page",
+          "label": "模型菜单、会话控件与 DIY 页面",
+          "state": "checking",
+          "stateLabel": "待加载",
+          "detail": "当前页面版本的适配已准备；此窗口启动时未加载页面增强，任务结束后正常重开 MyCodex 即可加载。"
+        }
+      ]
+    },
+    "nativeUi": {
+      "accepted": false,
+      "reason": "Computer Use is not allowed to use the app 'com.openai.codex' for safety reasons.",
+      "alternateUiChannelUsed": false
+    }
+  },
+  "release": {
+    "attempted": true,
+    "exitCode": 127,
+    "missingPrerequisite": "pwsh",
+    "manifestAvailable": false,
+    "releaseTestsAvailable": false,
+    "installedCoreCurrentAvailable": false,
+    "installerPublished": false,
+    "versionChanged": false,
+    "nativePatchChainChanged": false
+  },
+  "remaining": [
+    "Current native window model/composer/workbench interaction after normal reopen",
+    "Installed release and six-platform evidence under the project release contract"
+  ]
+}

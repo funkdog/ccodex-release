@@ -1,0 +1,35 @@
+{
+  "scope": "macOS local source validation; no Desktop activation or release",
+  "targetedTests": {
+    "initial": {
+      "total": 65,
+      "passed": 64,
+      "failed": 1,
+      "failure": "Owned gateway cleanup observation raced BSD ps/lsof during exit"
+    },
+    "afterCleanupTestFix": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    "distinctCasesPassing": 65,
+    "fullRepositorySuite": false,
+    "afterPrivateHelperLogChange": {
+      "total": 6,
+      "passed": 6,
+      "failed": 0
+    }
+  },
+  "permissionProbeEvidenceLimit": "nativeInferenceTurns in the archived permission reports was an initialized field, not an instrumented counter; it is not evidence of native request count. Use the guarded text/resume probe for that assertion.",
+  "desktopActivated": false,
+  "moduleCheck": {
+    "modules": 135,
+    "relativeImportsVerified": 273,
+    "evaluatedCode": false
+  },
+  "sourceAudit": {
+    "passed": true,
+    "files": 74,
+    "findings": []
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-10T21:10:51.666636+08:00",
+  "scope": "User-authorized Claude provider integration and additive live CLI-engine loading",
+  "provider": "https://provider.example",
+  "sourceHashes": {
+    "bridge/desktop-backends/app-server-gateway.mjs": "b3d07603ab3169b0f4bc5a88e0c58ecb0d2bfe989f6c07007df17e3ce7002f5c",
+    "gateway/contracts.mts": "538473363ad029579680e3eb9f1c95456e67125df1e2ebc0def6516dab821520",
+    "gateway/claude-api-profile.mts": "3ce21b5b1cbc3ca26edf781f9139cf0ca60c2b017cd4cd4ed846076b20e9134b",
+    "gateway/engines/claude-code.mts": "af3031c16e4463a3e3c9092b582e66e8c5eacaa7c4605e10e9613f82ea470627",
+    "tests/gateway-backend-stage-test.mjs": "a835a406df4080485150a91b79158ab544932204fd3635c76e41b82d52eb9457",
+    "tests/claude-api-test.mjs": "bb6a8be8ed0e7cb9d1617bd858c757f38486613c3ffcb2375d06d8dbd8c8958a",
+    "tests/claude-native-test.mjs": "a16ed32ce199484b7609826be42409e9d626e4d4d82a1124e47c880af4ff1384",
+    "tools/configure-claude.mjs": "c7e2efcca33d199d3657962c9b94049eea7c6daccfadfe713071253ee7144b4e"
+  },
+  "account": {
+    "modelsHttpStatus": 200,
+    "minimalRealInferenceVerified": true,
+    "apiKeySource": "ANTHROPIC_API_KEY",
+    "secretRecorded": false
+  },
+  "realClientProtocolCheck": {
+    "realAccount": true,
+    "temporaryProfiles": true,
+    "nativeInferenceTurns": 0,
+    "permissionPrompts": 0,
+    "checks": {
+      "realToolSucceeded": true,
+      "autoApproval": true,
+      "coldResumeRetainedContext": true,
+      "nativeSessionIdentityPreserved": true,
+      "onlyClaudeInference": true
+    },
+    "passed": true,
+    "modelCount": 14,
+    "model": "mycodex/claude/claude-opus-5-5",
+    "temporaryProfilesRemoved": true
+  },
+  "liveActivation": {
+    "activated": true,
+    "provider": "https://provider.example",
+    "claudeModelCount": 14,
+    "claudeDefaultApproval": "auto",
+    "oldGatewayPid": 36764,
+    "gatewayPid": 19837,
+    "transportGenerationRetained": true,
+    "connectionTokenRetained": true,
+    "desiredConfigurationVerified": true,
+    "oldClientReconnectSucceeded": true,
+    "existingThreadFilesUnchanged": true,
+    "desktopRestarted": false,
+    "originalDesktopPidRetained": true,
+    "uiContractAvailable": false,
+    "runtimeGeneration": "0fc61fe44513efe477d1ff1d30b543673302dadb65ca7f73064f017c6c91c3a0"
+  },
+  "checks": {
+    "targeted": {
+      "tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "durationMs": 11460.440333
+    },
+    "full": {
+      "tests": 336,
+      "passed": 330,
+      "failed": 6,
+      "durationMs": 15600.732166
+    }
+  },
+  "packageModules": {
+    "modules": 214,
+    "relativeImportsVerified": 501
+  },
+  "remainingEvidence": [
+    "Current installed Desktop menu clicks have not been automated against its unmatched UI hashes.",
+    "Image input, native fork/delete and cost UI remain outside this acceptance."
+  ],
+  "release": {
+    "published": false,
+    "version": "1.2.36",
+    "nativePatchTreeChanged": false,
+    "missingPrerequisites": [
+      "pwsh executable",
+      "previous verified dist manifests and archives",
+      "release-readiness/current.json"
+    ]
+  },
+  "statusReadSemantics": {
+    "networkCheckPerformedByStatus": false,
+    "verificationReportedAsUnknownNotFalse": true,
+    "focusedRegressionTests": 7,
+    "passed": 7
+  },
+  "publicationRedactions": [
+    "The user-configured provider hostname is anonymized; recorded protocol and verification outcomes are unchanged."
+  ]
+}

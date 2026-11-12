@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T03:01:36.939Z",
+  "compiledSourceGeneration": "78c02d981a1f54d6f00ceb19eba3683b0aca001e0cb3ed2ef47892e6482efa3c",
+  "approvalModes": [
+    "ask",
+    "auto",
+    "deny"
+  ],
+  "scope": "Antigravity session permission policy",
+  "defaultSessionPoliciesChanged": false,
+  "permanentGrants": false,
+  "businessAnswersAutomated": false,
+  "nativePermissionsChanged": false,
+  "productionInferenceCalls": 0,
+  "updatedGatewayLoaded": false,
+  "liveAcceptance": "pending",
+  "targetedTests": {
+    "pass": 53,
+    "fail": 0,
+    "skipped": 0
+  },
+  "modules": 159,
+  "relativeImports": 363,
+  "sourceSha256": {
+    "gateway/engines/antigravity.mts": "088efbd65e5bd09651f055ee95f98f540575914f74e6356472203b740ce9bab3",
+    "tests/antigravity-test.mjs": "d298f4f94b48b602bb67c10b16dc0b5bc5a0b91dcfcc0a963aa5001307e0229e",
+    "tests/fixtures/antigravity-acp.mjs": "8cba86e37cef2e794f7eac087677ea56d17252359e094bc9b0746349a69ac962"
+  }
+}

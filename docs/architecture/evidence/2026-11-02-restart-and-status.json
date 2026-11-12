@@ -1,0 +1,117 @@
+{
+  "recordedAt": "2026-11-02T04:54:27.930481+00:00",
+  "scope": "Original-window model settings acceptance, then independent native compatibility status",
+  "hostVersion": "26.1027.51404",
+  "postRestartAcceptance": {
+    "userRestarted": true,
+    "appPid": 68483,
+    "gatewayPid": 68440,
+    "helperPid": 68542,
+    "nativeLog": {
+      "localTime": "2026-11-02 12:34:59 Asia/Shanghai",
+      "method": "config/batchWrite",
+      "model": "mycodex/antigravity/gemini-4-argon",
+      "effort": "high",
+      "errorCode": null
+    },
+    "userConfirmed": "高 → 中 → 高不再报错，选择能保留",
+    "modelInferenceRetested": false
+  },
+  "statusUX": {
+    "nativeMenuBar": true,
+    "nonmodalPanel": true,
+    "automaticWarning": true,
+    "sameIncidentDeduplicated": true,
+    "recoveryNoticeOnce": true,
+    "repeatLaunchResurfacesWarning": true,
+    "inspectAnytime": true,
+    "requiresRendererToShowStatus": false,
+    "pollIntervalMs": 15000,
+    "uiFreshnessMs": 45000,
+    "normalStartupPopup": false,
+    "addsLoginItem": false,
+    "modelRequests": 0,
+    "cost": "resident owned native launcher plus one read-only Node watcher",
+    "scopeLimit": "backend connectivity and aggregated UI binding; not account quota or every individual DIY interaction"
+  },
+  "validation": {
+    "initialBehaviorRegression": "failed because a live helper returned starting despite fresh matching ready report",
+    "fullRegression": {
+      "tests": 237,
+      "passed": 237,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 15517.885375
+    },
+    "strictBuild": {
+      "sources": 58,
+      "outputs": 116
+    },
+    "typecheck": true,
+    "generatedFreshness": true,
+    "packageModules": {
+      "count": 191,
+      "relativeImportsVerified": 459
+    },
+    "swiftCompiled": true,
+    "launcherSignatureVerified": true,
+    "ownedViewRendering": [
+      "dark",
+      "light"
+    ],
+    "productionStatusMenuAutomaticallyOperated": false,
+    "developmentFailures": [
+      "Initial TypeScript legacy-JS boundary inference rejected options; explicit boundary types added.",
+      "CLI smoke caught incorrect argv count; corrected and protected by an exact native-shell argument test.",
+      "Initial CLI fixture omitted required defaultEngine; fixture corrected.",
+      "One full regression was blocked by concurrent source changes; latest coherent build and full run passed.",
+      "Offscreen native layout revealed clipping; explicit measured frames replaced ambiguous pre-show constraints."
+    ],
+    "sourceAudit": {
+      "passed": true,
+      "files": 13,
+      "bytes": 113225,
+      "findings": []
+    }
+  },
+  "deployment": {
+    "launcherInstalled": "~/Applications/MyCodex.app",
+    "launcherLaunchedByAgent": false,
+    "officialAppRestartedByAgent": false,
+    "currentGatewayReplaced": false,
+    "currentHelperReplaced": false,
+    "currentModelFixAccepted": true,
+    "newStatusHelperLoaded": false,
+    "currentCheck": {
+      "action": "activate-existing",
+      "backendState": "ready",
+      "uiState": "unavailable",
+      "uiReason": "unreported"
+    },
+    "remaining": "Status heartbeat and native menu/notice production acceptance on next normal user-managed launch."
+  },
+  "preservedSha256": {
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "gateway/router.mts": "bf63c20e6d76bfa40e0a93eecd4a3c1bbb6cdc7357a451d4100fb787bbf3daf5"
+  },
+  "sourceSha256": {
+    ".gitignore": "0bf32cae51447c46618592d7d505605a125b9ddb3b9237bd75bc0e10b190eb9b",
+    "bridge/desktop-ui-health.mts": "7ca8f2269e22fafe4e751fdbac64f929b8084bb228e14b55498db8852ef69ab2",
+    "bridge/desktop-status.mts": "73ec4bb18f70122b3f34a935eb027fa85750c1b9d50fc8494a146601fa5d6585",
+    "bridge/desktop-gateway-ui.mts": "b60850f734911c621df6c68e939bb7f7b4b0236b28724f415600a4b222c43580",
+    "bridge/desktop-shortcut.mjs": "6de5ff4c2ca82b3d053434e42bcf17ce7863e8e34c29c2aa7ec7f400cab3cdfe",
+    "bridge/desktop-launcher-macos.swift": "098dd3aecc0cd25d7187abbbafb6227773af6c348796bcca47af6f9ebcfe83bc",
+    "tests/desktop-status-test.mjs": "1cd60659dd130e7be8f93434d538a5a39b46bc3197f4c62d09431feda20dc373",
+    "tests/desktop-shortcut-test.mjs": "c3282af5f58c34b540dc22e0150020fee7507fb2c085bfec371e4c0c15025351",
+    "tests/desktop-native-session-test.mjs": "e5f9d8b71c111983e87b9761c035b8943e49d2ddae8f734fbaaab35d5a5a5a77",
+    "tools/typescript-task.mjs": "a2ca5938a319265cc83c95fcde18a9f3c31297db0ca46c2e6494d6984941b475",
+    "docs/architecture/0022-host-rpc-draft-settings.zh-CN.md": "fd502263d6b6317ff4d4cb25554acb88e18a7b4e0ebe2a962026a780063334ef",
+    "docs/architecture/0023-native-compatibility-status.zh-CN.md": "069dc342fc3ca4f73390fcede550d3f936e815e0b3e1b35c0b583daeb13e3bb9"
+  },
+  "otherSessionAcceptanceSourceModifiedByThisTask": false,
+  "committed": false,
+  "published": false
+}

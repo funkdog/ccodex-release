@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.sh text eol=lf
+platforms/unix/bin/* text eol=lf
+platforms/macos/bin/* text eol=lf
+patches/*.patch -text -whitespace

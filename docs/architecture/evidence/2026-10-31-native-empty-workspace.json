@@ -1,0 +1,42 @@
+{
+  "recordedAt": "2026-10-31T12:20:14.220833+00:00",
+  "scope": "Normalize empty native workspace hints for direct CLI sessions without changing gateway workspace policy",
+  "sources": {
+    "bridge/desktop-diy-contracts.mts": "cddb5413d58d5b4f926b5a0cd5f2b96ef070761329d85fc19b658b5d1252ae7f",
+    "bridge/desktop-native-session.mts": "a8d3e5350617e0110d84cfb8dda03fcf28d3131d531af61758ceed2234ac5345",
+    "tests/desktop-native-session-test.mjs": "f87fa3932da59a7b184234a4f4d69a8a21da29cc3d9f1d3b7cb4e0757fe8410b"
+  },
+  "regressions": {
+    "behavioralFailuresBeforeFix": 2,
+    "directedPassed": 70,
+    "buildSources": 30,
+    "buildOutputs": 60,
+    "modules": 161,
+    "relativeImports": 373,
+    "browserChecks": 32,
+    "browserPassed": true
+  },
+  "runtime": {
+    "hostPid": 42126,
+    "gatewayPid": 42100,
+    "helperPid": 76331,
+    "uiSourceGeneration": "7e057dac35aa5d12d57c8b08a26533931016f3c122e19828b00b45c7aa432b9f",
+    "applicationRestarted": false,
+    "gatewayRestarted": false,
+    "helperInstallerAcknowledged": true,
+    "shortcutAction": "activate-existing",
+    "nativeConfigSha256": "49edefaec5ed91953ab3d952fb22513f257ad273c2f430225ab2b0dd27d867ca"
+  },
+  "requestDiagnostics": {
+    "method": "thread/start",
+    "phase": "before-thread-persistence-and-cli-run",
+    "actualRootArrayLogged": false
+  },
+  "nativeWindowAcceptance": "failed-user-reported-same-workspace-error",
+  "inferenceCallsByAgent": 0,
+  "productionChatsModifiedByAgent": false,
+  "gatewaySourceChanged": false,
+  "versionChanged": false,
+  "published": false,
+  "followUp": "2026-10-31-gateway-workspace-repair.json"
+}

@@ -1,0 +1,102 @@
+{
+  "recordedAt": "2026-11-02T05:58:18.208877+00:00",
+  "scope": "Prevent repeated status windows; distinguish uncertainty and routine source updates from confirmed failure",
+  "observed": {
+    "appPid": 37552,
+    "gatewayPid": 68440,
+    "helperPid": 37609,
+    "appStartedAt": "2026-11-02 13:34:40 Asia/Shanghai",
+    "healthReportState": "pending",
+    "pendingSince": "2026-11-02T05:34:47.251Z",
+    "newHealthReportLoaded": true,
+    "cause": "Waiting states mapped to warning; detail-based de-dup reset on recheck/reopen; routine source drift misclassified as backend failure"
+  },
+  "policy": {
+    "unknownAndWaiting": "info, menu only",
+    "sourceDrift": "info; old gateway authenticated before showing running",
+    "warnings": "once per unresolved feature, persisted in native UserDefaults per config file",
+    "rearmAfterHealthyMs": 30000,
+    "recovery": "menu-only, no large popup",
+    "dockReopen": "reuse living monitor, no forced status window",
+    "manualStatusViewing": "always available",
+    "failedOldGatewayConnectionStillWarns": true
+  },
+  "checks": {
+    "initialRegression": {
+      "tests": 6,
+      "passed": 3,
+      "failed": 3
+    },
+    "targeted": {
+      "tests": 8,
+      "passed": 8
+    },
+    "nativePolicy": "exact production Swift declarations compiled and executed; persistence callback and per-feature recovery assertions",
+    "full": {
+      "tests": 246,
+      "passed": 246,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 7198.5655
+    },
+    "strictBuild": {
+      "sources": 59,
+      "outputs": 118
+    },
+    "generatedFreshness": true,
+    "modules": {
+      "count": 192,
+      "imports": 462
+    },
+    "swiftBuild": true,
+    "launcherSignature": true,
+    "sourceAudit": {
+      "passed": true,
+      "files": 7,
+      "bytes": 60474,
+      "findings": []
+    }
+  },
+  "runtime": {
+    "oldStatusPidsStopped": [
+      26277,
+      37622
+    ],
+    "newStatusPids": [
+      48598,
+      48621
+    ],
+    "chatGPTStopped": false,
+    "gatewayStopped": false,
+    "pageHelperStopped": false,
+    "computerUseFailure": "codex app-server exited before returning a response; tool reset also failed",
+    "userOpenedUpdatedLauncher": true,
+    "latestObserverRefreshConfirmation": "User confirmed 已关闭，暂未再弹",
+    "currentReadOnlyReplay": {
+      "level": "info",
+      "title": "增强更新待加载",
+      "backendState": "ready",
+      "backendLabel": "运行中",
+      "notice": null
+    },
+    "lastStartupBranchFixLoadedIntoCurrentNativeProcess": false,
+    "nativeBranchUpdateLoading": "next natural menu-process reopen; current attention policy already running",
+    "refreshedObserverPid": 54263
+  },
+  "sourceSha256": {
+    "bridge/desktop-status.mts": "60142d876ede2bc4a4f1627c56da34c0b18b37b5a39fb23f30ee28b1025e3504",
+    "bridge/desktop-launcher-macos.swift": "85d74e4ad472df7182132a7464fe921bfa978807a733acca4704430c3c9cd3d7",
+    "tests/desktop-status-test.mjs": "217a3f79be216471fb071d76ac5d685c8aa545d65497ce4f085c7b56009879e5",
+    "tests/desktop-upgrade-continuity-test.mjs": "d93450ad6f95ac5580407a7eefd90568e4978871b612be18a37061e9448abbc0",
+    "docs/architecture/0023-native-compatibility-status.zh-CN.md": "04f2489eb77177aab592bf8115dc9abea6c512e24f165c21f3867130cbad5c45",
+    "docs/architecture/0025-nonintrusive-status-notices.zh-CN.md": "136b502ed85714f070244efa0ea0b15ffdd80d7046406acde7ea67af0b80a5c7"
+  },
+  "preservedSha256": {
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce"
+  },
+  "committed": false,
+  "published": false
+}

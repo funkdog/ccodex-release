@@ -1,0 +1,457 @@
+{
+  "schemaVersion": 1,
+  "changes": [
+    {
+      "name": "skia-canvas",
+      "originalVersion": "3.0.8",
+      "pinnedVersion": "4.0.0-rc9.1",
+      "prerelease": true,
+      "reason": "Use the same complete pinned document renderer as the ARM64 team release, including its process-exit fix.",
+      "locations": [
+        "runtime/primary/codex-primary-runtime/dependencies/node/node_modules/@oai/artifact-tool/node_modules/skia-canvas",
+        "runtime/primary/codex-primary-runtime/dependencies/python/Lib/site-packages/artifact_tool_v2/bin/node_modules/skia-canvas"
+      ],
+      "source": "https://cdn.jsdelivr.net/npm/skia-canvas@4.0.0-rc9.1",
+      "nativeSha256": "476c78939b5e3eb1a921e96260290fb834c9f2f1e68175b0cc830ece3e722979",
+      "sourceFiles": [
+        {
+          "path": "lib/browser.js",
+          "sha256": "348ed39aef5a21aff9676bfa329f5aa3268df1be307685b9c38f992e9a0991c9"
+        },
+        {
+          "path": "lib/classes/canvas.js",
+          "sha256": "b4981491055253c7847517e75dec27c57e7dfc5359702f2e5fe66488603e88d7"
+        },
+        {
+          "path": "lib/classes/context.js",
+          "sha256": "16283d80716c1a5b7a5ba501995426f7f8be62e8bcd9db6418f775d8851d2fb2"
+        },
+        {
+          "path": "lib/classes/css.js",
+          "sha256": "767fa5a12a95e7f7d87f63f1d7c299be9f36f6c515922361d00cf3375323f4c1"
+        },
+        {
+          "path": "lib/classes/geometry.js",
+          "sha256": "66d93bab827518bbe0a6e96c2e4a1f44345cb569678c2823feff96ff7f8c9fe9"
+        },
+        {
+          "path": "lib/classes/gui.js",
+          "sha256": "5f279fdfe6cb87cd9fee51649aaf267853a933781e243a2d1ab3dc11addf72c6"
+        },
+        {
+          "path": "lib/classes/imagery.js",
+          "sha256": "b93450cfc71243836c39cd5901285b1caf7f89b26c194ecc470d3f401f500257"
+        },
+        {
+          "path": "lib/classes/neon.js",
+          "sha256": "177a99f9e0f116c0add9881a90294b2518b4a41b822c6f930ee0c8be8026e67b"
+        },
+        {
+          "path": "lib/classes/path.js",
+          "sha256": "5a72f8869ba0d67817305bc0ac5482f509cee065685a96033c315ee0727ebf8f"
+        },
+        {
+          "path": "lib/classes/typography.js",
+          "sha256": "6e349cf64b368ebfd2e004ed6751c65f6e7cee575fe22f8df09f2c98df0315cf"
+        },
+        {
+          "path": "lib/fonts/fonts.conf",
+          "sha256": "5985a7bcd5b65d0db7c6dc160b68ed012d9b13d306f46e7ca4ddf9a2210a4778"
+        },
+        {
+          "path": "lib/index.d.ts",
+          "sha256": "208a42b3affa177da7339dcc1aba38617f1c901373da82d023d7f416803faa0b"
+        },
+        {
+          "path": "lib/index.js",
+          "sha256": "9d0de4f4c7536384736f13247a77ed7edcc8158ddfd253442b7846547f50b8a3"
+        },
+        {
+          "path": "lib/index.mjs",
+          "sha256": "63379326a734b1b559fc131f05bea85868f296c0c32687048be910158178ff16"
+        },
+        {
+          "path": "lib/prebuild.mjs",
+          "sha256": "5e3755337070f7b0ede1a7354792bf4432c015e81918f2faa01f4d6468908ad3"
+        },
+        {
+          "path": "lib/urls.js",
+          "sha256": "9c6217db6bcb1a86b83f62f6124dc07dd8b6beaf5f8ee7fd90d5b934d2810992"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "a3a2b68ce8e3427393ddd66cdbaae510fcb19f9d8c29517c12771d2f15f020d1"
+        },
+        {
+          "path": "package.json",
+          "sha256": "6225427557bdc9a3afb0151f363e2661005d89ac764083b388b1c59ab8c5d5b2"
+        },
+        {
+          "path": "README.md",
+          "sha256": "6055f4881a95a2e0e09bae32ca1ba70359e96cfa439885f4927f5f94c9ace2ac"
+        },
+        {
+          "path": "node_modules/detect-libc/index.d.ts",
+          "sha256": "9500090533aafe039c41d8d368a44959f04482bb75636d96bc843c06f3d6a348"
+        },
+        {
+          "path": "node_modules/detect-libc/lib/detect-libc.js",
+          "sha256": "5de6a1c1abec8bba5ea1261cf819d83a73c92ebe72b879ae48c59ca12320a462"
+        },
+        {
+          "path": "node_modules/detect-libc/lib/elf.js",
+          "sha256": "0e8820f00ee11d179d94894d4f97a6e87c34ab59e5dd4d3a571dfabcecf043af"
+        },
+        {
+          "path": "node_modules/detect-libc/lib/filesystem.js",
+          "sha256": "5c98fb66b559d0b4fa82c7a3e39d9ab6840f022c4c73e6b1a73ac6d16ec13fd7"
+        },
+        {
+          "path": "node_modules/detect-libc/lib/process.js",
+          "sha256": "f37dd0ead9f70b50c6f5529c600e1cdf076e3c3bc8e6b4a0a9820a8d65244628"
+        },
+        {
+          "path": "node_modules/detect-libc/LICENSE",
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+        },
+        {
+          "path": "node_modules/detect-libc/package.json",
+          "sha256": "ee88e5b954fdf3a8480b1d01ef767d68d8ca2c6da269f58c5cf1c5550e9aa2a7"
+        },
+        {
+          "path": "node_modules/detect-libc/README.md",
+          "sha256": "51a97449c443889155bc872522e6de5a91a5fa73edeffa03d749e186bf0eebca"
+        },
+        {
+          "path": "node_modules/follow-redirects/debug.js",
+          "sha256": "8dbf7e71a9292be180e3469a6b7a164171d3c39dec79e5dbc4aa1c9f09509faf"
+        },
+        {
+          "path": "node_modules/follow-redirects/http.js",
+          "sha256": "754c0078c57625db7b55b4c3fb30ff5c207fc49284a5022742e81d0c595403c5"
+        },
+        {
+          "path": "node_modules/follow-redirects/https.js",
+          "sha256": "7a28e323ffd91094e083a8954fe027839c06d948603d7f2719ed17c446885272"
+        },
+        {
+          "path": "node_modules/follow-redirects/index.js",
+          "sha256": "656e169cc2e8043ec00b7d912f3ff523a01026a3fd38e04516b37fb39be94f14"
+        },
+        {
+          "path": "node_modules/follow-redirects/LICENSE",
+          "sha256": "bfa8a54bb952ccda79f0f1889721d108f5b605babbb2b8a3705ffb52f4132eb7"
+        },
+        {
+          "path": "node_modules/follow-redirects/package.json",
+          "sha256": "3b63e57223c63eff7b1c9ecdcd6615af8c6fcbaa9d436e949f02acf2b6dbe588"
+        },
+        {
+          "path": "node_modules/follow-redirects/README.md",
+          "sha256": "190b2c4cce3593592f9661d1bff3ab398317e195425ef3f23758d1f52c42f6af"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/index.d.ts",
+          "sha256": "6f7c51b8a770cbfddc85cda1dcebb23e5b59eeb97adaa8aa1a09f71ec6159e67"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/index.d.ts.map",
+          "sha256": "fca6ee17718cf6433defff944e727da7bf860c517911d74f385c07ca6e82164b"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/index.js",
+          "sha256": "49be696fec9cfde5e110f720e60310833c405c55c4c16b9ddddaec39f6d42795"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/index.js.map",
+          "sha256": "0f5560ee00c0da0ff78576ded7a5172f87007025a30eb67df81b7cbafc9c62d2"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/parse-proxy-response.d.ts",
+          "sha256": "c2ebf17304b46d71e8270186140ab3f181882ac91eb687df8882e70e6f27b938"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/parse-proxy-response.d.ts.map",
+          "sha256": "2d5ccca3e6fbece694a556858a09bd83529fef7057ee08ae2d55da0f9772b0e7"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/parse-proxy-response.js",
+          "sha256": "7aaf60dc5c810e5633cd142340fcf0ed3330c6a6812c5f6c7783681ab3d1c94a"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/dist/parse-proxy-response.js.map",
+          "sha256": "043e1821f6d3539fc699d41c34ff7a7417f51b7ccd79dc9319fc8544a016c7f7"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/LICENSE",
+          "sha256": "8d8c55319c7729d57be811c747452636688d54f19701ee0752b6b15ad3771d9a"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/package.json",
+          "sha256": "50d17385a8c63c0ed0e138069617d4d9236ce92bddbe6f52cfec0e3a834c97a0"
+        },
+        {
+          "path": "node_modules/https-proxy-agent/README.md",
+          "sha256": "462697a398c1bbbfd771bf58829aba65a1c620b072749a76a6ab1c25f62e9edc"
+        },
+        {
+          "path": "node_modules/agent-base/dist/helpers.d.ts",
+          "sha256": "1baa6d8e5f8aac96b77b6cb823d5b22205b78b9270cbc63b5c4bb8fdb9dc415e"
+        },
+        {
+          "path": "node_modules/agent-base/dist/helpers.d.ts.map",
+          "sha256": "89850a5e06ba2c9d06d1766e7646f9c5d01ad8d59f20a0c14620c15fc91ddcf0"
+        },
+        {
+          "path": "node_modules/agent-base/dist/helpers.js",
+          "sha256": "d119a78de55f24ba0dc9b3a545d0bfb2659fd98780ab4e5ea644017799fd448f"
+        },
+        {
+          "path": "node_modules/agent-base/dist/helpers.js.map",
+          "sha256": "eef8c7a42057484db83e09e02d9abde5acaefe75417cabefe12a78b21d40a407"
+        },
+        {
+          "path": "node_modules/agent-base/dist/index.d.ts",
+          "sha256": "fb259ff6af27a9a7543036017f6994bb2b23a134997a0bbcba8e310df9b4f297"
+        },
+        {
+          "path": "node_modules/agent-base/dist/index.d.ts.map",
+          "sha256": "0c99d60b0f63a411a608019f5749a05e2dae453c33fb3f1507c0b5cd44f0900c"
+        },
+        {
+          "path": "node_modules/agent-base/dist/index.js",
+          "sha256": "191afcb73f407f1f48b30a5e3009b349edc007d4bbe18bb870d738fab0a1f883"
+        },
+        {
+          "path": "node_modules/agent-base/dist/index.js.map",
+          "sha256": "b77e5ef084328996828a2f5312ff35e15d6ccd53625cba48a698ad4caa4b5070"
+        },
+        {
+          "path": "node_modules/agent-base/LICENSE",
+          "sha256": "8d8c55319c7729d57be811c747452636688d54f19701ee0752b6b15ad3771d9a"
+        },
+        {
+          "path": "node_modules/agent-base/package.json",
+          "sha256": "13df46dd018fcf2e4231a0f47a1a007dd7d5441d9f8efb108f50f9fb64a17138"
+        },
+        {
+          "path": "node_modules/agent-base/README.md",
+          "sha256": "dc8148b1d0bbb80f812f1d8c00700e9242a010e7463aee2da415476a45f37a9e"
+        },
+        {
+          "path": "node_modules/proxy-agent-negotiate/dist/index.d.ts",
+          "sha256": "3568fa0be646ebf28f9ead14e0c8fe3c7c6fb2bc846fc248f4161f02d7dbf423"
+        },
+        {
+          "path": "node_modules/proxy-agent-negotiate/dist/index.d.ts.map",
+          "sha256": "4ade5fadd6dd7bcceb0663cf631e78dedca5a2243501e53b8a6c019a32f82bc5"
+        },
+        {
+          "path": "node_modules/proxy-agent-negotiate/dist/index.js",
+          "sha256": "56f33d231c16933054a0dddc665abdc8514d952c84fa96b245e841875d05f5e5"
+        },
+        {
+          "path": "node_modules/proxy-agent-negotiate/dist/index.js.map",
+          "sha256": "cff70853e95eda06a4427db41c4cd5fa93d2d794ae4198c3ab4f7468450c3f9e"
+        },
+        {
+          "path": "node_modules/proxy-agent-negotiate/package.json",
+          "sha256": "7b7c2579ea138d20d4f7699ca78ef16c526f35168dbf694f1d47cc861b0954d4"
+        },
+        {
+          "path": "node_modules/debug/LICENSE",
+          "sha256": "3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95"
+        },
+        {
+          "path": "node_modules/debug/package.json",
+          "sha256": "ea8e33d63fe5f3a4c36609b6c3df8e2ef1f8b8ba2fc3a2e1e53cb27291f384af"
+        },
+        {
+          "path": "node_modules/debug/README.md",
+          "sha256": "486cb669048bd5014adf9ea117e27a45c4e61b0e668f464c724273beb8170797"
+        },
+        {
+          "path": "node_modules/debug/src/browser.js",
+          "sha256": "19920671f5902f64ad8ea11767fa50ea9d7a71ae0b7dff7ba5693c0075afc763"
+        },
+        {
+          "path": "node_modules/debug/src/common.js",
+          "sha256": "dbe83d2bb5837f3c4d7fe537b8004c585987270eceed5b06b8e078deb0ae214a"
+        },
+        {
+          "path": "node_modules/debug/src/index.js",
+          "sha256": "aa127ff1752b7d9c7415c5c7bb6994d9aa722b81bcbcab4bd48316b013d23bf3"
+        },
+        {
+          "path": "node_modules/debug/src/node.js",
+          "sha256": "d7b26d7c92f8ea7794b77ce11f3c11cd18c9084df7c357e3c7025344fa28aac6"
+        },
+        {
+          "path": "node_modules/ms/index.js",
+          "sha256": "e5f0b6a946a9b2b356a28557728410717df54ea2f599edb619f9839df6b7b0e9"
+        },
+        {
+          "path": "node_modules/ms/license.md",
+          "sha256": "1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801"
+        },
+        {
+          "path": "node_modules/ms/package.json",
+          "sha256": "1a6b4d9739790c0b94ab96c8cc0507e281c164c311ff4fbf5e57fb8d26290b40"
+        },
+        {
+          "path": "node_modules/ms/readme.md",
+          "sha256": "8bf6c4f414b123ea2a9375b91982882d01d8561ce7d12e3bb4f448c23359f040"
+        }
+      ],
+      "pinnedDependencies": [
+        {
+          "name": "detect-libc",
+          "version": "2.1.2",
+          "source": "https://cdn.jsdelivr.net/npm/detect-libc@2.1.2"
+        },
+        {
+          "name": "follow-redirects",
+          "version": "1.16.1",
+          "source": "https://cdn.jsdelivr.net/npm/follow-redirects@1.16.1"
+        },
+        {
+          "name": "https-proxy-agent",
+          "version": "9.1.0",
+          "source": "https://cdn.jsdelivr.net/npm/https-proxy-agent@9.1.0"
+        },
+        {
+          "name": "agent-base",
+          "version": "9.0.0",
+          "source": "https://cdn.jsdelivr.net/npm/agent-base@9.0.0"
+        },
+        {
+          "name": "proxy-agent-negotiate",
+          "version": "1.1.0",
+          "source": "https://cdn.jsdelivr.net/npm/proxy-agent-negotiate@1.1.0"
+        },
+        {
+          "name": "debug",
+          "version": "4.4.3",
+          "source": "https://cdn.jsdelivr.net/npm/debug@4.4.3"
+        },
+        {
+          "name": "ms",
+          "version": "2.1.3",
+          "source": "https://cdn.jsdelivr.net/npm/ms@2.1.3"
+        }
+      ]
+    },
+    {
+      "name": "@napi-rs/canvas-win32-x64-msvc",
+      "change": "Retain and verify the package-local ICU resource for the fixed x64 canvas binding.",
+      "file": "runtime/primary/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas-win32-x64-msvc/icudtl.dat",
+      "sha256": "9ae98c06cbb0ea43c5cd6b5725310c008c65e46072421a1118cb88e1de9a8b92"
+    },
+    {
+      "name": "pdfkit-standard-fonts",
+      "version": "0.20.2",
+      "source": "https://cdn.jsdelivr.net/npm/pdfkit@0.20.2",
+      "reason": "Restore package-local standard-font imports in the bundled PDF exporter.",
+      "locations": [
+        "runtime/primary/codex-primary-runtime/dependencies/node/node_modules/@oai/artifact-tool",
+        "runtime/primary/codex-primary-runtime/dependencies/python/Lib/site-packages/artifact_tool_v2/bin"
+      ],
+      "files": [
+        {
+          "path": "chunks/standardGlyphNames-DNHAb7rp.cjs",
+          "sha256": "c2ae5abf683d15085361adb680b678f8fa0203333b272775c1d3e7c358d21cb8"
+        },
+        {
+          "path": "Courier.cjs",
+          "sha256": "b8e9ecf9b7e86db20c4700ec1905c80368ea725c0b7d1e0e18e2ff55a9e1bc17"
+        },
+        {
+          "path": "CourierBold.cjs",
+          "sha256": "b52bea71c7dc9d5e08b2bef4aae14dcd935a247f2a79dc2756bfcbf5d5c02231"
+        },
+        {
+          "path": "CourierBoldOblique.cjs",
+          "sha256": "e4e1c91d3ad5eed61b14bdcbad4d391b9adb627b734e7b62d4684e0afd4779b2"
+        },
+        {
+          "path": "CourierOblique.cjs",
+          "sha256": "f576be356b1c9d2d90c96e77aefbbbb421935e0a4936a8417d682410b9bd23c1"
+        },
+        {
+          "path": "Helvetica.cjs",
+          "sha256": "f06ceca1dfaf1ce462f78043b8a626cf7f0ff56373fa63c312ebddcff2b7616e"
+        },
+        {
+          "path": "HelveticaBold.cjs",
+          "sha256": "e83708f93709e4ecab106971b58a20b2f9f79e5d65f21d1790a245c55c7082ec"
+        },
+        {
+          "path": "HelveticaBoldOblique.cjs",
+          "sha256": "2eb2ecd7ad5029081786c0ea901ddf4dfb1e3962f5839e93d6147894437fd1cd"
+        },
+        {
+          "path": "HelveticaOblique.cjs",
+          "sha256": "cf2806a318c426a6be88d264761bacdfb497524ef3e2c83e0b2c8857dba79ea0"
+        },
+        {
+          "path": "Symbol.cjs",
+          "sha256": "f67b58c8db6688488657a432ad61d2829d44f4fa6db8c295ab35278d97f1bc9d"
+        },
+        {
+          "path": "TimesBold.cjs",
+          "sha256": "68225e87400f539b90b90afbbf718e07240e381cbfcb8127e97f370f2aafcade"
+        },
+        {
+          "path": "TimesBoldItalic.cjs",
+          "sha256": "526eba4c72495e18bbb9207c53b6b5003dab195294ad3de6b40e68e54c42b13b"
+        },
+        {
+          "path": "TimesItalic.cjs",
+          "sha256": "267499747c5c089db772b82878b7174c7a187ca244b2ecbcc2ad8f0d3e560360"
+        },
+        {
+          "path": "TimesRoman.cjs",
+          "sha256": "120ba3fbfce7f7684037203147ed4fb4aeb1dbc25f06b54cc869fb5f8fd8f175"
+        },
+        {
+          "path": "ZapfDingbats.cjs",
+          "sha256": "2f92bce3c6b7bf49b88cbaf912abeb129a3c8f76958127744cab4d948864956b"
+        },
+        {
+          "path": "PDFKIT-LICENSE",
+          "sha256": "5f0d5197d2b5d91f41de43143b0be42fb55515bc2b894f2a9b62de9f7056c0f8"
+        }
+      ]
+    },
+    {
+      "name": "windows-document-paths",
+      "reason": "Retain the pinned libraries while supporting Unicode installation paths beyond MAX_PATH.",
+      "originalVersions": {
+        "canvas": "0.1.100",
+        "python": "3.12.14"
+      },
+      "canvasAdapter": {
+        "source": "src/ReleaseCanvasPath.cpp",
+        "sha256": "98a08dd4b665f0e0d85b931184e941b7245961fbdbb6c7e9890da0889bdfae9f",
+        "scope": "Only the bundled canvas library's ICU file import in its Node process.",
+        "changesSystemFiles": false,
+        "changesOtherProcesses": false
+      },
+      "pythonChange": "Inherit the caller working directory and explicitly name the bundled Windows executable.",
+      "files": [
+        {
+          "path": "runtime/primary/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas-win32-x64-msvc/ccodex-canvas-path.node",
+          "sha256": "1f7974625acfdae14b9e6de455591d6ee189e8354274e94e250a7880e372bf0d"
+        },
+        {
+          "path": "runtime/primary/codex-primary-runtime/dependencies/node/node_modules/@napi-rs/canvas/js-binding.js",
+          "sha256": "8354dd7832cce8cbb39f57dcb38ab2f339073eae15cedca16ab126fb69708631"
+        },
+        {
+          "path": "runtime/primary/codex-primary-runtime/dependencies/python/Lib/site-packages/artifact_tool_v2/rpc/daemon.py",
+          "sha256": "86628febfc9c993a8583488a1c0b03f93a120060e6b09000c0b95b35de8ec7da"
+        }
+      ]
+    }
+  ]
+}

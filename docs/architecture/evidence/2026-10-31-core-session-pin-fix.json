@@ -1,0 +1,125 @@
+{
+  "recordedAt": "2026-10-31T05:01:28.442815+00:00",
+  "scope": "Native window pin failure, isolated reproduction and compiled fix; current process preserved",
+  "userConfirmed": {
+    "send": true,
+    "rename": true,
+    "pinDisplay": false
+  },
+  "testThread": {
+    "id": "6d4188ba-3b58-4b8e-abb6-5a4fd0878350",
+    "name": "MYCODEX-MGMT-COPILOT-1031",
+    "engine": "copilot",
+    "model": "copilot/gpt-6.1-sol",
+    "sectionId": "01984de2-8f74-7c91-a3b2-5c5e937cf318",
+    "section": {
+      "id": "01984de2-8f74-7c91-a3b2-5c5e937cf318",
+      "name": "Pinned"
+    }
+  },
+  "officialAppObservation": {
+    "testChatListed": true,
+    "testChatInPinnedThreads": true,
+    "pinnedIndex": 3
+  },
+  "hostPinQuery": {
+    "method": "thread/list",
+    "modelProviders": [],
+    "sectionId": "01984de2-8f74-7c91-a3b2-5c5e937cf318",
+    "sortKey": "section_position",
+    "sourceKinds": [
+      "cli",
+      "vscode",
+      "exec",
+      "appServer",
+      "subAgent",
+      "subAgentReview",
+      "subAgentCompact",
+      "subAgentThreadSpawn",
+      "subAgentOther",
+      "unknown"
+    ],
+    "useStateDbOnly": true,
+    "cursor": null,
+    "limit": 100
+  },
+  "rootCause": "Gateway rejected the installed section_position list sort; optional discovery then returned native rows alone, hiding the persisted CLI pin.",
+  "reproduction": {
+    "tests": 41,
+    "pass": 39,
+    "fail": 2,
+    "gatewayFailure": "Invalid thread sort key.",
+    "routerFailure": "Pinned CLI summary absent from merged native pin list."
+  },
+  "fix": "Accept section_position for thread/list while preserving thread/search enum; existing native pin service and gateway persistence remain owners.",
+  "tests": {
+    "tests": 174,
+    "pass": 174,
+    "fail": 0,
+    "skipped": 0
+  },
+  "modules": {
+    "esm": 161,
+    "relativeImportsVerified": 373
+  },
+  "build": {
+    "applicable": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "loadedState": {
+    "client": {
+      "pid": 42126,
+      "sameLifetime": true
+    },
+    "gateway": {
+      "pid": 42100,
+      "sameLifetime": true,
+      "loadedGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44",
+      "sourceGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44"
+    },
+    "helper": {
+      "pid": 42193,
+      "sameLifetime": true
+    },
+    "launchReceiptSourceGeneration": "ce04e0884fdac2159e9e999768aa85d96b1956c678cf8e7e01c197ac35e36d2b",
+    "currentSource": "fd24fe4ee0c640cc06e45f2df9b5d81640173357364839f5e87709a1781b9ce8",
+    "version": "1.2.36",
+    "sourceGenerationMatches": true,
+    "startupSourceChangedSinceLaunch": true
+  },
+  "compiledFixLoaded": true,
+  "nativeWindowRetestPending": false,
+  "nativeCoreChanged": false,
+  "published": false,
+  "processesPreserved": true,
+  "reloadCoordinationRequired": true,
+  "reloadIdleWaitSeconds": 75,
+  "nativeWindowRetest": {
+    "visible": true,
+    "unpin": true,
+    "repin": true
+  },
+  "originalNativeWindowFailureRetainedInUserConfirmed": true,
+  "preFixOfficialAppObservation": {
+    "testChatListed": true,
+    "testChatInPinnedThreads": false
+  },
+  "originalRuntimeRelocationObservation": {
+    "gateway": {
+      "pid": 30320,
+      "lifetime": "macos:Sat Oct 31 04:32:17 2026",
+      "expectedExecutable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "observedExecutable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime.previous/dependencies/node/bin/node"
+    },
+    "helper": {
+      "pid": 30448,
+      "lifetime": "macos:Sat Oct 31 04:32:26 2026",
+      "expectedExecutable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "observedExecutable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime.previous/dependencies/node/bin/node"
+    }
+  },
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

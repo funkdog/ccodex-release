@@ -1,0 +1,15 @@
+{
+  "name": "mycodex-development",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/typescript-task.mjs build",
+    "typecheck": "node tools/typescript-task.mjs typecheck",
+    "watch": "node tools/typescript-task.mjs watch",
+    "test:diy": "node tools/typescript-task.mjs test",
+    "test:adapters": "node tools/typescript-task.mjs test-adapters",
+    "check:generated": "node tools/typescript-task.mjs check"
+  },
+  "engines": { "node": ">=24" },
+  "devDependencies": { "typescript": "7.0.2", "@types/node": "24.10.1" }
+}

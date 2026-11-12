@@ -1,0 +1,19 @@
+{
+  "recordedAt": "2026-10-29T06:08:05.483Z",
+  "environment": "isolated-browser-fixture",
+  "desktopTouched": false,
+  "checks": {
+    "workspaceRecoveredFromHistory": true,
+    "untrustedLabelsAreText": true,
+    "doubleSubmitCreatesOnce": true,
+    "navigationRetryDoesNotRecreate": true,
+    "workspaceAndModelRemembered": true,
+    "canCreateAnotherThread": true,
+    "existingThreadOpensWithoutCreation": true,
+    "disposeRemovesComponent": true,
+    "repeatedPatchIsIdempotent": true,
+    "serializedBindingRoundTrip": true,
+    "unverifiedRendererIsNotMounted": true
+  },
+  "passed": true
+}

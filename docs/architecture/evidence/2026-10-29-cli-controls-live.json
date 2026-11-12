@@ -1,0 +1,67 @@
+{
+  "recordedAt": "2026-10-29T09:16:45.887Z",
+  "model": "gpt-6-astra",
+  "desktopRestarted": false,
+  "existingCodexProfileUsed": false,
+  "desktopEnvelope": false,
+  "nativeDraft": true,
+  "settings": true,
+  "cliAuthSource": "current-user-native-login",
+  "cliSessionStorage": "CLI-managed new probe session",
+  "nativeInferenceTurns": 0,
+  "cliTurns": 2,
+  "toolEvents": 1,
+  "questionsDenied": 0,
+  "questionsAllowed": 0,
+  "checks": {
+    "projectSidebarEntry": true,
+    "automaticWriteWithoutUiPrompt": true,
+    "resumedReply": true,
+    "historyStored": true,
+    "runtimeReasoningOnCreateAndResume": true,
+    "savedSettings": true,
+    "onlyProbeFile": true,
+    "probeGuardUnused": true,
+    "noNativeInference": true
+  },
+  "permissionRequests": [],
+  "pendingApprovals": 0,
+  "runtimeEfforts": [
+    {
+      "phase": "create",
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    {
+      "phase": "resume",
+      "model": "gpt-6-astra",
+      "effort": "low"
+    }
+  ],
+  "automaticApprovals": 1,
+  "probeGuardRejections": 0,
+  "nativeInferenceGuard": "observed-and-blocked-at-native-peer",
+  "availableCliModels": [
+    "auto",
+    "gpt-6.1-sol",
+    "gpt-6-sol",
+    "gpt-6-luna",
+    "gpt-6-astra",
+    "gpt-5.6-sol",
+    "gpt-5.6-sol-fast",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-5.3-codex",
+    "mai-code-1.1-flash",
+    "grok-4.7",
+    "grok-4.6",
+    "gpt-6.1-terra",
+    "mai-code-2-flash"
+  ],
+  "geminiAvailable": false,
+  "settingsReplies": [
+    "Created `probe.txt` containing `CCODEX_PERMISSION_OK`.",
+    "CCODEX_COPILOT_RESUMED"
+  ],
+  "passed": true
+}

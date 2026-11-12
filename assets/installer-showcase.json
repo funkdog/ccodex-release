@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "title": "✦ CODEX COPILOT",
+  "tagline": "相对原生 Codex CLI 的增强入口；账户、配置与兼容性请按当前设备逐项核对",
+  "verification": "这是功能导览，不是本机验收报告。安装成功不代表模型、Desktop、Browser 或 Computer Use 已实测可用。",
+  "dataPolicy": "运行数据缺失即隐藏 · No mock · No estimate；以 doctor、/model 和实际请求为准",
+  "installStages": [
+    {
+      "title": "平台核对",
+      "detail": "检查架构、匹配包和运行时；不匹配即停止"
+    },
+    {
+      "title": "资源检索",
+      "detail": "先验证 Copilot 资格/SDK（已验证 OAuth 可免 CLI），再核对官方 Desktop 与独立 stock Codex CLI；缺失时停止"
+    },
+    {
+      "title": "部署组件",
+      "detail": "按平台部署核心、桥接和启动入口；失败时保留当前步骤及路径供排查"
+    },
+    {
+      "title": "隔离配置",
+      "detail": "生成独立 profile 并注册命令；不把登录凭据复制进发行包"
+    },
+    {
+      "title": "账户连接",
+      "detail": "核对 GitHub 登录与桥接启动策略；模型目录、运行健康以 doctor 和实际请求验证"
+    },
+    {
+      "title": "人工验收",
+      "detail": "运行 doctor，核对 /model → Context → Effort，再用真实请求验证目标能力"
+    }
+  ],
+  "sections": [
+    {
+      "title": "交互式 TUI · 输入、附件与输出",
+      "color": "cyan",
+      "items": [
+        {
+          "label": "鼠标",
+          "text": "补丁提供输入框单击定位、输出区直接拖选与滚动扩展；实际行为取决于终端支持"
+        },
+        {
+          "label": "Ctrl+A / Ctrl+Z",
+          "color": "yellow",
+          "text": "选择草稿并撤销有限范围的编辑；不会回退消息、工具调用或整段对话"
+        },
+        {
+          "label": "Ctrl+C",
+          "color": "yellow",
+          "text": "复制输入或输出选区；输出区右键复制需终端鼠标事件支持"
+        },
+        {
+          "label": "Ctrl+V / Ctrl+Alt+V",
+          "color": "yellow",
+          "text": "文本、剪贴板图片及文件列表使用原生附件路径；多文件拖入和图片兼容路径需实测"
+        },
+        {
+          "label": "附件预览",
+          "text": "[📄 report.docx] [📷 screen.png] 文件名标签；提交与恢复后可检查是否保留"
+        },
+        {
+          "label": "滚轮 / 滚动条",
+          "text": "富文本输出视图支持滚动条拖动；位置应与实际输出一致"
+        },
+        {
+          "label": "↓ 下键",
+          "color": "yellow",
+          "text": "回到最新输出并恢复自动跟随；输入框保持底部"
+        },
+        {
+          "label": "显示",
+          "text": "启动、流式与完成内容采用统一视图；需要时仍可显式启用 raw output"
+        }
+      ]
+    },
+    {
+      "title": "模型 · Context · Effort · 状态数据",
+      "color": "magenta",
+      "items": [
+        {
+          "label": "模型目录",
+          "text": "从当前 GitHub Copilot 账户查询可用模型；实际列表取决于授权和服务响应"
+        },
+        {
+          "label": "选择器",
+          "text": "/model 按 Model → Default / Long Context → 支持的 Reasoning effort 递进选择；以最终确认值为准"
+        },
+        {
+          "label": "Max 动画",
+          "text": "重选 Max 时提供确认反馈；动画依赖终端能力与交互模式"
+        },
+        {
+          "label": "Window / Used",
+          "text": "活动上下文窗口与原生累计用量；状态栏 Context 须与 /model 实际生效档位核对"
+        },
+        {
+          "label": "GitHub / Request",
+          "text": "账户与按会话、账户核对的请求状态；区分待请求、进行中和已验证"
+        },
+        {
+          "label": "Last / Cache",
+          "text": "最近请求的原生 input/output token 与累计缓存读取量；没有数据时不推算"
+        },
+        {
+          "label": "Compact",
+          "text": "成功压缩次数和压缩后活动上下文；以原生事件为准"
+        },
+        {
+          "label": "数据源",
+          "color": "green",
+          "text": "原生 app-server / token-count / compaction；缺失即隐藏，不会 mock 或估算"
+        },
+        {
+          "label": "/context",
+          "text": "查看计数与剩余空间；窄终端可换行，比例可能显示 >100%"
+        },
+        {
+          "label": "长上下文",
+          "color": "yellow",
+          "text": "精确 Default/Long 档位依赖可用的 Copilot CLI SDK 元数据；被跳过时不保证此项"
+        }
+      ]
+    },
+    {
+      "title": "ChatGPT / Codex Desktop · 可选增强",
+      "color": "cyan",
+      "platforms": ["windows", "macos"],
+      "requiresDesktop": true,
+      "items": [
+        {
+          "label": "GitHub Copilot 账户卡",
+          "text": "尝试在原生页面嵌入账户及模型数量；OAuth token 不应进入 renderer"
+        },
+        {
+          "label": "账户切换",
+          "text": "通过 GitHub device flow 切换桥接账户；完成后核对当前账户和目录"
+        },
+        {
+          "label": "完整菜单",
+          "text": "Desktop 将 Model、Effort、Context window 分成三个独立入口；模型只列一次，Context 在底层切换 Standard / Long 真实窗口预设；CLI 仍按 Model → Context → Effort 递进选择"
+        },
+        {
+          "label": "选择同步",
+          "text": "管理命令更新默认预设，CLI 启动时还原为基础模型与 Context 档位；已加载 Desktop 线程须单独选择并核对真实窗口"
+        },
+        {
+          "label": "自动重挂",
+          "text": "启动或导航后尝试按语义锚点挂载；Desktop 更新可能要求新版适配"
+        },
+        {
+          "label": "启动安全",
+          "text": "ChatGPT Desktop 若仍在运行（含托盘），显示 PID 并提示完全退出；不强停旧会话，也不把聚焦旧窗口算成功"
+        },
+        {
+          "label": "fail closed",
+          "color": "yellow",
+          "text": "不兼容时停止页面增强；检查 desktop-patch.log 并验证原生入口"
+        }
+      ]
+    },
+    {
+      "title": "与原版 Codex 的安装、更新边界",
+      "color": "green",
+      "items": [
+        {
+          "label": "原生 codex",
+          "platforms": ["windows"],
+          "text": "保留原生 codex 与 ~/.codex；增强版独立使用补丁核心，不替换官方 CLI 或 Desktop 内核"
+        },
+        {
+          "label": "原生 codex",
+          "platforms": ["linux", "macos"],
+          "text": "独立 stock codex 与 ~/.codex 和增强入口分开；安装的补丁核心位于独立包内，不能充当官方 CLI"
+        },
+        {
+          "label": "Linux Desktop preview",
+          "platforms": ["linux"],
+          "text": "Ubuntu 24.04/26.04、Debian 13、Fedora 43/44、Arch 有 x64/ARM64 官方包；desktop 命令只启动原生 ChatGPT，不注入 macOS 增强"
+        },
+        {
+          "label": "ccodex",
+          "text": "使用 ~/.codex-copilot 与匹配平台的 patched core；原生 Codex 更新不会自动升级该核心"
+        },
+        {
+          "label": "升级 ccodex",
+          "text": "安装对应平台的新版本；仍需验证核心版本、账户、模型选择和请求"
+        },
+        {
+          "label": "Desktop",
+          "platforms": ["windows", "macos"],
+          "requiresDesktop": true,
+          "text": "原生更新后可能需要 codex-copilot repair、完全退出并重启，再核对是否重挂"
+        },
+        {
+          "label": "协议变化",
+          "color": "yellow",
+          "text": "renderer / app-server 改变可能使增强失效；先看日志并安装匹配版本，不能假定自动兼容"
+        },
+        {
+          "label": "Copilot CLI",
+          "text": "SDK 路径变化后重新探测或 repair；跳过 SDK 不阻断基于账户的基本模型查询"
+        },
+        {
+          "label": "原生能力",
+          "text": "Plugins · MCP · Browser · Chrome · Sandbox · Skills · Hooks 属宿主能力，不因安装器输出即算通过验收"
+        }
+      ]
+    },
+    {
+      "title": "诊断、修复与实测入口",
+      "color": "yellow",
+      "items": [
+        {
+          "label": "codex-copilot doctor",
+          "color": "cyan",
+          "text": "检查安装、账户、模型选择、目录与 bridge 健康状态；有失败项先处理"
+        },
+        {
+          "label": "codex-copilot repair",
+          "color": "cyan",
+          "text": "重新生成隔离配置与模型目录；资源路径变化后重新检测"
+        },
+        {
+          "label": "codex-copilot catalog",
+          "color": "cyan",
+          "text": "从当前账户重建模型目录；请求失败时先确认授权与网络"
+        },
+        {
+          "label": "codex-copilot login --force",
+          "color": "cyan",
+          "text": "凭据失效或换号时重新执行 GitHub device flow"
+        },
+        {
+          "label": "desktop-patch.log",
+          "platforms": ["windows", "macos"],
+          "requiresDesktop": true,
+          "text": "查看 Desktop 重挂载或 fail-closed 原因"
+        },
+        {
+          "label": "bridge 启动",
+          "platforms": ["windows", "linux", "macos"],
+          "text": "默认按需启动，不占开机常驻资源；用户显式 autostart on 的设置在升级时保留"
+        },
+        {
+          "label": "bridge 端口",
+          "platforms": ["linux", "macos"],
+          "text": "新启动入口按环境覆盖 → profile/bridge-port.txt → 22690 选择端口；仅接受 1024..65535 纯十进制，旧会话不被重启"
+        },
+        {
+          "label": "Browser / Computer Use",
+          "color": "yellow",
+          "text": "依赖宿主插件、权限和平台；须分别实测网页填写与桌面操作，安装器不能证明其完全可用"
+        },
+        {
+          "label": "Windows 前台输入",
+          "color": "yellow",
+          "platforms": ["windows"],
+          "text": "Computer Use 会占用当前 Windows 会话的鼠标键盘；需要与人工同时操作时，用独立虚拟机或获授权的浏览器通道，升级 PowerShell 不会把桌面输入变成后台输入"
+        },
+        {
+          "label": "Linux Computer Use",
+          "color": "yellow",
+          "platforms": ["linux"],
+          "text": "官方 Linux Desktop 预览版尚不支持 Computer Use；不把 Desktop 安装成功误报成能力可用"
+        }
+      ]
+    }
+  ],
+  "quickStart": [
+    {
+      "command": "ccodex",
+      "color": "cyan",
+      "detail": "打开增强 TUI；在 /model 核对选择"
+    },
+    {
+      "command": "ccodex showcase",
+      "color": "magenta",
+      "detail": "随时查看这份共享功能导览；不启动 bridge"
+    },
+    {
+      "command": "codex-copilot desktop",
+      "color": "magenta",
+      "platforms": ["windows", "macos"],
+      "requiresDesktop": true,
+      "detail": "启动 Desktop 增强入口并检查账户卡"
+    },
+    {
+      "command": "codex-copilot desktop",
+      "color": "magenta",
+      "platforms": ["linux"],
+      "requiresDesktop": true,
+      "detail": "启动官方 Linux ChatGPT preview；不含 macOS Desktop 注入或 Computer Use"
+    },
+    {
+      "command": "codex-copilot status",
+      "color": "green",
+      "detail": "核对当前账户与桥接状态"
+    },
+    {
+      "command": "codex-copilot doctor",
+      "color": "yellow",
+      "detail": "逐项诊断后再进行真实请求验收"
+    }
+  ],
+  "footer": "原生与增强入口因平台和版本可能不同；已发布包运行 ccodex showcase 可读取同一受信 URL 的新文案，无需重打包；未配置端点时使用包内快照。"
+}

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "scope": "P3.0 iteration 1: failure isolation and read-only native host channel",
+  "status": {
+    "sourceIteration": "verified",
+    "p3_0": "in_progress",
+    "published": false,
+    "currentDesktopLoaded": false,
+    "nativeCoreChanged": false
+  },
+  "sourceVersion": "1.2.36",
+  "branch": "codex/mycodex-app-server-design",
+  "sourceHashes": {
+    "gateway/contracts.mts": "067422f62d59ce3039eacf756acac18b0b5e2b0e1f21412f7b868f758c03acc0",
+    "gateway/ipc.mts": "cf51344ad5f23a61f42204ec88344b9684b459552adb872461262b20db9b5953",
+    "gateway/server.mts": "84022df6767168facc0317af84cc1641f4c3c40e1216de61d5dd27f92f4631ab",
+    "gateway/router.mts": "b921a599128af565fc0f5e82da47163e4c85c238c8fc308249d2d2b08da770d3",
+    "gateway/native-peer.mts": "cfd8af2b1a564b685e4a50dcf0f71531b709746bb518a59be79269e122374bc1",
+    "gateway/routed-stdio.mts": "17108bce1a141f43bb92fc2153ce4539be1a768f4d889347e009e48787703e11",
+    "gateway/native-host-peer.mts": "4c798d8c1e2497ddf51032360077e06c3d0219e2cc11c28397b02ce3d090b43d",
+    "gateway/host-threads.mts": "b8f28b19097807c510da3f4fe5b2d47ddff98b5122f7198bc6308753152894a8",
+    "gateway/spine-config.mts": "cb486434f32c7c92680ce2faa2a11727cc2bc778a8b11d4c5477cbc8ed6b9a6e",
+    "gateway/spine-tokens.mts": "8b369cea88a62101a4161fdd5bf23b31c0a0c46b6c4c0a4575c687a4b7f01fcf",
+    "gateway/spine/config.mts": "860d2178e1a442b6b85a183f4c87e7f45e579b3b95ae9da541ec373c70b5fef6",
+    "gateway/spine/trace.mts": "02a13092c3810d8256ea1f25419fc877d8e27f75134c153c0827dacfe2d25e44",
+    "gateway/spine/contracts.mts": "38893a4ea5a5593d29bd7f5f7d62313ca307f35c42035cb81cd0440181d60071",
+    "gateway/spine/kernel.mts": "ae4dbaf6aa7bada6d9fa60b4d31cdb92e305884f0664f931b9499e0324e8c94c",
+    "gateway/spine/registry.mts": "d3d4ce14796ae2456a6e77fc7c1f7e2d72f221f634fcb3b12fd405a9f10efb50",
+    "gateway/spine/host-thread-contracts.mts": "1d8f438ef4e15f048a8b8420ac5fcfdcec99ab15d9ff66ddffea180a16ac2256",
+    "gateway/spine/mcp-server.mts": "62208e2da9ccc073b69ed08ce74c1dee425077c33d286a3af34e7a2ad972e7e3",
+    "tests/spine-native-tap-test.mjs": "ca54b33056241a38998bd8f71d3432edff23d2e5cbbd05f51e4ae464fb4cc57c",
+    "tests/spine-mcp-test.mjs": "d80e8eea6c87a9fbc4d203156d79ba83d79146648ac97c66fca8b0ff8bfd4fa7",
+    "tests/spine-p3-host-test.mjs": "36906da947d2d1746951b0fa9df6dc4d24924ed250ffc21d1db7eb726bf4b052",
+    "tests/spine-p3-isolation-test.mjs": "c04b68da72d8497c547c09d2543f998360ff91123ad3b777a7e10f6b31da25b7",
+    "tools/typescript-task.mjs": "17163e39193d7e04cdb650daccb52e4d7343827b68f3effff21f14967f924cbd"
+  },
+  "typescript": {
+    "sources": 64,
+    "outputs": 128,
+    "strictBuildPassed": true
+  },
+  "tests": {
+    "command": "node tools/typescript-task.mjs test",
+    "scheduler": "repository heavy-task wrapper; maximum six workers",
+    "total": 261,
+    "passed": 261,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "durationMs": 8419.8505
+  },
+  "moduleCheck": {
+    "modules": 197,
+    "relativeImportsVerified": 458,
+    "evaluatedCode": false
+  },
+  "nativeTransport": {
+    "desktopVersion": "26.1027.51404",
+    "desktopBuild": "23880",
+    "cliVersion": "0.166.0-alpha.5.1",
+    "cliSha256": "58a91f6ea19bea477ae3a2ec48d619f0039afe75d3476260747e11d201fa7cea",
+    "profile": "isolated temporary HOME/CODEX_HOME",
+    "inference": "offline loopback synthetic Responses provider only",
+    "syntheticProviderRequests": 1,
+    "explicitTargetRead": true,
+    "nativeTurnRead": true,
+    "mcpSubprocessRead": true,
+    "liveWorkingDesktopVerified": false,
+    "liveAccountInferenceVerified": false
+  },
+  "newTests": [
+    "tests/spine-p3-isolation-test.mjs",
+    "tests/spine-p3-host-test.mjs"
+  ],
+  "failureCoverage": [
+    "optional import and initialization failures",
+    "module registration rollback and concurrent ownership",
+    "incompatible schema and invalid optional storage preserved",
+    "native frontend optional import/config failures",
+    "explicit target/account/runtime checks",
+    "native vs CLI ownership boundary",
+    "UI/trace/native-host scoped authorization",
+    "bounded reads and disconnect",
+    "result pagination without inference replay",
+    "background retain/release and shutdown"
+  ],
+  "capabilitiesNotImplemented": [
+    "deliver",
+    "requestIdempotency",
+    "receiptLookup",
+    "safeDuringRun",
+    "openTarget"
+  ],
+  "limits": [
+    "P3.0 delivery/receipt gate remains open",
+    "Goal/WorkItem/Watch/Observation/Reaction/ReviewRun services and companion work panel not implemented",
+    "Result lookup is bounded to 100 recent turns and 8192 UTF-16 code units per response",
+    "Strict whole-build fingerprint validation still rejects missing or changed build artifacts before optional loading",
+    "Installed runtime hashes cannot be compared to a promoted release without release manifests"
+  ],
+  "releaseAttempt": {
+    "command": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 '& ./tools/Publish-Release.ps1'",
+    "exitCode": 127,
+    "reason": "pwsh not found",
+    "distPresent": false,
+    "releaseManifestsPresent": false,
+    "releaseTestsPresent": false,
+    "installedCoreCurrentPresent": false,
+    "promotionStarted": false
+  },
+  "sharedState": {
+    "developmentDocumentSha256": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "developmentDocumentUnchanged": true,
+    "committed": false,
+    "pushed": false,
+    "workingProcessesRestarted": false
+  },
+  "cleanup": {
+    "ownedTestProfilesRemoved": true,
+    "ownedBuildStagesRemoved": true,
+    "ownedTestAndBuildDescendantsExited": true
+  },
+  "officialReference": "https://learn.chatgpt.com/docs/app-server",
+  "sourceAudit": {
+    "scope": "P3 explicit files; shared checkout not staged or published",
+    "passed": true,
+    "files": 24,
+    "bytes": 178799,
+    "findings": []
+  },
+  "generatedBuild": {
+    "applicable": true,
+    "sources": 64,
+    "outputs": 128
+  }
+}

@@ -1,0 +1,26 @@
+diff --git a/codex-rs/tui/src/app/tests/safety_buffering.rs b/codex-rs/tui/src/app/tests/safety_buffering.rs
+--- a/codex-rs/tui/src/app/tests/safety_buffering.rs
++++ b/codex-rs/tui/src/app/tests/safety_buffering.rs
+@@ -259,6 +259,9 @@ request_max_retries = 0
+ [features]
+ goals = true
++apps = false
++plugins = false
++remote_plugin = false
+ "#,
+             server.uri()
+         ),
+     )?;
+@@ -282,6 +285,12 @@ goals = true
+         .features
+         .enable(Feature::Goals)
+         .expect("test config should allow goals");
++    for feature in [Feature::Apps, Feature::Plugins, Feature::RemotePlugin] {
++        app.config
++            .features
++            .disable(feature)
++            .expect("synthetic retry fixture must stay offline");
++    }
+ 
+     let mut tui = crate::tui::test_support::make_test_tui()?;
+     let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(&app.config)).await?;

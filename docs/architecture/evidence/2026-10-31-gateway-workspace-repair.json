@@ -1,0 +1,63 @@
+{
+  "recordedAt": "2026-10-31T12:34:53.209516+00:00",
+  "scope": "Gateway ingress workspace compatibility, not only renderer normalization",
+  "sources": {
+    "gateway/protocol.mts": "1f97d69284b218a4880a57afbac094a08da4fd85484b6517eefc3659cc2b74e6",
+    "gateway/server.mts": "8d4b77cd3fcd15754f911fe13a969caa1fb9f0697243378e6a688cf5d5138016",
+    "tests/gateway-protocol-test.mjs": "4ea4f2ef0f282c20322f95202b83519af6e2b0f231a42057ef2f0f34c51fe504"
+  },
+  "regressions": {
+    "directIpcFailureReproducedBeforeFix": true,
+    "directedPassed": 80,
+    "modules": 161,
+    "relativeImports": 373,
+    "typescriptSources": 30,
+    "typescriptOutputs": 60
+  },
+  "realCli": {
+    "recordedAt": "2026-10-31T12:32:49.412Z",
+    "temporaryProfile": true,
+    "productionThreadsModified": false,
+    "desktopRestarted": false,
+    "nativeInferenceTurns": 0,
+    "cliTurns": 1,
+    "passed": true,
+    "model": "antigravity/gemini-4-argon",
+    "reasoningEffort": "high",
+    "cliApprovalMode": "deny",
+    "workspaceRoots": [],
+    "cwdPreserved": true,
+    "reply": "MYCODEX_OK",
+    "temporaryDataRemoved": true
+  },
+  "runtime": {
+    "oldGatewayPid": 42100,
+    "gatewayPid": 81858,
+    "helperPid": 81989,
+    "applicationPid": 42126,
+    "applicationRestarted": false,
+    "activeCliChatsBeforeGatewayRefresh": 0,
+    "connectionCapabilityPreserved": true,
+    "generationPreserved": true,
+    "helperInstallerAcknowledged": true,
+    "shortcutAction": "activate-existing"
+  },
+  "nativeWindowAcceptance": "failed-user-reported-two-host-roots",
+  "productionWorkspaceEnvelopeObserved": true,
+  "nativeConfigSha256": "49edefaec5ed91953ab3d952fb22513f257ad273c2f430225ab2b0dd27d867ca",
+  "versionChanged": false,
+  "published": false,
+  "actualWorkspaceEnvelope": {
+    "method": "thread/start",
+    "cwd": "/Users/<user>/workspace/ccodex-release",
+    "rootCount": 2,
+    "roots": [
+      "/Users/<user>/workspace/ccodex-release",
+      "/Users/<user>/workspace/other-project"
+    ]
+  },
+  "followUp": "2026-10-31-native-host-roots.json",
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

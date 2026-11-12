@@ -1,0 +1,3 @@
+LIBRARY ccodex-release-host
+EXPORTS
+    ReleaseHostEntry @1

@@ -1,0 +1,11 @@
+[http]
+	sslBackend = schannel
+[core]
+	autocrlf = true
+	fscache = true
+	symlinks = false
+	longpaths = true
+[credential]
+	helper =
+[init]
+	defaultBranch = main

@@ -1,0 +1,28 @@
+{
+  "version": "1.2.0-beta.13",
+  "source": "Existing enhanced installation's matching x64 Node prebuilds",
+  "publishedHashesVerified": false,
+  "realPtyExecutionPassed": true,
+  "files": [
+    {
+      "path": "prebuilds/win32-x64/conpty.node",
+      "sha256": "8c348346a3961160e17c1fdd1e6908a95aa512b327cb75000cdca46db7dff9bd",
+      "size": 289792
+    },
+    {
+      "path": "prebuilds/win32-x64/conpty_console_list.node",
+      "sha256": "ab72b55f109804bff8829cc7c6bc522237dce20ab8d55503bd42d42309997f9f",
+      "size": 134656
+    },
+    {
+      "path": "prebuilds/win32-x64/conpty/conpty.dll",
+      "sha256": "3319b484b80bb53d1f4d0a9eb0ea60fd0f61da69db7280ca43b84215f19245ff",
+      "size": 110152
+    },
+    {
+      "path": "prebuilds/win32-x64/conpty/OpenConsole.exe",
+      "sha256": "7f68c840226505004215c0b82d4e502c24b5bc3f4b93c4baaaa19bd679c0def8",
+      "size": 1062472
+    }
+  ]
+}

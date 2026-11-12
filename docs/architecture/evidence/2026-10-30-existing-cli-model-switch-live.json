@@ -1,0 +1,135 @@
+{
+  "recordedAt": "2026-10-30T03:29:14.056Z",
+  "desktopRestarted": false,
+  "productionGatewayTouched": false,
+  "temporaryProfiles": true,
+  "nativeInferenceTurns": 0,
+  "cliTurns": 4,
+  "results": [
+    {
+      "engine": "copilot",
+      "runtimeStates": [
+        {
+          "phase": "create",
+          "model": "gpt-6.1-sol",
+          "effort": "high"
+        },
+        {
+          "phase": "resume",
+          "model": "gpt-6-luna",
+          "effort": "high"
+        }
+      ],
+      "runtimeOperations": [],
+      "passed": true,
+      "models": [
+        "copilot/gpt-6.1-sol",
+        "copilot/gpt-6-luna"
+      ],
+      "reasoningEffort": "high",
+      "approvalMode": "deny",
+      "contextRetained": true,
+      "sessionIdentityRetained": true,
+      "coldRestartRetained": true
+    },
+    {
+      "engine": "antigravity",
+      "runtimeStates": [],
+      "runtimeOperations": [
+        {
+          "method": "initialize",
+          "elapsedMs": 10716
+        },
+        {
+          "method": "session/new",
+          "elapsedMs": 4053
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 3
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 2
+        },
+        {
+          "method": "initialize",
+          "elapsedMs": 12988
+        },
+        {
+          "method": "session/new",
+          "elapsedMs": 3293
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 4
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 2
+        },
+        {
+          "method": "session/set_mode",
+          "elapsedMs": 2
+        },
+        {
+          "method": "session/prompt",
+          "elapsedMs": 4100
+        },
+        {
+          "method": "initialize",
+          "elapsedMs": 13632
+        },
+        {
+          "method": "session/new",
+          "elapsedMs": 3592
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 6
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 3
+        },
+        {
+          "method": "initialize",
+          "elapsedMs": 12831
+        },
+        {
+          "method": "session/resume",
+          "elapsedMs": 5311
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 7
+        },
+        {
+          "method": "session/set_config_option",
+          "elapsedMs": 3
+        },
+        {
+          "method": "session/set_mode",
+          "elapsedMs": 0
+        },
+        {
+          "method": "session/prompt",
+          "elapsedMs": 6704
+        }
+      ],
+      "passed": true,
+      "models": [
+        "antigravity/gemini-3.8-flash",
+        "antigravity/gemini-4-argon"
+      ],
+      "reasoningEffort": "high",
+      "approvalMode": "deny",
+      "contextRetained": true,
+      "sessionIdentityRetained": true,
+      "coldRestartRetained": true
+    }
+  ],
+  "checks": {},
+  "passed": true,
+  "temporaryProfilesRemoved": true
+}

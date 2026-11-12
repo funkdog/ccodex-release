@@ -1,0 +1,4 @@
+# Synthetic account-API fixture. No real identity or model endpoint.
+model_provider = "github-copilot"
+model = "gpt-5-desktop-01"
+check_for_update_on_startup = false

@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-10T15:02:48.745714+08:00",
+  "scope": "Persist explicit CLI approval choices per engine and adapter for new chats, including host-RPC creation",
+  "sourceHashes": {
+    "gateway/approval-preferences.mts": "26f7dbc41fc52f93fae8d8b1b52eb9c72485e7c5f59522c88fbd29b7b4d3884f",
+    "gateway/protocol.mts": "7c68b0588093353434b9270ca2cd69143d81f5e12f26a9410609b944802cdffe",
+    "gateway/contracts.mts": "163c97461b436488a39836436adcfc9543b1f888970a1536c439f080f2fe9f52",
+    "bridge/desktop-diy-contracts.mts": "33d56a054f8e6e122e5458ec753749d8858c266034b3417b00e82831b366e279",
+    "bridge/desktop-cli-selector.mts": "7e8e005950f2937f051c921a548ef84f6362486926ade58e1c861aa83a3849b4",
+    "bridge/desktop-native-session.mts": "f1b2db5c4881b017aeb5707a41df2417bd5112aeafcd91668a5202d137bb2246",
+    "bridge/desktop-native-composer.mts": "558d850e941379341d13d33571406236095d55c89ec4772d3d56e5472ae6e29b",
+    "bridge/desktop-gateway-ui.mts": "758f47890bffe6ee85be27bb21894d2f72a2642a8b048d1304703733de0eb3f8"
+  },
+  "cause": {
+    "gatewayDefault": "hardcoded ask",
+    "draftPreference": "renderer memory only",
+    "newerHostCreate": "main-process RPC bypasses renderer Manager hooks",
+    "historicalRegressionCommitEstablished": false
+  },
+  "behavior": {
+    "preferenceOwner": "instance gateway",
+    "preferenceFile": "gateway/cli-approval-defaults.json",
+    "rememberExplicitSettingChanges": true,
+    "explicitCreationOverridePreserved": true,
+    "ordinarySendCannotOverwriteMode": true,
+    "existingChatsKeepTheirModes": true,
+    "replacementAdaptersDoNotInheritGrants": true,
+    "businessQuestionsAndManagedPoliciesPreserved": true
+  },
+  "verification": {
+    "initialFailingRegressions": 3,
+    "focusedPreferenceAndHostRpcTests": {
+      "tests": 30,
+      "passed": 30,
+      "failed": 0
+    },
+    "fullDevelopmentGate": {
+      "tests": 325,
+      "passed": 319,
+      "failed": 6,
+      "durationMs": 14222.900625,
+      "preexistingFailureGroups": {
+        "hostContractMismatch": 2,
+        "mcpCatalogAssertionsMissingExistingShowWorkCard": 4
+      }
+    },
+    "packageModules": {
+      "modules": 212,
+      "relativeImportsVerified": 495
+    },
+    "hostRpcBrowserFixturePassed": true,
+    "legacyRendererBrowserFixture": {
+      "version": "26.1023.50603",
+      "passed": true,
+      "checks": {
+        "compiledEsmGraphLoadsInOrdinaryBrowser": true,
+        "selectedVersionUsesItsOwnNativeModules": true,
+        "nativeAntigravityDraftEffortNeverWritesNativeConfig": true,
+        "nativeDefaultSettingsStillUseOriginalWrite": true,
+        "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+        "inlinePickerWithoutFloatingPanel": true,
+        "nativeDraftSelection": true,
+        "compactFooterControlsReplaceNativeCliControls": true,
+        "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+        "persistedThreadSelection": true,
+        "existingThreadSettingsSaved": true,
+        "existingModelMenuOnlyContainsSameEngine": true,
+        "modelSwitchPreservesCompatibleEffortAndApproval": true,
+        "unsupportedEffortAdjustmentIsVisible": true,
+        "failedModelSwitchKeepsCommittedSettings": true,
+        "cliControlledEffortIsNotPresentedAsNoReasoning": true,
+        "nativeNewDraftResetsAndRemounts": true,
+        "catalogReusedAcrossComposerRemounts": true,
+        "genericChatGptComposerExcluded": true,
+        "disposeRemovesPicker": true,
+        "remountRestoresFromGatewayHistory": true,
+        "settingsRecoveredOnRemount": true,
+        "generatedInstallerBindingRoundTrip": true,
+        "generatedInstallerIdempotent": true,
+        "generatedRefreshReplacesCatalogWithoutChangingPermissions": true,
+        "generatedInstallerDisposed": true,
+        "nativeControlRestoredOnDispose": true,
+        "lazyNativeExportsWaitWithoutMutationOrRpc": true,
+        "lazyNativeExportsBindWithoutPageReload": true,
+        "lazyNativeDraftEffortAcknowledgedWithoutConfigWrite": true,
+        "wrongExportMeaningsRejectedBeforeMutation": true,
+        "nativeProviderDraftKeepsImagesAndNativePermissions": true,
+        "nativeProviderThreadKeepsNativeModelControls": true,
+        "navigationDuringDraftSettingsCannotChangeAnotherChat": true,
+        "unknownVersionDoesNotImportOrMount": true,
+        "noBrowserErrors": true
+      }
+    },
+    "additionalGenericBrowserProbe": {
+      "version": "26.1027.51404",
+      "passed": false,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ null\n- 'mycodex/copilot/account-model'\n",
+      "note": "The generic legacy fixture failed pointer selection on a host-RPC contract; the dedicated host-RPC fixture passed. This failure is retained, not counted as a pass."
+    }
+  },
+  "liveIsolatedChecks": [
+    {
+      "adapter": "github-copilot",
+      "passed": true,
+      "permissionPrompts": 0,
+      "model": "copilot/gpt-6.1-sol",
+      "inheritedOnCreate": true,
+      "inheritedAfterRestart": true,
+      "status": "completed",
+      "savedMode": "auto",
+      "tools": [
+        {
+          "tool": "bash",
+          "success": true
+        },
+        {
+          "tool": "web_search",
+          "success": true
+        }
+      ],
+      "terminalSucceeded": true,
+      "searchSucceeded": true,
+      "temporaryProfileRemoved": true
+    },
+    {
+      "adapter": "antigravity-acp",
+      "passed": true,
+      "permissionPrompts": 0,
+      "model": "antigravity/gemini-4-argon",
+      "inheritedOnCreate": true,
+      "inheritedAfterRestart": true,
+      "status": "completed",
+      "savedMode": "auto",
+      "tools": [
+        {
+          "tool": "pwd",
+          "success": true
+        },
+        {
+          "tool": "Run search_web?",
+          "success": true
+        }
+      ],
+      "terminalSucceeded": true,
+      "searchSucceeded": true,
+      "temporaryProfileRemoved": true
+    }
+  ],
+  "firstAntigravityAttempt": {
+    "adapter": "antigravity-acp",
+    "passed": false,
+    "permissionPrompts": 0,
+    "model": "antigravity/gemini-4-argon",
+    "inheritedOnCreate": true,
+    "inheritedAfterRestart": true,
+    "status": "interrupted",
+    "savedMode": "auto",
+    "tools": [
+      {
+        "tool": "pwd",
+        "success": true
+      },
+      {
+        "tool": "Run search_web?",
+        "success": true
+      }
+    ],
+    "terminalSucceeded": true,
+    "searchSucceeded": true,
+    "temporaryProfileRemoved": true
+  },
+  "localActivation": {
+    "activated": true,
+    "activeUserTasksInterrupted": false,
+    "desktopRestarted": false,
+    "connectionCapabilityPreserved": true,
+    "oldGatewayPid": 12417,
+    "gatewayPid": 36764,
+    "runtimeGeneration": "cf1c341933f164c651a5f4b9da226f16088d7228455746a960db33ee5b6e4653",
+    "desktopVersion": "26.1103.60933",
+    "uiContractAvailable": false,
+    "defaults": {
+      "copilot/gpt-6.1-sol": "auto",
+      "antigravity/gemini-4-argon": "auto"
+    },
+    "preferenceFilePrivate": true
+  },
+  "release": {
+    "published": false,
+    "version": "1.2.36",
+    "nativePatchTreeChanged": false,
+    "attemptedCommand": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 '& ./tools/Publish-Release.ps1'",
+    "missing": [
+      "pwsh executable",
+      "previous verified dist manifests and archives",
+      "release-readiness/current.json"
+    ]
+  },
+  "remainingEvidence": [
+    "Current installed Desktop draft controls could not be accepted against the pinned UI hashes. No signature or UI guard was bypassed.",
+    "Multi-platform release promotion and installed-versus-promoted hashes remain unavailable."
+  ]
+}

@@ -1,0 +1,16 @@
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index 1b3e6f2305..78f9baab2d 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -1390,6 +1390,11 @@ See the Codex keymap documentation for supported actions and examples."
+     }
+ 
+     fn render_chat_widget_frame(&mut self, tui: &mut tui::Tui, screen_size: Size) -> Result<Rect> {
++        #[cfg(windows)]
++        if !self.chat_widget.no_modal_or_popup_active() {
++            // Inline viewport maintenance can clear popup rows outside ratatui's diff buffer.
++            tui.terminal.invalidate_viewport();
++        }
+         self.with_chat_widget_frame(screen_size.width, |desired_height, chat_widget| {
+             let mut rendered_area = Rect::default();
+             tui.draw_with_resize_reflow(desired_height, screen_size, |frame| {

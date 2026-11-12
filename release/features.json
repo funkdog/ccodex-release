@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "title": "CCODEX / TEAM RELEASE",
+  "subtitle": "你的增强工作台 · 一包安装 · 独立运行",
+  "groups": [
+    {
+      "icon": "✦",
+      "name": "模型与上下文",
+      "items": [
+        "GitHub Copilot 模型桥接，原生 Responses 与兼容 Chat Completions",
+        "Model / Context / Effort 独立选择，CLI 与 Desktop 默认值互不串用",
+        "按账户实际权限生成模型目录，不伪造可用模型、额度和上下文",
+        "请求重试、流式恢复、上下文压缩与脱敏请求诊断"
+      ]
+    },
+    {
+      "icon": "⌘",
+      "name": "终端增强",
+      "items": [
+        "增强原生核心、固定输入区与统一消息流展示",
+        "多行输入、智能粘贴、文件附件与键盘模式恢复",
+        "模型 / 请求状态 / 上下文 / token / cache / compaction 状态栏",
+        "/usage、/sessions、credits 与本地批量会话管理"
+      ]
+    },
+    {
+      "icon": "▣",
+      "name": "Desktop 增强",
+      "items": [
+        "固定版本官方 Desktop 独立快照，保留原始应用字节",
+        "原生模型面板内 Context 切换和扩展 reasoning effort",
+        "独立窗口数据、会话、插件、模型选择、账号与用量展示",
+        "浏览器 / Computer Use / 原生应用工具按本机连接动态绑定"
+      ]
+    },
+    {
+      "icon": "⚙",
+      "name": "完整离线资源",
+      "items": [
+        "内置 ARM64 Node、Git Bash、Copilot CLI / SDK 与 node-pty",
+        "内置 Python、PDF / Word / Excel / 演示工具及插件和技能",
+        "内置 Work IQ 固定依赖；同事自行登录 Microsoft 并明确授权",
+        "安装与修复不需要全局 npm、原版 Codex 或原版 Desktop"
+      ]
+    },
+    {
+      "icon": "◈",
+      "name": "隔离与安全交付",
+      "items": [
+        "版本、配置、凭据、聊天记录、缓存和端口全部独立",
+        "只注册自有 ccodex 目录，保留未知同名命令和原版配置",
+        "私有原生依赖适配器固定 Git 查找，不修改官方文件和系统目录",
+        "SHA-256 全资源校验、原子版本选择、并发锁与安全卸载",
+        "不打包发布者凭据；原版更新和本地退出登录不改发布版配置"
+      ]
+    }
+  ],
+  "boundary": "这是软件和数据隔离，不是虚拟机。系统代理、防火墙、共享项目文件及同一云端账户的额度和授权仍可能同时影响两边。"
+}

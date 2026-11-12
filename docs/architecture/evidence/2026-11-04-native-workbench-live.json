@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-04",
+  "scope": "Existing native MyCodex workbench; no standalone page delivered.",
+  "runtime": {
+    "appPidPreserved": 1254,
+    "gatewayPidPreserved": 1213,
+    "frontendSourceGeneration": "c70a41bfc159fd53e651bdbf2d3664dbfc7a181763fbca5f52ab58f6b502984a",
+    "uiState": "ready",
+    "components": {
+      "nativeSessions": "active",
+      "workbench": "active"
+    }
+  },
+  "userScreenshot": {
+    "fileName": "codex-clipboard-94d267ff-e759-4857-9fea-d9a0708b52f1.png",
+    "confirms": "Native goal, work overview, basis/collaboration tabs and progress update entry are visible.",
+    "doesNotConfirm": "Saving through the new editor or continuing into the native composer."
+  },
+  "sharedWork": {
+    "id": "work-dot-workbench-collaboration",
+    "revision": 6,
+    "updatedThrough": "The actual cloud plugin work_context, version-checked work_record, and work_context readback all succeeded.",
+    "assistantImpersonatedDot": false
+  },
+  "cloudConnection": {
+    "pluginError": null,
+    "runtimeProcessRunning": true,
+    "ready": true,
+    "controlPlaneHttpStatus": null,
+    "controlPlaneState": "polling",
+    "actualPluginStatusSucceeded": true,
+    "actualPluginWorkReadWriteReadbackSucceeded": true,
+    "gatewayStartedAt": "2026-11-04T02:58:27.375Z",
+    "previousFailure": "401 after the old hidden input could truncate long credentials; historical diagnostic retained below."
+  },
+  "persistentConnection": {
+    "source": "tools/workbench-connection.mjs",
+    "credentialInputSource": "tools/workbench-keychain.py",
+    "prepared": true,
+    "credentialRead": false,
+    "keychainModified": true,
+    "loginAgentInstalled": true,
+    "userReportedSetupCompleted": true,
+    "requiresUser": null,
+    "sameTunnelAndAlias": true,
+    "mechanism": "Per-user low-priority launchd monitor invokes official managed runtimes connect. It never kills an existing live runtime. The user-operated repair flow can replace a rejected credential and restart only that dedicated runtime.",
+    "currentState": "connected",
+    "inputTruncationEvidence": {
+      "macOSGetpassLimit": 128,
+      "securityBinaryImportsGetpass": true,
+      "redactedRejectedKeyLength": 128,
+      "actualCredentialReadByAssistant": false,
+      "conclusion": "The old prompt can truncate long keys. This is a supported cause to repair, not proof the user's original full key is invalid.",
+      "repair": "Python termios-based getpass reads the full line, then Security.framework saves CFData directly without argv, files or interactive command history."
+    },
+    "userCompletedRepairedInput": true,
+    "connectionObservedAt": "2026-11-04T08:55:46.053Z"
+  },
+  "verification": {
+    "testsRunThisTurn": false,
+    "sourceConversion": "Completed via the existing low-priority wrapper; no test, package or native build.",
+    "persistentLauncher": "User executed the repaired hidden-input setup. Actual cloud status and real shared work read/write/readback succeeded. No test suite, app restart, or forced network interruption was run.",
+    "formalInstallerPublished": false,
+    "versionChanged": false,
+    "nativePatchChainChanged": false
+  }
+}

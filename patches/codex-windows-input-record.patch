@@ -1,0 +1,198 @@
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index b89b029dd7..9d5865a0f6 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -64,6 +64,8 @@ mod keyboard_modes;
+ mod terminal_stderr;
+ #[cfg(test)]
+ pub(crate) mod test_support;
++#[cfg(any(windows, test))]
++mod windows_console;
+ 
+ /// Target frame interval for UI redraw scheduling.
+ pub(crate) const TARGET_FRAME_INTERVAL: Duration = frame_rate_limiter::MIN_FRAME_INTERVAL;
+@@ -210,6 +212,8 @@ pub fn set_modes() -> Result<()> {
+     let _ = execute!(stdout(), EnableMouseCapture);
+ 
+     enable_raw_mode()?;
++    #[cfg(windows)]
++    windows_console::set_input_record_mode()?;
+     // Enable keyboard enhancement flags so modifiers for keys like Enter are disambiguated.
+     // chat_composer.rs is using a keyboard event listener to enter for any modified keys
+     // to create a new line that require this.
+@@ -297,6 +301,10 @@ fn restore_common(
+     {
+         first_error.get_or_insert(err);
+     }
++    #[cfg(windows)]
++    if let Err(err) = windows_console::restore_input_mode() {
++        first_error.get_or_insert(err);
++    }
+     if let Err(err) = execute!(
+         stdout(),
+         SetCursorStyle::DefaultUserShape,
+diff --git a/codex-rs/tui/src/tui/event_stream.rs b/codex-rs/tui/src/tui/event_stream.rs
+index 5a0c3fc286..065194ca1a 100644
+--- a/codex-rs/tui/src/tui/event_stream.rs
++++ b/codex-rs/tui/src/tui/event_stream.rs
+@@ -125,7 +125,21 @@ impl Default for CrosstermEventSource {
+ 
+ impl EventSource for CrosstermEventSource {
+     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<EventResult>> {
+-        Pin::new(&mut self.get_mut().0).poll_next(cx)
++        // Crossterm's Windows backend expects Win32 input records. If VT input is inherited or
++        // restored by another console client, navigation keys arrive as literal escape bytes.
++        #[cfg(windows)]
++        let _ = super::windows_console::ensure_input_record_mode();
++
++        let result = Pin::new(&mut self.get_mut().0).poll_next(cx);
++
++        // EventStream starts its blocking reader before returning Pending, so reassert the mode
++        // after that transition as well.
++        #[cfg(windows)]
++        if result.is_pending() {
++            let _ = super::windows_console::ensure_input_record_mode();
++        }
++
++        result
+     }
+ }
+ 
+diff --git a/codex-rs/tui/src/tui/windows_console.rs b/codex-rs/tui/src/tui/windows_console.rs
+new file mode 100644
+index 0000000000..1dbf4d0747
+--- /dev/null
++++ b/codex-rs/tui/src/tui/windows_console.rs
+@@ -0,0 +1,108 @@
++const ENABLE_VIRTUAL_TERMINAL_INPUT: u32 = 0x0200;
++
++#[derive(Clone, Copy)]
++pub(super) enum VirtualTerminalInput {
++    Enabled,
++    Disabled,
++}
++
++pub(super) fn input_record_mode(mode: u32) -> u32 {
++    mode & !ENABLE_VIRTUAL_TERMINAL_INPUT
++}
++
++pub(super) fn restored_input_mode(mode: u32, original: VirtualTerminalInput) -> u32 {
++    match original {
++        VirtualTerminalInput::Enabled => mode | ENABLE_VIRTUAL_TERMINAL_INPUT,
++        VirtualTerminalInput::Disabled => input_record_mode(mode),
++    }
++}
++
++#[cfg(windows)]
++static ORIGINAL_VT_INPUT: std::sync::Mutex<Vec<VirtualTerminalInput>> =
++    std::sync::Mutex::new(Vec::new());
++
++#[cfg(windows)]
++fn current_input_mode() -> Option<(windows_sys::Win32::Foundation::HANDLE, u32)> {
++    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
++    use windows_sys::Win32::System::Console::GetConsoleMode;
++    use windows_sys::Win32::System::Console::GetStdHandle;
++    use windows_sys::Win32::System::Console::STD_INPUT_HANDLE;
++
++    let handle = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
++    if handle == INVALID_HANDLE_VALUE || handle == 0 {
++        return None;
++    }
++
++    let mut mode = 0;
++    if unsafe { GetConsoleMode(handle, &mut mode) } == 0 {
++        return None;
++    }
++
++    Some((handle, mode))
++}
++
++#[cfg(windows)]
++pub(super) fn set_input_record_mode() -> std::io::Result<()> {
++    use windows_sys::Win32::System::Console::SetConsoleMode;
++
++    let Some((handle, mode)) = current_input_mode() else {
++        return Ok(());
++    };
++    let requested_mode = input_record_mode(mode);
++    if requested_mode != mode && unsafe { SetConsoleMode(handle, requested_mode) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++
++    let original = if mode & ENABLE_VIRTUAL_TERMINAL_INPUT != 0 {
++        VirtualTerminalInput::Enabled
++    } else {
++        VirtualTerminalInput::Disabled
++    };
++    ORIGINAL_VT_INPUT
++        .lock()
++        .unwrap_or_else(std::sync::PoisonError::into_inner)
++        .push(original);
++    Ok(())
++}
++
++#[cfg(windows)]
++pub(super) fn ensure_input_record_mode() -> std::io::Result<()> {
++    use windows_sys::Win32::System::Console::SetConsoleMode;
++
++    let Some((handle, mode)) = current_input_mode() else {
++        return Ok(());
++    };
++    let requested_mode = input_record_mode(mode);
++    if requested_mode != mode && unsafe { SetConsoleMode(handle, requested_mode) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++
++    Ok(())
++}
++
++#[cfg(windows)]
++pub(super) fn restore_input_mode() -> std::io::Result<()> {
++    use windows_sys::Win32::System::Console::SetConsoleMode;
++
++    let mut original_modes = ORIGINAL_VT_INPUT
++        .lock()
++        .unwrap_or_else(std::sync::PoisonError::into_inner);
++    let Some(original) = original_modes.last().copied() else {
++        return Ok(());
++    };
++    let Some((handle, mode)) = current_input_mode() else {
++        original_modes.pop();
++        return Ok(());
++    };
++    let requested_mode = restored_input_mode(mode, original);
++    if requested_mode != mode && unsafe { SetConsoleMode(handle, requested_mode) } == 0 {
++        return Err(std::io::Error::last_os_error());
++    }
++
++    original_modes.pop();
++    Ok(())
++}
++
++#[cfg(test)]
++#[path = "windows_console_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/tui/windows_console_tests.rs b/codex-rs/tui/src/tui/windows_console_tests.rs
+new file mode 100644
+index 0000000000..502df7df76
+--- /dev/null
++++ b/codex-rs/tui/src/tui/windows_console_tests.rs
+@@ -0,0 +1,18 @@
++use super::VirtualTerminalInput;
++use super::input_record_mode;
++use super::restored_input_mode;
++use pretty_assertions::assert_eq;
++
++#[test]
++fn input_record_mode_preserves_non_vt_flags() {
++    let record_mode = input_record_mode(/*mode*/ 0x398);
++    assert_eq!(record_mode, 0x198);
++    assert_eq!(
++        restored_input_mode(record_mode, VirtualTerminalInput::Enabled),
++        0x398
++    );
++    assert_eq!(
++        restored_input_mode(/*mode*/ 0x198, VirtualTerminalInput::Disabled),
++        0x198
++    );
++}

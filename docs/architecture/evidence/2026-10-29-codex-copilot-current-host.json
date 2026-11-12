@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T11:07:36Z",
+  "scope": "mac-current-host-readiness-and-isolated-regression",
+  "desktopRestartedByThisCheck": false,
+  "desktopConfigurationChangedByThisCheck": false,
+  "userConversationMessagesSentByThisCheck": 0,
+  "publishedRelease": false,
+  "sourceVersion": "1.2.36",
+  "currentHost": {
+    "applicationVersion": "26.1023.50603",
+    "installedLauncherCheck": "activate-existing",
+    "launchPerformed": false,
+    "clientLifetimeVerified": true,
+    "gatewayLifetimeVerified": true,
+    "sourceMatchesLaunch": true,
+    "sourceGeneration": "96c7685be39603bbb95100f69361cd93d0e15bac8ba620ce949dd7100d293cac",
+    "frontend": "routed-stdio.mjs",
+    "copilotCliConfigured": true,
+    "codexCopilotConfigured": true,
+    "nativeAppServerProviderArgumentsPresent": true,
+    "nativeAppServerLoopbackBridgeArgumentsPresent": true,
+    "nativeAppServerProfileOverrideArgumentsPresent": false
+  },
+  "liveCatalog": {
+    "apiModelCount": 16,
+    "cliModelCount": 15,
+    "apiGeminiModels": ["gemini-4-argon", "gemini-3.8-flash"],
+    "apiGeminiInputModalities": ["text", "image"],
+    "cliGeminiModels": [],
+    "firstSelectorModel": "codex-copilot/gpt-6.1-sol",
+    "warnings": []
+  },
+  "persistedCliMetadata": {
+    "threads": 3,
+    "turns": 12,
+    "threadsWithNativeSessionId": 2,
+    "activeThreads": 0,
+    "sidebarVisibilityVerified": false
+  },
+  "isolatedRegression": {
+    "scheduler": "tools/Invoke-HeavyTask.sh",
+    "testFiles": [
+      "tests/copilot-provider-test.mjs",
+      "tests/copilot-provider-native-test.mjs",
+      "tests/desktop-native-session-test.mjs",
+      "tests/gateway-router-test.mjs"
+    ],
+    "tests": 27,
+    "passed": 27,
+    "failed": 0,
+    "skipped": 0,
+    "realModelInferencePerformed": false,
+    "nativeIntegrationProfile": "isolated-temporary",
+    "nativeProtocolChecks": ["input_image", "xhigh", "thread-settings-update-low", "cold-resume"]
+  },
+  "currentWindowAcceptance": {
+    "status": "partially-verified",
+    "userObservations": [
+      {
+        "recordedAt": "2026-10-29T11:09:10Z",
+        "source": "direct-user-reply",
+        "check": "current-window-model-picker-provider-and-gemini-options",
+        "result": "passed",
+        "answer": "三项都能看到",
+        "confirmedVisibleOptions": ["Codex + Copilot", "gemini-4-argon", "gemini-3.8-flash"]
+      }
+    ],
+    "computerUseObservationAvailable": false,
+    "computerUseRestriction": "Current application access denied by the UI tool; no alternate UI transport used.",
+    "remainingEvidence": [
+      "current-window-image-paste-or-drop-and-send",
+      "current-window-native-provider-model-and-effort-controls",
+      "current-window-existing-cli-sidebar-and-history",
+      "coordinated-current-window-native-provider-restart-resume"
+    ]
+  }
+}

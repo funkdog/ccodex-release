@@ -1,0 +1,184 @@
+{
+  "recordedAt": "2026-11-02T05:25:59.506648+00:00",
+  "hostVersion": "26.1027.51404",
+  "scope": "native status UX acceptance and page-independent model/continuation upgrade gate",
+  "production": {
+    "appPid": 68483,
+    "gatewayPid": 68440,
+    "helperPid": 68542,
+    "launcherPid": 26277,
+    "monitorBeforeManualRefresh": 26309,
+    "monitorAfterManualRefresh": 30149,
+    "appRestartedByAgent": false,
+    "gatewayRestarted": false,
+    "pageHelperRestarted": false,
+    "menuConfirmedByUser": [
+      "查看兼容状态…",
+      "重新检查（不重启）",
+      "退出状态提示"
+    ],
+    "openStatusConfirmedByUser": true,
+    "statusWindowObservedThroughAllowedApp": "MyCodex",
+    "officialAppUIControlled": false,
+    "backendState": "ready",
+    "uiState": "unavailable",
+    "uiReason": "unreported",
+    "uiHealthAcceptancePending": true
+  },
+  "isolatedNativeUi": {
+    "binary": "copy of the installed MyCodex native binary; only private fixture binding changed",
+    "appBundleId": "local.mycodex.status-acceptance",
+    "officialAppContacted": false,
+    "productionConnectionsUsed": false,
+    "observedDegradedText": "[隔离验收] 部分增强需要关注；Provider 与 CLI 网关 可用；页面 需关注",
+    "observedRecoveryText": "增强接入已恢复；后端路由和页面增强均已接入",
+    "recoveryDismissed": true,
+    "menuProcessRemainedAlive": true
+  },
+  "liveCopilotCli": {
+    "recordedAt": "2026-11-02T05:20:38.876Z",
+    "engine": "copilot",
+    "model": "gpt-6.1-sol",
+    "pageHelperUsed": false,
+    "productionGatewayModified": false,
+    "originalCliProfileUsed": false,
+    "inferenceTurns": 2,
+    "checks": {
+      "modelAdvertised": true,
+      "firstTurnCompleted": true,
+      "settingsRetained": true,
+      "contextRetained": true,
+      "sessionIdentityRetained": true,
+      "workspaceUntouched": true
+    },
+    "runtimeStates": [
+      {
+        "phase": "create",
+        "model": "gpt-6.1-sol",
+        "effort": "high"
+      },
+      {
+        "phase": "resume",
+        "model": "gpt-6.1-sol",
+        "effort": "high"
+      }
+    ],
+    "passed": true,
+    "temporaryProfileRemoved": true
+  },
+  "liveNativeProvider": {
+    "probe": {
+      "recordedAt": "2026-11-02T05:14:30.796Z",
+      "runtime": "native-codex",
+      "model": "gpt-6.1-sol",
+      "desktopRestarted": false,
+      "existingNativeProfileUsed": false,
+      "cliGatewayInferenceTurns": 0,
+      "checks": {
+        "imageUnderstood": false,
+        "nativeProvider": true,
+        "sameNativeHistoryAfterRestart": true,
+        "settingsAfterRestart": true,
+        "continuationRetainsContext": true,
+        "noCliGateway": true,
+        "workspaceUntouched": true
+      },
+      "effort": "xhigh",
+      "imageReply": "Orange",
+      "passed": false
+    },
+    "continuityChecksPassed": [
+      "nativeProvider",
+      "sameNativeHistoryAfterRestart",
+      "settingsAfterRestart",
+      "continuationRetainsContext",
+      "noCliGateway",
+      "workspaceUntouched"
+    ],
+    "additionalVisionCheckFailed": true,
+    "actualImageReply": "Orange",
+    "testImageVerifiedRGB": [
+      255,
+      0,
+      0
+    ],
+    "wholeProbePassed": false,
+    "imageCause": "unknown; no assertion relaxed or automatic retry"
+  },
+  "defaultGate": {
+    "file": "tests/desktop-upgrade-continuity-test.mjs",
+    "registeredIn": "tools/typescript-task.mjs test",
+    "nativeCliIsActualInstalled": true,
+    "routedFrontendAndIpcAreReal": true,
+    "cliEngineIsSynthetic": true,
+    "rendererHooksUsed": false,
+    "missingNativeCliOnMacIsFailure": true,
+    "nonMacSkipped": true,
+    "covers": [
+      "catalog",
+      "draft model/effort selection",
+      "unchanged native config",
+      "send",
+      "cold resume",
+      "context",
+      "effort/approval/session retention",
+      "backend ready during page failure"
+    ]
+  },
+  "checks": {
+    "targeted": {
+      "tests": 27,
+      "passed": 27
+    },
+    "full": {
+      "tests": 239,
+      "passed": 239,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 8369.638542
+    },
+    "strictBuild": {
+      "sources": 58,
+      "outputs": 116
+    },
+    "generatedFreshness": true,
+    "modules": {
+      "count": 191,
+      "imports": 459
+    },
+    "launcherSignature": true,
+    "sourceAudit": {
+      "passed": true,
+      "files": 5,
+      "bytes": 25559,
+      "findings": []
+    }
+  },
+  "limits": [
+    "Production helper still predates structured UI health reporting; no fake green report written.",
+    "Production page degradation was not induced, preserving active chats; actual warning/recovery rendering used an isolated owned app.",
+    "Additional real native-provider image semantic check failed; core continuation passed, entire probe remains failed.",
+    "Unknown future private APIs or provider account/quota failures cannot be guaranteed compatible; no official app rollback added."
+  ],
+  "sourceSha256": {
+    "tests/desktop-upgrade-continuity-test.mjs": "1e25d3d2a80d4715a9313528919cd6d55c5c7f138afba6fc3ba77955270ff978",
+    "tools/typescript-task.mjs": "6cfe61ba5d138a430cd27092c08e71544c4e59cd7bb3fb807bc4275ab87e2b78",
+    "docs/architecture/0024-upgrade-continuity-acceptance.zh-CN.md": "a1fb733275862051aa6565c9ba6916f0d865c780eaad784e06f56eada9ffae86",
+    "docs/architecture/0023-native-compatibility-status.zh-CN.md": "78c5f30bb18e067627825bb2c0bd6a13976a21e87cdc665b15a206e2a6163b1c"
+  },
+  "preservedSha256": {
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "bridge/desktop-acceptance.mts": "fc43fb1b440d32efbdc0910acc2046c2a79b43e574fc1000410dba38f4a463c7"
+  },
+  "committed": false,
+  "published": false,
+  "cleanup": {
+    "ownedNativeFixtureRemoved": true,
+    "ownedNativeProbeIntermediatesRemoved": true,
+    "temporaryAccountProfileRemoved": true,
+    "productionGatewayUnchanged": true
+  }
+}

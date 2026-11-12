@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-31T12:41:18.672Z",
+  "temporaryProfile": true,
+  "productionThreadsModified": false,
+  "desktopRestarted": false,
+  "nativeInferenceTurns": 0,
+  "cliTurns": 1,
+  "hostRootCount": 2,
+  "passed": true,
+  "model": "antigravity/gemini-4-argon",
+  "reasoningEffort": "high",
+  "cliApprovalMode": "deny",
+  "cwdPreserved": true,
+  "reply": "MYCODEX_OK",
+  "temporaryDataRemoved": true
+}

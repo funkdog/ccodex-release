@@ -35,4 +35,22 @@ cd mycodex-adapters-macos-arm64-0.1.0-rc.3
 
 Release 附有 `RC3-VERIFICATION.json`：精简范围自动门禁 265/265 通过，解压后的 476 项文件摘要与原生默认路径复验通过。真实客户端的发送、审批、取消和冷恢复验收仍待完成；目录可见不代表当前账号推理一定可用。
 
-本仓库提供下载与接入文档，运行源码和编译模块包含在平台包内。GitHub 自动生成的 **Source code (zip / tar.gz)** 是此发行仓库的文档快照，不能替代上面的平台包。
+## 源码与修复
+
+`main` 提供可维护源码、测试、锁定依赖与构建工具。开始修改前阅读 [开发贡献指南](CONTRIBUTING.md)。
+
+```bash
+git clone https://github.com/funkdog/ccodex-release.git
+cd ccodex-release
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build
+```
+
+- [RC.3 源码分支](https://github.com/funkdog/ccodex-release/tree/codex/macos-adapters-rc3)
+- [固定源码标签](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.3)
+- [源码与安装包的逐文件对应记录](release/RC3-SOURCE.json)
+- [反馈问题](https://github.com/funkdog/ccodex-release/issues/new)；修复可通过 Fork 和 Pull Request 提交到 `main`。
+
+源码不含账号、依赖缓存、生成的运行文件或第三方运行时副本。313 个运行源码文件与既有 RC.3 原包完全一致；测试与开发说明另外提供。
+
+既有 RC.3 Release 标签和平台包保持不变。该 Release 自动生成的 **Source code (zip / tar.gz)** 仍是其最初的文档快照；完整源码使用上面的源码分支/标签或克隆 `main`。使用者安装请下载平台包。

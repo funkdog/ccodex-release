@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-28T12:03:10.943Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "target": {
+    "executableName": "ChatGPT",
+    "cliRelative": "codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "desktop": {
+      "schemaVersion": 1,
+      "name": "openai-codex-electron",
+      "productName": "Codex",
+      "version": "26.1023.50603",
+      "explicitDataPath": true,
+      "independentLock": true,
+      "updates": {
+        "codexBuildFlavor": "prod"
+      }
+    },
+    "archiveSha256": "94a7fac7fdf222261170204df0406249822431cf4db3627d5524b6ba033ce3e6",
+    "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2"
+  },
+  "fixtureOnly": true,
+  "welcomeSeeded": true,
+  "uiTurnVerified": true,
+  "ui": {
+    "syntheticAnswerVisible": true,
+    "interaction": "Native history/composer/Send via CDP; no response DOM injection"
+  },
+  "note": "RPC completion is not proof of rendering. No real CLI engine or release has been validated.",
+  "startupConfigCalls": 1,
+  "initializedProcesses": 3,
+  "syntheticCompletions": 1,
+  "methods": [
+    {
+      "method": "account/read",
+      "count": 21,
+      "paramKeys": [
+        "refreshToken"
+      ]
+    },
+    {
+      "method": "collaborationMode/list",
+      "count": 2,
+      "paramKeys": []
+    },
+    {
+      "method": "config/batchWrite",
+      "count": 3,
+      "paramKeys": [
+        "edits",
+        "expectedVersion",
+        "filePath",
+        "reloadUserConfig"
+      ]
+    },
+    {
+      "method": "config/read",
+      "count": 8,
+      "paramKeys": [
+        "cwd",
+        "includeLayers"
+      ]
+    },
+    {
+      "method": "configRequirements/read",
+      "count": 6,
+      "paramKeys": []
+    },
+    {
+      "method": "experimentalFeature/enablement/set",
+      "count": 1,
+      "paramKeys": [
+        "enablement"
+      ]
+    },
+    {
+      "method": "experimentalFeature/list",
+      "count": 5,
+      "paramKeys": [
+        "cursor",
+        "limit"
+      ]
+    },
+    {
+      "method": "fs/readFile",
+      "count": 1,
+      "paramKeys": [
+        "path"
+      ]
+    },
+    {
+      "method": "getAuthStatus",
+      "count": 33,
+      "paramKeys": [
+        "includeToken",
+        "refreshToken"
+      ]
+    },
+    {
+      "method": "hooks/list",
+      "count": 2,
+      "paramKeys": [
+        "cwds"
+      ]
+    },
+    {
+      "method": "initialize",
+      "count": 3,
+      "paramKeys": [
+        "capabilities",
+        "clientInfo"
+      ]
+    },
+    {
+      "method": "initialized",
+      "count": 1,
+      "paramKeys": []
+    },
+    {
+      "method": "marketplace/add",
+      "count": 1,
+      "paramKeys": [
+        "source"
+      ]
+    },
+    {
+      "method": "mcpServerStatus/list",
+      "count": 2,
+      "paramKeys": [
+        "cursor",
+        "detail",
+        "limit"
+      ]
+    },
+    {
+      "method": "model/list",
+      "count": 2,
+      "paramKeys": [
+        "cursor",
+        "includeHidden",
+        "limit"
+      ]
+    },
+    {
+      "method": "permissionProfile/list",
+      "count": 1,
+      "paramKeys": [
+        "cursor",
+        "cwd",
+        "limit"
+      ]
+    },
+    {
+      "method": "plugin/installed",
+      "count": 3,
+      "paramKeys": []
+    },
+    {
+      "method": "plugin/list",
+      "count": 7,
+      "paramKeys": [
+        "marketplaceKinds"
+      ]
+    },
+    {
+      "method": "process/spawn",
+      "count": 1,
+      "paramKeys": [
+        "command",
+        "cwd",
+        "processHandle",
+        "streamStdin",
+        "streamStdoutStderr",
+        "timeoutMs"
+      ]
+    },
+    {
+      "method": "remoteControl/status/read",
+      "count": 1,
+      "paramKeys": []
+    },
+    {
+      "method": "thread/goal/get",
+      "count": 1,
+      "paramKeys": [
+        "threadId"
+      ]
+    },
+    {
+      "method": "thread/items/list",
+      "count": 1,
+      "paramKeys": [
+        "cursor",
+        "limit",
+        "sortDirection",
+        "threadId"
+      ]
+    },
+    {
+      "method": "thread/list",
+      "count": 4,
+      "paramKeys": [
+        "archived",
+        "cursor",
+        "limit",
+        "modelProviders",
+        "originators",
+        "parentThreadId",
+        "sortDirection",
+        "sortKey",
+        "sourceKinds",
+        "useStateDbOnly"
+      ]
+    },
+    {
+      "method": "thread/read",
+      "count": 1,
+      "paramKeys": [
+        "includeTurns",
+        "threadId"
+      ]
+    },
+    {
+      "method": "thread/resume",
+      "count": 1,
+      "paramKeys": [
+        "config",
+        "cwd",
+        "excludeTurns",
+        "history",
+        "model",
+        "modelProvider",
+        "threadId"
+      ]
+    },
+    {
+      "method": "thread/turns/list",
+      "count": 1,
+      "paramKeys": [
+        "cursor",
+        "itemsView",
+        "limit",
+        "sortDirection",
+        "threadId"
+      ]
+    },
+    {
+      "method": "turn/addUserMessage",
+      "count": 1,
+      "paramKeys": [
+        "additionalContext",
+        "approvalPolicy",
+        "approvalsReviewer",
+        "clientUserMessageId",
+        "collaborationMode",
+        "cwd",
+        "effort",
+        "input",
+        "model",
+        "multiAgentMode",
+        "outputSchema",
+        "permissions",
+        "responsesapiClientMetadata",
+        "runtimeWorkspaceRoots",
+        "sandboxPolicy",
+        "serviceTier",
+        "summary",
+        "threadId",
+        "turnTrigger"
+      ]
+    }
+  ]
+}

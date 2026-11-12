@@ -1,0 +1,125 @@
+{
+  "recordedAt": "2026-10-29T12:30:13.628008+00:00",
+  "scope": "Mac source development only; no client restart or release",
+  "branch": "codex/mycodex-app-server-design",
+  "versionUnchanged": "1.2.36",
+  "migration": {
+    "existingModules": 25,
+    "gatewayAndEngines": 21,
+    "ui": 4,
+    "contractModules": 5,
+    "typescriptSources": 30,
+    "generatedFilesIncludingMaps": 60
+  },
+  "toolchain": {
+    "node": "24.19.0",
+    "typescript": "7.0.2",
+    "nodeTypes": "24.10.1",
+    "strict": true,
+    "developmentDependenciesOnly": true
+  },
+  "commands": [
+    "node tools/typescript-task.mjs typecheck",
+    "node tools/typescript-task.mjs test",
+    "node tools/typescript-task.mjs check",
+    "bash tools/Invoke-HeavyTask.sh node tools/probe-native-composer.mjs <installed-playwright> <Chrome>"
+  ],
+  "targetedTests": {
+    "tests": 131,
+    "passed": 131,
+    "failed": 0,
+    "skipped": 0,
+    "includes": [
+      "compiled gateway and engine regressions",
+      "native session and launch seams",
+      "source publication guard",
+      "type-negative compile-only consumers",
+      "offline runtime freshness",
+      "failed compilation preserves output",
+      "new DIY source build and retirement",
+      "watch error recovery"
+    ]
+  },
+  "moduleCheck": {
+    "modules": 158,
+    "relativeImportsVerified": 357,
+    "evaluatedCode": false
+  },
+  "browserFixture": {
+    "checks": 21,
+    "passed": true,
+    "desktopTouched": false,
+    "report": "2026-10-29-typescript-browser.json"
+  },
+  "sourceAudit": {
+    "newSourceAndConfigFiles": 38,
+    "passed": true,
+    "findings": []
+  },
+  "additionalLegacyChecks": {
+    "tests": 95,
+    "passed": 85,
+    "failed": 9,
+    "skipped": 1,
+    "allGreen": false,
+    "files": [
+      "tests/release-readiness-test.mjs",
+      "tests/release-workflow-test.mjs",
+      "tests/source-publication-test.mjs",
+      "tests/unix-bridge-port-test.mjs",
+      "tests/update-robustness-test.mjs",
+      "tests/unix-installer-test.mjs",
+      "tests/desktop-launch-test.mjs",
+      "tests/desktop-process-test.mjs"
+    ],
+    "failures": [
+      {
+        "test": "release workflow builds pinned cores for every platform target",
+        "reason": "ENOENT .github/workflows/build-platform-packages.yml; templates live under ci/"
+      },
+      {
+        "test": "Linux Desktop launcher passes the selected port to only the stock app",
+        "reason": "fixture expects stock-app launch; launcher refuses missing independent Desktop runtime"
+      },
+      {
+        "test": "Unix CLI and both Desktop launchers resolve the port before bridge/app startup",
+        "reason": "legacy static expectation for macOS Desktop bridge port resolution"
+      },
+      {
+        "test": "Unix ccodex showcase reuses the installer guide without setup or profile writes",
+        "reason": "fixture codex-copilot script permission denied"
+      },
+      {
+        "test": "validated stage and rollback reject broad/unrecognized roots",
+        "reason": "Unix installer fixture accepted profile/codex-copilot path"
+      },
+      {
+        "test": "noninteractive Unix setup fails before deployment when Copilot OAuth is unverified",
+        "reason": "install.sh:917 ARCH with trailing non-ASCII byte treated as unbound variable"
+      },
+      {
+        "test": "verified OAuth permits no Copilot CLI while Desktop and stock CLI precede bridge/profile",
+        "reason": "same install.sh:917 shell variable failure"
+      },
+      {
+        "test": "noninteractive setup will not overwrite a pre-existing unrelated command",
+        "reason": "same install.sh:917 shell variable failure"
+      },
+      {
+        "test": "repair deployment requires matching source hashes and distributes compatibility guidance",
+        "reason": "expects .github/workflows/build-platform-packages.yml"
+      }
+    ],
+    "interpretation": "Failures recorded in additional legacy checks; their failing scripts/fixture paths were not modified by the TS migration. No claim that all repository/release checks pass."
+  },
+  "activeProcessesPreserved": {
+    "chatgptPid": 77094,
+    "gatewayPid": 77082
+  },
+  "buildManifestSha256": "ca54d1f964f490671e5606c7340a0e7dd55d128d4c79146ba55f56766c9af9bd",
+  "notVerified": [
+    "current client reloaded after migration",
+    "Windows and PowerShell execution",
+    "six-platform packages or published release"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "recordedAt": "2026-10-30T03:24:55.710Z",
+  "desktopRestarted": false,
+  "productionGatewayTouched": false,
+  "temporaryProfiles": true,
+  "nativeInferenceTurns": 0,
+  "cliTurns": 3,
+  "results": [
+    {
+      "engine": "copilot",
+      "models": [
+        "copilot/gpt-6.1-sol",
+        "copilot/auto"
+      ],
+      "reasoningEffort": "none",
+      "approvalMode": "deny",
+      "contextRetained": true,
+      "sessionIdentityRetained": true,
+      "coldRestartRetained": true,
+      "runtimeStates": [
+        {
+          "phase": "create",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        },
+        {
+          "phase": "resume",
+          "model": "auto",
+          "effort": "medium"
+        }
+      ]
+    }
+  ],
+  "checks": {},
+  "passed": false,
+  "error": "RPC discovery timed out; no task was retried.\n+ actual - expected\n\n+ 'failed'\n- 'completed'\n",
+  "temporaryProfilesRemoved": true
+}

@@ -1,0 +1,52 @@
+{
+  "recordedAt": "2026-10-29T06:15:36.121989+00:00",
+  "applicationVersion": "26.1023.50603",
+  "observedDefects": [
+    "Global FORCE_CLI disabled hosted WebSocket routing; ordinary prior-instance logs had no originator-filter or thread-not-loaded errors, enhanced instance did.",
+    "Native exec-server invocations were rejected by the CLI shim; local Work was continuously retrying.",
+    "The external thread turn was rejected on the named permissions field before any CLI run.",
+    "Attachment, queue and goal reads were unsupported; recency_at ordering was absent.",
+    "Selector had no durable history entry point or workspace memory."
+  ],
+  "liveRecovery": {
+    "localWorkConnectedAt": "2026-10-29T05:59:18.304Z",
+    "currentAppPid": 24038,
+    "currentAppRestarted": false,
+    "originalCliThreadPreserved": true,
+    "originalCliThreadTurns": 0,
+    "originalCliSessionStarted": false
+  },
+  "verification": {
+    "scopedUnitTestsPassed": 47,
+    "testFiles": {
+      "gateway-routed-stdio-test.mjs": 5,
+      "gateway-protocol-test.mjs": 8,
+      "gateway-router-test.mjs": 15,
+      "desktop-cli-selector-test.mjs": 5,
+      "desktop-shortcut-test.mjs": 7,
+      "gateway-backend-stage-test.mjs": 1,
+      "desktop-current-host-test.mjs": 6
+    },
+    "singleCombinedFullRepositoryRun": false,
+    "browserFixtureChecks": 11,
+    "realCopilotModel": "gpt-6-astra",
+    "realCopilotTurns": 2,
+    "nativeInferenceCallsObserved": 0,
+    "modulesParsed": 137,
+    "relativeImportsVerified": 281,
+    "installedShortcutCheck": "needs-attention: code updated, original app retained",
+    "officialAppHashesUnchanged": true,
+    "gitDiffCheckPassed": true
+  },
+  "testRepair": "One backend test initially inherited CCODEX_ROUTER_DEPTH from the now-enhanced host. The test subprocess environment now uses nativeEnvironment; production recursion rejection was not relaxed. The corrected test passed.",
+  "remaining": [
+    "Restart current ChatGPT via existing MyCodex entry when user tasks finish.",
+    "Verify cloud/native history and plugin coexistence, selector navigation, native sidebar and actual message/approval rendering in the current window."
+  ],
+  "notPerformed": [
+    "Current app restart or UI automation",
+    "User CLI turn replay",
+    "Official app or CLI binary edits",
+    "Release publication"
+  ]
+}

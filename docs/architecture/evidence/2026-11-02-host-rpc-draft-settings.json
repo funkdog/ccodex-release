@@ -1,0 +1,150 @@
+{
+  "recordedAt": "2026-11-02T04:26:25.964825+00:00",
+  "scope": "Host RPC default-model compatibility at the local router protocol boundary",
+  "branch": "codex/mycodex-app-server-design",
+  "hostVersion": "26.1027.51404",
+  "nativeVersion": "0.166.0-alpha.5.1",
+  "previousLiveAcceptanceFailed": true,
+  "observed": {
+    "currentAppPid": 54670,
+    "currentGatewayPid": 54628,
+    "currentHelperPid": 54734,
+    "helperPreviouslyReportedActive": true,
+    "failedMethod": "config/batchWrite",
+    "errorCode": -32602,
+    "error": "Third-party model preferences cannot be written into native Codex configuration.",
+    "model": "mycodex/antigravity/gemini-4-argon",
+    "efforts": [
+      "high",
+      "medium"
+    ],
+    "profile": null,
+    "rawRequestParametersCaptured": false,
+    "requestShapeSource": "installed zst native default-model request builder"
+  },
+  "ownerEvidence": {
+    "rendererAsset": "renderer-app-server-managers-8103218e001d.js",
+    "rendererService": "appServerManagers",
+    "managerResolution": "Jh -> host RPC client -> setDefaultModelConfig -> config/batchWrite",
+    "conclusion": "A renderer-local manager prototype hook does not cover the host RPC route."
+  },
+  "behavior": {
+    "scope": "only the canonical two-edit upsert model/effort request with null file/version and reloadUserConfig true",
+    "response": "okOverridden, native path/revision read from actual metadata; explicit no-write explanation",
+    "nativeProfileWrites": 0,
+    "globalDefaultStateRetainedByRouter": false,
+    "windowOverrideOwner": "existing native UI okOverridden branch",
+    "mixedOrPersistentRequests": "reject without forwarding a write",
+    "nativeProviderCatalog": "validated directly, independent of CLI gateway"
+  },
+  "checks": {
+    "failureReproducedBeforeChange": true,
+    "targeted": {
+      "tests": 30,
+      "passed": 30
+    },
+    "nativeInstalledCli": "isolated profile, no renderer hooks, metadata catalog, file/default unchanged, existing native-provider integration retained",
+    "observedRequestReplay": {
+      "recordedAt": "2026-11-02T04:20:11.957Z",
+      "kind": "observed-host-RPC-default-settings-request-through-actual-shim",
+      "desktopRestarted": false,
+      "rendererHooksUsed": false,
+      "originalProfileUsed": false,
+      "modelInferenceTurns": 0,
+      "observedModel": "mycodex/antigravity/gemini-4-argon",
+      "results": [
+        {
+          "effort": "high",
+          "advertised": true,
+          "status": "okOverridden"
+        },
+        {
+          "effort": "medium",
+          "advertised": true,
+          "status": "okOverridden"
+        }
+      ],
+      "checks": {
+        "highMatchesAdvertisedCapability": true,
+        "nativeRevisionReported": true,
+        "nativePathIsIsolated": true,
+        "explicitNoWriteMessage": true,
+        "mediumMatchesAdvertisedCapability": true,
+        "highAccepted": true,
+        "profileUnchanged": true,
+        "nativeDefaultUnchanged": true,
+        "temporaryProfileRemoved": true
+      },
+      "advertisedEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "passed": true
+    },
+    "fullRegression": {
+      "tests": 227,
+      "passed": 227,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "durationMs": 5923.562125
+    },
+    "strictBuild": {
+      "sources": 55,
+      "outputs": 110
+    },
+    "typecheck": true,
+    "generatedFreshness": true,
+    "packageModules": {
+      "count": 188,
+      "relativeImportsVerified": 442
+    },
+    "sourceAudit": {
+      "passed": true,
+      "files": 6,
+      "findings": 0
+    }
+  },
+  "runtime": {
+    "clientRestarted": false,
+    "currentFrontendReplaced": false,
+    "currentGatewayReplaced": false,
+    "currentHelperReplaced": false,
+    "uiAutomaticallyOperated": false,
+    "newCodeLoadedIntoCurrentClient": false,
+    "originalUserProfileModified": false,
+    "modelInferenceTurns": 0,
+    "canonicalGatewayConfigurationOverwritten": false,
+    "launcherReadOnlyCheck": "needs-attention: running code is older; normal startup waits for idle gateway retirement"
+  },
+  "validationHistory": [
+    "Initial regression reproduced the actual -32602 before implementation.",
+    "First strict build rejected a union-row model lookup; previous runtime output preserved, lookup corrected.",
+    "First native integration exposed reliance on an unavailable CLI gateway for native Provider validation; changed to direct Provider catalog, then passed."
+  ],
+  "remaining": [
+    "Coordinated quit and normal MyCodex startup to load new frontend; old gateway may need about one minute to retire.",
+    "Original-window high/medium setting acknowledgement and retained selection, then send acceptance.",
+    "Notification UX remains deferred until current compatibility acceptance."
+  ],
+  "limits": [
+    "Request-shape acknowledgement is an intentional window-only compatibility contract, not a successful persistent write.",
+    "Automatic operation of com.openai.codex is denied by Computer Use; no alternate UI control channel used.",
+    "Argon model inference quota is separate and was not retested."
+  ],
+  "sourceSha256": {
+    "gateway/router.mts": "bf63c20e6d76bfa40e0a93eecd4a3c1bbb6cdc7357a451d4100fb787bbf3daf5",
+    "tests/gateway-router-test.mjs": "9aab40948a457b9d48e8074b9b05d82fbce93cb49791d70482ee022344a1ce09",
+    "tests/copilot-provider-native-test.mjs": "ae8df6ccacef843bb8885efc7c38342d6059948f3f7c8cd4e6f8897773d015f7",
+    "tests/session-contract-test.mjs": "c022a8fed9f273a60838b9d7744fad9ec9a98341b15f26997ec9860ff42e05d9",
+    "docs/architecture/0022-host-rpc-draft-settings.zh-CN.md": "b1d7fbc040d34ac77ac7e10b76d1a51769043678f953c24677379c9e2e6d0056"
+  },
+  "preservedSha256": {
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce"
+  },
+  "committed": false,
+  "published": false
+}

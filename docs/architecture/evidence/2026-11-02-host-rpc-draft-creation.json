@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-02T12:30:14.897Z",
+  "timezone": "Asia/Shanghai",
+  "scope": "host-rpc draft model selection and managed MCP disable overrides",
+  "runtime": {
+    "hostVersion": "26.1027.51404",
+    "hostBuild": "23880",
+    "appPid": 89188,
+    "gatewayPid": 62175,
+    "helperPid": 89252,
+    "workingProcessesRestarted": false,
+    "patchLoaded": false,
+    "workingWindowAccepted": false,
+    "originalFailureEntryConfirmed": false
+  },
+  "reproduction": {
+    "rendererOnlyChoice": {
+      "result": "failed",
+      "reason": "native selection callback was never invoked; check timed out",
+      "log": "/private/tmp/mycodex-create-picker-before.txt"
+    },
+    "mcpDisabledTable": {
+      "result": "failed",
+      "reason": "installed native CLI rejected the host enabled-only disable shape with invalid transport",
+      "log": "/private/tmp/mycodex-create-mcp-before.txt"
+    }
+  },
+  "verification": {
+    "typecheck": {
+      "passed": true,
+      "log": "/private/tmp/mycodex-create-typecheck.txt"
+    },
+    "build": {
+      "passed": true,
+      "sources": 59,
+      "outputs": 118
+    },
+    "testDiy": {
+      "passed": true,
+      "tests": 249,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "log": "/private/tmp/mycodex-create-gates.txt"
+    },
+    "modules": {
+      "passed": true,
+      "modules": 192,
+      "relativeImports": 462
+    },
+    "generated": {
+      "passed": true,
+      "log": "/private/tmp/mycodex-create-generated.txt"
+    },
+    "browser": {
+      "environment": "independent Chrome synthetic host selection fixture",
+      "engines": [
+        "copilot",
+        "antigravity",
+        "codex-copilot"
+      ],
+      "checks": [
+        "native callback acknowledgement",
+        "independent host create reads selected model",
+        "reasoning effort acknowledgement",
+        "rejected selection retains confirmed model and draft",
+        "restore native default",
+        "dispose"
+      ],
+      "officialClientAccessed": false,
+      "realHostRpcExecuted": false
+    },
+    "nativeMcp": {
+      "installedCli": true,
+      "isolatedProfile": true,
+      "discovery": true,
+      "disabledNestedTable": true,
+      "disabledDottedTable": true,
+      "ephemeralOnly": true,
+      "modelTurns": 0
+    },
+    "liveCatalog": {
+      "readOnly": true,
+      "generation": "50336a030b3d4e2ec2bb91135db586d3b6d53a27aec7f3e8acb59d86232bf0c1",
+      "engines": {
+        "copilot": 14,
+        "codex-copilot": 15,
+        "antigravity": 2
+      },
+      "warnings": []
+    },
+    "sourceAudit": {
+      "passed": true,
+      "scope": [
+        "bridge/desktop-current-host-contract.mjs",
+        "bridge/desktop-diy-contracts.mts",
+        "bridge/desktop-native-composer.mts",
+        "gateway/native-peer.mts",
+        "gateway/routed-stdio.mts",
+        "gateway/spine/native-config.mts",
+        "tests/desktop-host-draft-test.mjs",
+        "tests/desktop-native-session-test.mjs",
+        "tests/spine-mcp-test.mjs",
+        "tools/typescript-task.mjs",
+        "docs/architecture/0027-host-rpc-draft-creation.zh-CN.md",
+        "docs/architecture/evidence/2026-11-02-host-rpc-draft-creation.json"
+      ],
+      "log": "/private/tmp/mycodex-create-audit.json"
+    }
+  },
+  "preservation": {
+    "developmentSha256": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "versionSha256": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "nativePatchChainSha256": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "productionProfileMutations": false,
+    "workingChatMutations": false,
+    "configMutations": false,
+    "committed": false,
+    "pushed": false,
+    "published": false
+  },
+  "pending": [
+    "confirm original failing picker and message",
+    "coordinate manual application reopen",
+    "working-window first send, approval policy and continuation acceptance"
+  ],
+  "p3": {
+    "started": false,
+    "requiresUserDesignConfirmation": true
+  },
+  "sourceHashes": {
+    "bridge/desktop-current-host-contract.mjs": "993951a6153a6e30c5177f3e20f98722b874484640b04ca5cfdfb2b09b785fac",
+    "bridge/desktop-diy-contracts.mts": "4b1012e54085f51ad20379b15d62007b3e6cb445e0b51b9d64c54978b69a62dc",
+    "bridge/desktop-native-composer.mts": "fb72d289fe31ebaec8ed30729ddb2aa97889f0c35db51fc25c4ba6928c1ef973",
+    "gateway/native-peer.mts": "79538d3e37eadf220d8554477feeafb56b28926bec81f5c96442eb705fb77d85",
+    "gateway/routed-stdio.mts": "86b3d5418193b42f746571fc98c554d20c72af1f966bf1f2d230bf7f18fd4ade",
+    "gateway/spine/native-config.mts": "78d578112f32384f182384d2ece3d5bb024955354394c1ff4861a84332bceae3",
+    "tests/desktop-host-draft-test.mjs": "7c1c4f42076abc56e1f1b8b482f6bd0892825d5814f10be105d6a3806882a45b",
+    "tests/desktop-native-session-test.mjs": "d645413b8d780d8f2ddd9392082374988f9022a462f344752ed93493fe953f13",
+    "tests/spine-mcp-test.mjs": "6aeb7962f7b53cca63ac656eef4d6beee16ae412c1ebe921cf21bba0eb1262d8",
+    "tools/typescript-task.mjs": "f92c1620d572facd5bc8aac1c02ac6f6ea5c573bd8531c43dc67ee7c29e31e1a",
+    "docs/architecture/0027-host-rpc-draft-creation.zh-CN.md": "e60e7fb771710f00aec437f13702a6c44896ecfde49d67e1c9e720b63e916059"
+  }
+}

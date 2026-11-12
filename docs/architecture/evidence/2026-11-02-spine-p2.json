@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "phase": "P2 plus P1 hardening and standard image projection",
+  "branch": "codex/mycodex-app-server-design",
+  "version": "1.2.36",
+  "knowledgeContract": "MyCodex knowledge-card schemaVersion 1; user instruction supersedes legacy cat-cafe source contract",
+  "status": "source implementation and isolated validation complete; current window not loaded or accepted",
+  "integration": {
+    "nativeEventTap": "actual installed Codex CLI and routed stdio, isolated profile, authenticated trace role, no model turn",
+    "image": "structured ACP and SDK boundary extraction, private files, standard imageGeneration notifications, summary/restart/fork/delete fixtures",
+    "browser": "owned headless Chrome; compiled pure ESM and serialized host installer; draft protection, feedback/undo, save, handoff, copy, theme, layout, Escape, reduced motion and dispose",
+    "fixtureScreenshots": [
+      "/private/tmp/mycodex-p2-drawer-light.png",
+      "/private/tmp/mycodex-p2-drawer-dark.png"
+    ]
+  },
+  "runtime": {
+    "loaded": false,
+    "currentInstanceConfigured": false,
+    "clientRestarted": false,
+    "userChatsModified": false,
+    "originalProfileModified": false,
+    "hostVersion": "26.1023.51421",
+    "hostBuild": "22530",
+    "nativeCliVersion": "0.165.0-alpha.1.2",
+    "client": {
+      "pid": 42126,
+      "startedAtLocal": "2026-10-31 13:09:08"
+    },
+    "gateway": {
+      "pid": 85785,
+      "startedAtLocal": "2026-10-31 20:42:46"
+    },
+    "helper": {
+      "pid": 85892,
+      "startedAtLocal": "2026-10-31 20:43:38"
+    },
+    "coreCurrentMarkerPresent": false,
+    "releaseManifestsPresent": false,
+    "remainingOwnedTestCommands": []
+  },
+  "preserved": {
+    "developmentDocumentSha256": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "versionSha256": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "nativePatchChainSha256": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28"
+  },
+  "limits": [
+    "No real current-window acceptance; implementation and isolated verification are distinct from loading.",
+    "Previously truncated Base64 cannot be recreated without original files; tools are not replayed.",
+    "Native trace is lifecycle metadata from activation onward, not retroactive full conversation history.",
+    "Default daily cards are evidence-based continuity candidates; deep semantic distillation requires configured input/output command.",
+    "No VERSION/native core changes, commits, pushes, release, Windows or six-platform build; P3/P4 not started."
+  ],
+  "checks": {
+    "typecheck": {
+      "passed": true
+    },
+    "build": {
+      "passed": true,
+      "strictSources": 54,
+      "generatedOutputs": 108
+    },
+    "testDiy": {
+      "passed": true,
+      "tests": 218,
+      "passedTests": 218,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 5544.707292
+    },
+    "esmContracts": {
+      "passed": true,
+      "modules": 187,
+      "relativeImports": 439,
+      "evaluatedCode": false
+    },
+    "generatedFreshness": {
+      "passed": true
+    },
+    "sourceAudit": {
+      "passed": true,
+      "files": 69,
+      "findings": 0,
+      "implementation": "tools/check-source-publication.mjs auditSourceFiles through tools/check-spine-p2-source.mjs",
+      "scope": "explicit P1 foundation and P2 files; shared checkout not staged or published"
+    }
+  },
+  "rerunEvidence": {
+    "firstFinalRun": {
+      "passed": false,
+      "passedTests": 217,
+      "failed": 1,
+      "test": "offline protected router keeps native chats working and explicitly rejects CLI turns",
+      "failure": "3 second RPC discovery timeout; cause unconfirmed"
+    },
+    "targetedRerun": {
+      "passed": true,
+      "tests": 4,
+      "passedTests": 4
+    },
+    "fullRerun": {
+      "passed": true,
+      "tests": 218,
+      "passedTests": 218
+    },
+    "productionTimeoutChanged": false,
+    "assertionsRemoved": false
+  },
+  "logs": {
+    "typecheck": {
+      "path": "/private/tmp/mycodex-p2-typecheck-final.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "firstFinalRun": {
+      "path": "/private/tmp/mycodex-p2-gates-final.txt",
+      "sha256": "c0b3ec62f6cf4fb3b56f8e73df00cead3fb119f26c75886a4af266041993a3e1"
+    },
+    "protectedTargetedRerun": {
+      "path": "/private/tmp/mycodex-p2-protected-targeted.txt",
+      "sha256": "00db733de99a2cf5d4057822a45e3b27c2948fc4b0accac73041bb2838094c21"
+    },
+    "fullFinalRerun": {
+      "path": "/private/tmp/mycodex-p2-gates-final-rerun.txt",
+      "sha256": "02f77327290fd5e6d5f487e8a71a96ed9616f9a3448069ab57d26fca5953ac1f"
+    },
+    "generatedFreshness": {
+      "path": "/private/tmp/mycodex-p2-generated-final.txt",
+      "sha256": "8974f75f2242cde11e210ec41c9632d6cf68fbff884e4560df7658e023517448"
+    },
+    "sourceAudit": {
+      "path": "/private/tmp/mycodex-p2-source-audit-final.txt"
+    }
+  }
+}

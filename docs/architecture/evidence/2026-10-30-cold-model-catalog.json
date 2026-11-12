@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T02:41:22.342Z",
+  "scope": "Mac local source/build; not published",
+  "desktop": {
+    "pid": 92739,
+    "loadedSourceGeneration": "481b5bbe4d618e847d4c9e06f0bbd43d781a9b991ef4934db2206d12c7beb7bb",
+    "compiledSourceGeneration": "0f3f5862af5c4fdb687e3cf407eb5956e765d0d2d604cc3970c9caa3bbeb182f",
+    "desktopRestarted": false,
+    "updatedFrontendLoaded": false
+  },
+  "catalog": {
+    "readOnlyCount": 31,
+    "counts": {
+      "copilot": 14,
+      "codex-copilot": 15,
+      "antigravity": 2
+    },
+    "warnings": [],
+    "refreshDurationMs": 20962,
+    "productionInferenceCalls": 0,
+    "desktopListDurationsMs": [
+      1590,
+      1606,
+      1516
+    ],
+    "originalDiscoveryBudgetMs": 1500,
+    "originalRendererMetadataTimeoutMs": 20000
+  },
+  "checks": {
+    "regressionsFailedBeforeFix": 5,
+    "targetedTests": {
+      "pass": 53,
+      "fail": 0,
+      "skipped": 0
+    },
+    "typescript": {
+      "sources": 30,
+      "outputs": 60
+    },
+    "modules": {
+      "count": 159,
+      "relativeImports": 363,
+      "evaluatedCode": false
+    }
+  },
+  "permissions": {
+    "userReportedUi": "full access",
+    "observedExecutionPolicy": "on-request / auto_review / workspace-write",
+    "originOfMismatch": "unproven",
+    "productionPolicyChanged": false,
+    "nativePolicyPassthroughTestPassed": true,
+    "realWindowRevalidation": "pending"
+  },
+  "realWindowModelAcceptance": "pending",
+  "sourceSha256": {
+    "gateway/router.mts": "b4d56acdd2f647efaaee765599b9c1596ae4a1759e4a55e21c29db419e526de1",
+    "bridge/desktop-backends/app-server-gateway.mjs": "689fd0cd14d05f8754f98a15085ac4d7a3c633e7d5488bf166a5d37b56e5aee9",
+    "bridge/desktop-cli-selector.mts": "bba33c9dc3ad8df00a38596b3805e2c893875669bcb90399faa593f1e057efa0",
+    "bridge/desktop-native-composer.mts": "06ac2b84eb170e2b983de9b8bfeae0245e42fcb9d15e0e47207d17f6a28d2eca",
+    "bridge/desktop-gateway-ui.mts": "57af0684b575575693475ef5e69743657b4f29b2e416fa5d85277600d0d27446",
+    "bridge/desktop-diy-contracts.mts": "0b30f54eca2c616bf0c4c491ba5c22a3d53b4559189cb1aef17ab8bd6ff0992c",
+    "tests/desktop-cli-selector-test.mjs": "f19909d8b16b4bda180f489f440b48f7ace45c0551cb0fcc919f946a0e552fca",
+    "tests/gateway-router-test.mjs": "57bd79dc2658cc6a99598d3fdf73f808e7fc6f6d76939bfe86321d63973ce379",
+    "tests/gateway-backend-stage-test.mjs": "3b1c5888dcfa20584a696f31e195a4904d1b2b6e0a3bbc95cb3a7daffe4f12c6",
+    "tests/desktop-native-session-test.mjs": "dafdebf2efe4005bcdbba005a002402fa885338a3f60a6470bbbf0c5ed269e0c"
+  },
+  "followup": {
+    "recordedAt": "2026-10-30T03:01:36.880Z",
+    "desktopPid": 92739,
+    "gatewayPid": 92727,
+    "oldHelperPid": 92821,
+    "helperIdentity": {
+      "pid": 7738,
+      "platform": "darwin",
+      "lifetime": "macos:Fri Oct 30 02:52:49 2026",
+      "executable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+    },
+    "uiSourceGeneration": "8008df23d571f925eb0e39917a52545ab4600969203bec34b84ec86db7b3c639",
+    "desktopRestarted": false,
+    "gatewayRestarted": false,
+    "uiHelperRecovered": true,
+    "targetedTests": {
+      "pass": 55,
+      "fail": 0,
+      "skipped": 0
+    },
+    "browserChecks": 24,
+    "browserPassed": true,
+    "userConfirmedAllThreeEngineGroups": true,
+    "currentThreadPermissions": {
+      "approvalMode": "never",
+      "sandboxType": "disabled",
+      "setByUser": true
+    },
+    "coldStartupPatchLoaded": false
+  },
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

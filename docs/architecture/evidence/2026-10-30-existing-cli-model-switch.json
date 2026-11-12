@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T03:46:33.961Z",
+  "scope": "Mac local source and isolated validation; not published",
+  "branch": "codex/mycodex-app-server-design",
+  "version": "1.2.36",
+  "compiledSourceGeneration": "f12af06c726ca61b870638060181d15cf4c012bd5f805c8898289ca3f8694b04",
+  "loadedSourceGeneration": "481b5bbe4d618e847d4c9e06f0bbd43d781a9b991ef4934db2206d12c7beb7bb",
+  "updatedGatewayLoaded": false,
+  "updatedUiLoaded": false,
+  "productionProcesses": [
+    {
+      "role": "desktop",
+      "pid": 92739,
+      "platform": "darwin",
+      "lifetime": "macos:Fri Oct 30 01:51:41 2026",
+      "executable": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+      "alive": true
+    },
+    {
+      "role": "gateway",
+      "pid": 92727,
+      "platform": "darwin",
+      "lifetime": "macos:Fri Oct 30 01:51:40 2026",
+      "executable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "alive": true
+    },
+    {
+      "role": "uiHelper",
+      "pid": 7738,
+      "platform": "darwin",
+      "lifetime": "macos:Fri Oct 30 02:52:49 2026",
+      "executable": "/Users/<user>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "alive": true
+    }
+  ],
+  "desktopRestarted": false,
+  "productionGatewayRestarted": false,
+  "productionSettingsChanged": false,
+  "tests": {
+    "pass": 87,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "concurrency": 3,
+    "durationMs": 30157,
+    "earlierStartupTimeoutObserved": true
+  },
+  "browserChecks": 29,
+  "realCli": {
+    "successfulTurns": 4,
+    "engines": [
+      "copilot",
+      "antigravity"
+    ],
+    "contextAndSessionPreserved": true,
+    "approvalPolicyPreserved": true,
+    "temporaryProfilesRemoved": true,
+    "realWindowAcceptance": "pending; no restart authorized"
+  },
+  "typescript": {
+    "applicable": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "modules": {
+    "count": 160,
+    "relativeImports": 370,
+    "evaluatedCode": false
+  },
+  "artifacts": {
+    "2026-10-30-existing-cli-model-switch-browser.json": {
+      "elapsedMs": 6059,
+      "passed": true
+    },
+    "2026-10-30-existing-cli-model-switch-live.json": {
+      "elapsedMs": 122492,
+      "passed": true
+    },
+    "2026-10-30-existing-cli-model-switch-first-attempt.json": {
+      "elapsedMs": 70591,
+      "passed": false
+    }
+  },
+  "sourceSha256": {
+    "gateway/contracts.mts": "3b78b22b24dd55534c0fa52885cf4e109505e1816054ee559f489598a17cc2a2",
+    "gateway/protocol.mts": "910662663017991e06230732f5bf3aefc672b185b348e7bcdc514699b9291a4d",
+    "gateway/engines/github-copilot.mts": "9d10ec4f849d20139fd2f3e2e58d425f8f38bb5f04173eaaa0604986492581ce",
+    "gateway/engines/antigravity.mts": "3620acca83a71f0302f92e66ba358ebd9ae61a2319c144d233b498f10e2f18e3",
+    "bridge/desktop-diy-contracts.mts": "69d590651568fabe95a45c80355e1772f4c31c3ec86aab710a3b862ebb8a1062",
+    "bridge/desktop-cli-selector.mts": "4c1a0b3d0a72797935c114416a94363615b24b1790bb2e0240a02fd7d3ba0762",
+    "bridge/desktop-native-session.mts": "7a23560d2335fb134fbbe3f6204c59242f0ebb2c789b7d40b6300fc4f0bcaeeb",
+    "bridge/desktop-native-composer.mts": "aa572349aa15f5f2c5804c0a64bf0df2cde65c5b8db83345be4638e71347a4b1",
+    "tools/probe-cli-model-switch.mjs": "d15ca6c000411472a43de8b9ff2b9b290d5fc6b74cfe6bf6a2ce4513c351be0e",
+    "tools/probe-native-composer.mjs": "8dc672f20857e6b4fbf04fbdd6730bb11127800cb2726e81eaad4bd7683a2fb8",
+    "tests/gateway-protocol-test.mjs": "d57c089ced034741678c470c2fb32873d7342c5c68812265eda26d50c710990c",
+    "tests/gateway-engines-test.mjs": "dbbeed2b746d77219436602cdaf5a828966701ebfb6b936454e51f86588d4407",
+    "tests/antigravity-test.mjs": "701945318244de880cfc7be4ff967c4f6854e50645204525142633b027c8f5cc",
+    "tests/desktop-cli-selector-test.mjs": "4b55d52a85b6149273983e2c286c05dac585fc4fef4a1dbe64b1b59ed5c16675",
+    "tests/desktop-native-session-test.mjs": "8bbeb1898af671265baa7d27bc1e6cf726b79b8579dd2e631aa0b6c9934b3a7c"
+  },
+  "cleanup": {
+    "temporaryProfilesRemoved": true,
+    "ownedProbeReportsArchived": true,
+    "ownedTemporaryDirectoriesRemoved": true,
+    "probeShellExited": true
+  },
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

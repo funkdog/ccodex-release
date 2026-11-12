@@ -1,0 +1,219 @@
+{
+  "date": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "branch": "codex/mycodex-app-server-design",
+  "version": "1.2.36",
+  "status": "P2 startup configuration enabled by user authorization; waiting for manual reopen and working-window acceptance",
+  "implementation": {
+    "radarSource": "existing archive, direct read-only SQLite, original report schema validation",
+    "refresh": "archive-sync; existing scheduled research collector unchanged",
+    "knowledgeContract": "MyCodex schemaVersion 1, default instance-private library",
+    "dailyGit": "three explicitly scoped repositories; --no-optional-locks",
+    "runtimeHardcodedMachinePathsAdded": false,
+    "originalThreadStoreWriterInstantiated": false,
+    "sourceProjection": "bounded metadata/last assistant excerpt only, no full chat/session/tool copy"
+  },
+  "realSourceValidation": {
+    "passed": true,
+    "reportDate": "2026-11-02",
+    "collectedThrough": "2026-11-02T09:30:34+08:00",
+    "radarItems": 9,
+    "topics": [
+      "models",
+      "infra",
+      "agents"
+    ],
+    "refreshMode": "archive-sync",
+    "cliSnapshots": 4,
+    "skippedRecords": 10,
+    "coverage": {
+      "cli": 4,
+      "native": 0,
+      "repositories": 3,
+      "degraded": [
+        "原生轨迹仅覆盖 Event Tap 启用后的生命周期，未采集逐 token 正文；未归档不等于任务尚未完成。"
+      ]
+    },
+    "handoffCount": 4,
+    "candidateCount": 1,
+    "knowledgeFiles": 3,
+    "sourceDatabaseUnchanged": true,
+    "mcpRealSources": true,
+    "browserInteractions": [
+      "actual report rendering",
+      "default-filter fallback",
+      "draft preservation",
+      "prefill",
+      "feedback/undo",
+      "private knowledge save",
+      "archive sync",
+      "daily Markdown copy",
+      "Escape",
+      "dispose"
+    ],
+    "actualHostNavigationPerformed": false,
+    "screenshots": [
+      "/private/tmp/mycodex-p2-real-radar.png",
+      "/private/tmp/mycodex-p2-real-daily.png"
+    ],
+    "candidateHomePreserved": true,
+    "p3Started": false
+  },
+  "checks": {
+    "typecheck": {
+      "passed": true
+    },
+    "build": {
+      "passed": true,
+      "strictSources": 59,
+      "generatedOutputs": 118
+    },
+    "testDiy": {
+      "passed": true,
+      "tests": 245,
+      "passedTests": 245,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 8138.650375
+    },
+    "esm": {
+      "passed": true,
+      "modules": 192,
+      "relativeImports": 460,
+      "evaluatedCode": false
+    },
+    "sourceAudit": {
+      "passed": true,
+      "files": 73,
+      "findings": 0,
+      "implementation": "tools/check-source-publication.mjs auditSourceFiles",
+      "scope": "P1/P2 foundation and explicit real-source task files; no staging/publication"
+    },
+    "generatedFreshness": {
+      "passed": true,
+      "applicable": true,
+      "sources": 59,
+      "outputs": 118
+    }
+  },
+  "stagedConfiguration": {
+    "prepared": true,
+    "applied": true,
+    "spineOnly": true,
+    "sameInstanceHomeVerified": true,
+    "secretsPublished": false,
+    "activationRequiresCoordination": false,
+    "activationAuthorized": true,
+    "runtimeLoaded": false
+  },
+  "preservation": {
+    "baselineFileCount": 9,
+    "baselineFilesUnchanged": true,
+    "changedFiles": [],
+    "workClientPid": 37552,
+    "workGatewayPid": 37526,
+    "workHelperPid": 37609,
+    "originalProcessLifetimesUnchanged": true,
+    "workClientRestarted": false,
+    "currentConnectionChanged": false,
+    "userChatsModified": false,
+    "sourceArchiveChanged": false,
+    "externalVaultWritten": false,
+    "temporarySourceProfileRemoved": true,
+    "versionNativeCoreDevelopmentDocumentChanged": false,
+    "committedOrPublished": false,
+    "remainingOwnedProbeCommands": [],
+    "scope": "Read-only real-source isolation before authorized startup-config application; activation records the intentional config-only change separately."
+  },
+  "p3": {
+    "started": false,
+    "requiresUserDesignConfirmation": true
+  },
+  "failedChecksPreserved": [
+    {
+      "kind": "default high-score filter",
+      "tests": 3,
+      "passed": 2,
+      "failed": 1,
+      "resolution": "initial automatic fallback when no high-score item exists; explicit human filters retain their meaning"
+    },
+    {
+      "kind": "probe result path",
+      "resolution": "moved result to the owned private preparation directory; did not relax storage checks; full probe reran successfully"
+    }
+  ],
+  "logs": {
+    "mycodex-p2-sources-before-ui.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-before-ui.txt",
+      "sha256": "cf0b9ff1025ae98ffa7060ae8fda2a14dd6eabfe0ca6964f12359350ee6ce46d"
+    },
+    "mycodex-p2-sources-targeted.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-targeted.txt",
+      "sha256": "f613c303e4a95d7e83ac16daa560cf9fa8ae3bc10aef4525d1e2d3b9a6adc123"
+    },
+    "mycodex-p2-sources-typecheck.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-typecheck.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mycodex-p2-sources-build-2.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-build-2.txt",
+      "sha256": "4f735ee7732f93ed88fcd33783bd668e0ea2f9c58b9ebdcd240815efc28ffff5"
+    },
+    "mycodex-p2-sources-gates.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-gates.txt",
+      "sha256": "84945f1c5e4444163dd9196efd5e1ff26300902c51d8e86f454b975ef22e34c1"
+    },
+    "mycodex-p2-real-probe-log.txt": {
+      "path": "/private/tmp/mycodex-p2-real-probe-log.txt",
+      "sha256": "42ae078adf27f6afb47062570e015e106aead8007e39f4f1ad24e9b4af1f2481"
+    },
+    "mycodex-p2-real-probe-log-2.txt": {
+      "path": "/private/tmp/mycodex-p2-real-probe-log-2.txt",
+      "sha256": "349cb3ef3c82544b867078e39d98c53df84478de6fc5e1ff8d1e5129dec12ba7"
+    },
+    "mycodex-p2-sources-audit.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-audit.txt"
+    },
+    "mycodex-p2-sources-generated.txt": {
+      "path": "/private/tmp/mycodex-p2-sources-generated.txt",
+      "sha256": "4f735ee7732f93ed88fcd33783bd668e0ea2f9c58b9ebdcd240815efc28ffff5"
+    },
+    "mycodex-p2-enable-check.txt": {
+      "path": "/private/tmp/mycodex-p2-enable-check.txt",
+      "sha256": "f5bfc17b9433a8b1b1fbd54f65cae1988d656c6f4d5b41efa089c7b680464423"
+    }
+  },
+  "limits": [
+    "Native Event Tap has not been enabled; native coverage is zero and forward-only.",
+    "Real sources were tested in an isolated browser and temporary Spine, not loaded in the working window.",
+    "No fresh research/model turn, private external vault write or actual host navigation was performed."
+  ],
+  "activation": {
+    "date": "2026-11-02",
+    "timezone": "Asia/Shanghai",
+    "authorizedBy": "user: reply then manually reopen and enable",
+    "configApplied": true,
+    "runtimeLoaded": false,
+    "clientRestarted": false,
+    "baseConfigSha256": "1b0af64dba97488115a081b3cb0225150ff1234c096a1629a649eb9bc6affe59",
+    "enabledConfigSha256": "bde247238d697cb45aaaeb9999bf06143dcaf1a9d5d51193628866c2fc7436fc",
+    "previousGeneration": "3582d19c4bd1c6290c663b2931d80590a9253593baa69542f8707361ff2adfd5",
+    "nextGeneration": "50336a030b3d4e2ec2bb91135db586d3b6d53a27aec7f3e8acb59d86232bf0c1",
+    "instanceHomePreserved": true,
+    "existingEngineConfigurationPreserved": true,
+    "connectionAndReceiptUnchanged": true,
+    "workClientPid": 37552,
+    "sourceVersion": "1.2.36",
+    "p3Started": false,
+    "p3RequiresDesignConfirmation": true,
+    "backupCreated": true,
+    "backupPrivate": true,
+    "launcherCheck": {
+      "action": "needs-quit",
+      "checkOnly": true,
+      "launchPerformed": false
+    },
+    "manualReopenCompleted": false,
+    "workingWindowAccepted": false
+  }
+}

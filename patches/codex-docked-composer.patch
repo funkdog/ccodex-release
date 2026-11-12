@@ -1,0 +1,945 @@
+diff --git a/codex-rs/tui/src/chatwidget/rendering_tests.rs b/codex-rs/tui/src/chatwidget/rendering_tests.rs
+new file mode 100644
+index 0000000..f2e762d
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/rendering_tests.rs
+@@ -0,0 +1,48 @@
++use super::*;
++use crate::app_event_sender::AppEventSender;
++use crate::bottom_pane::ChatComposer;
++use pretty_assertions::assert_eq;
++use ratatui::Terminal;
++use ratatui::backend::TestBackend;
++use tokio::sync::mpsc::unbounded_channel;
++
++#[test]
++fn live_output_stays_at_top_and_composer_fills_bottom() {
++    let (tx, _rx) = unbounded_channel::<AppEvent>();
++    let mut composer = ChatComposer::new(
++        /*has_input_focus*/ true,
++        AppEventSender::new(tx),
++        /*enhanced_keys_supported*/ true,
++        "Ask Codex".to_string(),
++        /*disable_paste_burst*/ true,
++    );
++    composer.set_text_content("editable draft".to_string(), Vec::new(), Vec::new());
++    composer.set_status_line_enabled(/*enabled*/ true);
++    composer.set_status_line(Some(Line::from(
++        "gpt-5.4 · Context 0/258K (0.0%) · Cache --",
++    )));
++    let mut content = FlexRenderable::new();
++    content.push(
++        /*flex*/ 1,
++        RenderableItem::Owned(Box::new(Line::from(
++            "Live output stays above the empty space",
++        ))),
++    );
++    let renderable = DockedComposer {
++        content,
++        composer: RenderableItem::Borrowed(&composer),
++    };
++    let mut terminal =
++        Terminal::new(TestBackend::new(/*width*/ 54, /*height*/ 18)).expect("terminal");
++    terminal
++        .draw(|frame| renderable.render(frame.area(), frame.buffer_mut()))
++        .expect("docked draw");
++
++    let (_, composer_area) = renderable.areas(Rect::new(0, 0, 54, 18));
++    assert_eq!(composer_area.bottom(), 18);
++    assert_eq!(
++        renderable.cursor_pos(Rect::new(0, 0, 54, 18)),
++        composer.cursor_pos(composer_area)
++    );
++    insta::assert_snapshot!(terminal.backend());
++}
+diff --git a/codex-rs/tui/src/chatwidget/rendering.rs b/codex-rs/tui/src/chatwidget/rendering.rs
+index a826f22..965a163 100644
+--- a/codex-rs/tui/src/chatwidget/rendering.rs
++++ b/codex-rs/tui/src/chatwidget/rendering.rs
+@@ -54,8 +54,10 @@ impl ChatWidget {
+                 })),
+             );
+         }
+-        flex.push(/*flex*/ 0, self.composer_as_renderable());
+-        RenderableItem::Owned(Box::new(flex))
++        RenderableItem::Owned(Box::new(DockedComposer {
++            content: flex,
++            composer: self.composer_as_renderable(),
++        }))
+     }
+ 
+     pub(crate) fn note_rendered_width(&self, width: u16) {
+@@ -63,6 +65,50 @@ impl ChatWidget {
+     }
+ }
+ 
++/// Keep spare terminal rows between live output and the composer, never below the footer.
++struct DockedComposer<'a> {
++    content: FlexRenderable<'a>,
++    composer: RenderableItem<'a>,
++}
++
++impl DockedComposer<'_> {
++    fn areas(&self, area: Rect) -> (Rect, Rect) {
++        let composer_height = self.composer.desired_height(area.width).min(area.height);
++        let content_height = area.height.saturating_sub(composer_height);
++        (
++            Rect::new(area.x, area.y, area.width, content_height),
++            Rect::new(
++                area.x,
++                area.y.saturating_add(content_height),
++                area.width,
++                composer_height,
++            ),
++        )
++    }
++}
++
++impl Renderable for DockedComposer<'_> {
++    fn render(&self, area: Rect, buf: &mut Buffer) {
++        let (content_area, composer_area) = self.areas(area);
++        self.content.render(content_area, buf);
++        self.composer.render(composer_area, buf);
++    }
++
++    fn desired_height(&self, width: u16) -> u16 {
++        self.content
++            .desired_height(width)
++            .saturating_add(self.composer.desired_height(width))
++    }
++
++    fn cursor_pos(&self, area: Rect) -> Option<(u16, u16)> {
++        self.composer.cursor_pos(self.areas(area).1)
++    }
++
++    fn cursor_style(&self, area: Rect) -> crossterm::cursor::SetCursorStyle {
++        self.composer.cursor_style(self.areas(area).1)
++    }
++}
++
+ struct TranscriptAreaRenderable<'a> {
+     child: &'a dyn HistoryCell,
+     top: u16,
+@@ -123,3 +169,7 @@ impl Renderable for ChatWidget {
+         self.as_renderable().cursor_style(area)
+     }
+ }
++
++#[cfg(test)]
++#[path = "rendering_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__rendering__tests__live_output_stays_at_top_and_composer_fills_bottom.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__rendering__tests__live_output_stays_at_top_and_composer_fills_bottom.snap
+new file mode 100644
+index 0000000..c5578cf
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__rendering__tests__live_output_stays_at_top_and_composer_fills_bottom.snap
+@@ -0,0 +1,23 @@
++---
++source: tui/src/chatwidget/rendering_tests.rs
++assertion_line: 45
++expression: terminal.backend()
++---
++"Live output stays above the empty space               "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"                                                      "
++"› editable draft                                      "
++"                                                      "
++"  gpt-5.4 · Context 0/258K (0.0%) · Cache --          "
+diff --git a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__pnpm_update_available_history_cell_snapshot.snap b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__pnpm_update_available_history_cell_snapshot.snap
+index c09cb10..c7ff5a6 100644
+--- a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__pnpm_update_available_history_cell_snapshot.snap
++++ b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__pnpm_update_available_history_cell_snapshot.snap
+@@ -1,9 +1,10 @@
+ ---
+ source: tui/src/history_cell/tests.rs
++assertion_line: 1157
+ expression: rendered
+ ---
+ ╭─────────────────────────────────────────────────╮
+-│ ✨ Update available! 0.0.0 -> 9.9.9             │
++│ ✨ Update available! 0.145.0 -> 9.9.9           │
+ │ Run pnpm add -g @openai/codex to update.        │
+ │                                                 │
+ │ See full release notes:                         │
+diff --git a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_unix_update_available_history_cell_snapshot.snap b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_unix_update_available_history_cell_snapshot.snap
+index 3af6fd5..2464cc4 100644
+--- a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_unix_update_available_history_cell_snapshot.snap
++++ b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_unix_update_available_history_cell_snapshot.snap
+@@ -1,9 +1,10 @@
+ ---
+ source: tui/src/history_cell/tests.rs
++assertion_line: 1139
+ expression: rendered
+ ---
+ ╭─────────────────────────────────────────────────────────────────────────────────────────────────────╮
+-│ ✨ Update available! 0.0.0 -> 9.9.9                                                                 │
++│ ✨ Update available! 0.145.0 -> 9.9.9                                                               │
+ │ Run sh -c 'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh' to update. │
+ │                                                                                                     │
+ │ See full release notes:                                                                             │
+diff --git a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_windows_update_available_history_cell_snapshot.snap b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_windows_update_available_history_cell_snapshot.snap
+index 54a2a3a..680f8d5 100644
+--- a/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_windows_update_available_history_cell_snapshot.snap
++++ b/codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__standalone_windows_update_available_history_cell_snapshot.snap
+@@ -1,9 +1,10 @@
+ ---
+ source: tui/src/history_cell/tests.rs
++assertion_line: 1148
+ expression: rendered
+ ---
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+-│ ✨ Update available! 0.0.0 -> 9.9.9                                                                        │
++│ ✨ Update available! 0.145.0 -> 9.9.9                                                                      │
+ │ Run powershell -ExecutionPolicy Bypass -c '$env:CODEX_NON_INTERACTIVE=1; irm                               │
+ │ https://chatgpt.com/codex/install.ps1 | iex' to update.                                                    │
+ │                                                                                                            │
+diff --git a/codex-rs/tui/src/insert_history.rs b/codex-rs/tui/src/insert_history.rs
+index 8ce0f77..4aaf6a6 100644
+--- a/codex-rs/tui/src/insert_history.rs
++++ b/codex-rs/tui/src/insert_history.rs
+@@ -236,7 +236,13 @@ where
+             queue!(writer, MoveTo(/*x*/ 0, cursor_top))?;
+ 
+             for line in &wrapped {
+-                queue!(writer, Print("\r\n"))?;
++                // DECSTBM cannot describe a one-row scroll region. The first short history
++                // insertion must write that row directly instead of entering the live viewport.
++                if area.top() == 1 && wrapped_rows == 1 {
++                    queue!(writer, MoveTo(/*x*/ 0, /*y*/ 0))?;
++                } else {
++                    queue!(writer, Print("\r\n"))?;
++                }
+                 write_history_line(writer, line, wrap_width)?;
+             }
+ 
+diff --git a/codex-rs/tui/src/lib.rs b/codex-rs/tui/src/lib.rs
+index edc692e..dc2fa43 100644
+--- a/codex-rs/tui/src/lib.rs
++++ b/codex-rs/tui/src/lib.rs
+@@ -489,12 +489,18 @@ pub(crate) async fn start_app_server_for_picker(
+     state_db: Option<StateDbHandle>,
+     environment_manager: Arc<EnvironmentManager>,
+ ) -> color_eyre::Result<AppServerSession> {
++    // In-process test fixtures must not import the developer machine's managed hooks or policies.
++    // The shipped picker still loads and enforces the normal managed configuration.
++    #[cfg(test)]
++    let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
++    #[cfg(not(test))]
++    let loader_overrides = LoaderOverrides::default();
+     let app_server = start_app_server(
+         target,
+         Arg0DispatchPaths::default(),
+         config.clone(),
+         Vec::new(),
+-        LoaderOverrides::default(),
++        loader_overrides,
+         /*strict_config*/ false,
+         CloudConfigBundleLoader::default(),
+         codex_feedback::CodexFeedback::new(),
+diff --git a/codex-rs/tui/src/status/helpers.rs b/codex-rs/tui/src/status/helpers.rs
+index 2eb8d5c..075eb1b 100644
+--- a/codex-rs/tui/src/status/helpers.rs
++++ b/codex-rs/tui/src/status/helpers.rs
+@@ -244,7 +244,7 @@ mod tests {
+                 &config,
+                 &[PathUri::from_abs_path(&global_agents_path.abs())]
+             ),
+-            format_directory_display(&global_agents_path, /*max_width*/ None)
++            dunce::simplified(&global_agents_path).display().to_string()
+         );
+     }
+ 
+@@ -257,7 +257,7 @@ mod tests {
+ 
+         assert_eq!(
+             compose_agents_summary(&config, &[PathUri::from_abs_path(&override_path.abs())]),
+-            format_directory_display(&override_path, /*max_width*/ None)
++            dunce::simplified(&override_path).display().to_string()
+         );
+     }
+ 
+@@ -301,7 +301,12 @@ mod tests {
+         let mut paths = summary.split(", ");
+         assert_eq!(
+             paths.next(),
+-            Some(format_directory_display(&global_agents_path, /*max_width*/ None).as_str())
++            Some(
++                dunce::simplified(&global_agents_path)
++                    .display()
++                    .to_string()
++                    .as_str()
++            )
+         );
+         let project_path = paths.next().expect("project agents path");
+         assert!(project_path.ends_with("project.md"));
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_cached_limits_hide_credits_without_flag.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_cached_limits_hide_credits_without_flag.snap
+index 38a82eb..5a4b4e4 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_cached_limits_hide_credits_without_flag.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_cached_limits_hide_credits_without_flag.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 2109
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+@@ -16,7 +17,7 @@ expression: sanitized
+ │  Agents.md:        <none>                                                   │
+ │                                                                             │
+ │  Token usage:      1.05K total  (700 input + 350 output)                    │
+-│  Context window:   100% left (1.45K used / 272K)                            │
++│  Context window:   99% left (1.45K used / 272K)                             │
+ │  5h limit:         [████████░░░░░░░░░░░░] 40% left (resets 11:32)           │
+ │  Weekly limit:     [█████████████░░░░░░░] 65% left (resets 11:52)           │
+ │  Warning:          limits may be stale - start new turn to refresh.         │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_credits_and_limits.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_credits_and_limits.snap
+index fac039e..08616e3 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_credits_and_limits.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_credits_and_limits.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1847
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+@@ -16,7 +17,7 @@ expression: sanitized
+ │  Agents.md:        <none>                                                   │
+ │                                                                             │
+ │  Token usage:      2K total  (1.4K input + 600 output)                      │
+-│  Context window:   100% left (2.2K used / 272K)                             │
++│  Context window:   99% left (2.2K used / 272K)                              │
+ │  5h limit:         [███████████░░░░░░░░░] 55% left (resets 09:25)           │
+ │  Weekly limit:     [██████████████░░░░░░] 70% left (resets 09:55)           │
+ │  Credits:          Available                                                │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_enterprise_monthly_credit_limit.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_enterprise_monthly_credit_limit.snap
+index fda4688..0f58a8f 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_enterprise_monthly_credit_limit.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_enterprise_monthly_credit_limit.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1110
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭───────────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                         │
++│  >_ OpenAI Codex (v0.145.0)                                                       │
+ │                                                                                   │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date                     │
+ │ information on rate limits and credits                                            │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_forked_from.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_forked_from.snap
+index e984581..c6c040c 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_forked_from.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_forked_from.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 980
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_monthly_limit.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_monthly_limit.snap
+index d652c92..219e3ab 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_monthly_limit.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_monthly_limit.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1045
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_reasoning_details.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_reasoning_details.snap
+index e493890..10656b7 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_reasoning_details.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_includes_reasoning_details.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 349
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭───────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                 │
++│  >_ OpenAI Codex (v0.145.0)                                               │
+ │                                                                           │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date             │
+ │ information on rate limits and credits                                    │
+@@ -16,7 +17,7 @@ expression: sanitized
+ │  Agents.md:        <none>                                                 │
+ │                                                                           │
+ │  Token usage:      1.9K total  (1K input + 900 output)                    │
+-│  Context window:   100% left (2.25K used / 272K)                          │
++│  Context window:   99% left (2.25K used / 272K)                           │
+ │  5h limit:         [██████░░░░░░░░░░░░░░] 28% left (resets 03:14)         │
+ │  Weekly limit:     [███████████░░░░░░░░░] 55% left (resets 03:24)         │
+ ╰───────────────────────────────────────────────────────────────────────────╯
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_active_user_defined_profile.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_active_user_defined_profile.snap
+index 465f76e..4fd81a6 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_active_user_defined_profile.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_active_user_defined_profile.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 725
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭───────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                             │
++│  >_ OpenAI Codex (v0.145.0)                                           │
+ │                                                                       │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date         │
+ │ information on rate limits and credits                                │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_auto_review_permissions.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_auto_review_permissions.snap
+index f7fcb32..2c42a88 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_auto_review_permissions.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_auto_review_permissions.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 880
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭───────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                             │
++│  >_ OpenAI Codex (v0.145.0)                                           │
+ │                                                                       │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date         │
+ │ information on rate limits and credits                                │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_chatgpt_plan_without_email.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_chatgpt_plan_without_email.snap
+index 989c50e..00665c1 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_chatgpt_plan_without_email.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_chatgpt_plan_without_email.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 410
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭──────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                │
++│  >_ OpenAI Codex (v0.145.0)                                              │
+ │                                                                          │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date            │
+ │ information on rate limits and credits                                   │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_missing_limits_message.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_missing_limits_message.snap
+index ca1e4de..8158ba9 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_missing_limits_message.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_missing_limits_message.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1569
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_refreshing_limits_notice.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_refreshing_limits_notice.snap
+index bb4c67c..0a869b9 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_refreshing_limits_notice.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_refreshing_limits_notice.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1692
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_stale_limits_message.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_stale_limits_message.snap
+index 2bb0f50..bb856ad 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_stale_limits_message.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_stale_limits_message.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 2036
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+@@ -16,7 +17,7 @@ expression: sanitized
+ │  Agents.md:        <none>                                                   │
+ │                                                                             │
+ │  Token usage:      1.9K total  (1K input + 900 output)                      │
+-│  Context window:   100% left (2.25K used / 272K)                            │
++│  Context window:   99% left (2.25K used / 272K)                             │
+ │  5h limit:         [██████░░░░░░░░░░░░░░] 28% left (resets 03:14)           │
+ │  Weekly limit:     [████████████░░░░░░░░] 60% left (resets 03:34)           │
+ │  Warning:          limits may be stale - start new turn to refresh.         │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_unavailable_limits_message.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_unavailable_limits_message.snap
+index 6b6a31d..06eea68 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_unavailable_limits_message.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_shows_unavailable_limits_message.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1907
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_treats_refreshing_empty_limits_as_unavailable.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_treats_refreshing_empty_limits_as_unavailable.snap
+index 6b6a31d..474d4e6 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_treats_refreshing_empty_limits_as_unavailable.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_treats_refreshing_empty_limits_as_unavailable.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1967
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_truncates_in_narrow_terminal.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_truncates_in_narrow_terminal.snap
+index cc0a621..4c986ad 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_truncates_in_narrow_terminal.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_truncates_in_narrow_terminal.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1521
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                          │
++│  >_ OpenAI Codex (v0.145.0)                                        │
+ │                                                                    │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date      │
+ │ information on rate limits and credits                             │
+@@ -16,6 +17,6 @@ expression: sanitized
+ │  Agents.md:        <none>                                          │
+ │                                                                    │
+ │  Token usage:      1.9K total  (1K input + 900 output)             │
+-│  Context window:   100% left (2.25K used / 272K)                   │
++│  Context window:   99% left (2.25K used / 272K)                    │
+ │  5h limit:         [██████░░░░░░░░░░░░░░] 28% left (resets 03:14)  │
+ ╰────────────────────────────────────────────────────────────────────╯
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_default_reasoning_when_config_empty.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_default_reasoning_when_config_empty.snap
+index db38f28..2f2ee10 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_default_reasoning_when_config_empty.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_default_reasoning_when_config_empty.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1625
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭─────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                   │
++│  >_ OpenAI Codex (v0.145.0)                                                 │
+ │                                                                             │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date               │
+ │ information on rate limits and credits                                      │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_generic_limit_labels_for_unsupported_windows.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_generic_limit_labels_for_unsupported_windows.snap
+index 75e94c3..c96311d 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_generic_limit_labels_for_unsupported_windows.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_uses_generic_limit_labels_for_unsupported_windows.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1191
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭──────────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                    │
++│  >_ OpenAI Codex (v0.145.0)                                                  │
+ │                                                                              │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date                │
+ │ information on rate limits and credits                                       │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_wraps_enterprise_monthly_credit_details_in_narrow_terminal.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_wraps_enterprise_monthly_credit_details_in_narrow_terminal.snap
+index 80e696c..4e537ec 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_wraps_enterprise_monthly_credit_details_in_narrow_terminal.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__status_snapshot_wraps_enterprise_monthly_credit_details_in_narrow_terminal.snap
+@@ -1,11 +1,12 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1119
+ expression: sanitized
+ ---
+ /status
+ 
+ ╭────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                  │
++│  >_ OpenAI Codex (v0.145.0)                │
+ │                                            │
+ │ Visit                                      │
+ │ https://chatgpt.com/codex/settings/usage   │
+diff --git a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__transcript_overlay_status_rate_limit_refresh.snap b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__transcript_overlay_status_rate_limit_refresh.snap
+index aa0dd05..90130a6 100644
+--- a/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__transcript_overlay_status_rate_limit_refresh.snap
++++ b/codex-rs/tui/src/status/snapshots/codex_tui__status__tests__transcript_overlay_status_rate_limit_refresh.snap
+@@ -1,5 +1,6 @@
+ ---
+ source: tui/src/status/tests.rs
++assertion_line: 1772
+ expression: "format!(\"before:\\n{before}\\n\\nafter:\\n{after}\")"
+ ---
+ before:
+@@ -7,7 +8,7 @@ before:
+ /status
+ 
+ ╭──────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                │
++│  >_ OpenAI Codex (v0.145.0)                                              │
+ │                                                                          │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date            │
+ │ information on rate limits and credits                                   │
+@@ -39,7 +40,7 @@ after:
+ /status
+ 
+ ╭───────────────────────────────────────────────────────────────────────────╮
+-│  >_ OpenAI Codex (v0.0.0)                                                 │
++│  >_ OpenAI Codex (v0.145.0)                                               │
+ │                                                                           │
+ │ Visit https://chatgpt.com/codex/settings/usage for up-to-date             │
+ │ information on rate limits and credits                                    │
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index d70f834..bef9b5b 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -50,6 +50,7 @@ use crate::terminal_hyperlinks::HyperlinkLine;
+ use crate::terminal_hyperlinks::plain_hyperlink_lines;
+ use crate::tui::event_stream::EventBroker;
+ use crate::tui::event_stream::TuiEventStream;
++use crate::tui::inline_layout::InlineLayout;
+ #[cfg(unix)]
+ use crate::tui::job_control::SuspendContext;
+ use codex_config::types::NotificationCondition;
+@@ -58,6 +59,7 @@ use codex_config::types::NotificationMethod;
+ mod event_stream;
+ mod frame_rate_limiter;
+ mod frame_requester;
++mod inline_layout;
+ #[cfg(unix)]
+ mod job_control;
+ mod keyboard_modes;
+@@ -907,49 +909,6 @@ impl Tui {
+         self.pending_history_lines.clear();
+     }
+ 
+-    /// Resize the inline viewport for the resize-reflow path.
+-    ///
+-    /// Unlike the legacy draw path, this path does not scroll rows above the viewport when the
+-    /// terminal shrinks. Resize reflow owns rebuilding those rows from transcript source, so
+-    /// scrolling here would move the viewport once and then replay history into the wrong row.
+-    fn update_inline_viewport_for_resize_reflow(
+-        terminal: &mut Terminal,
+-        height: u16,
+-    ) -> Result<bool> {
+-        let size = terminal.size()?;
+-        let terminal_height_shrank = size.height < terminal.last_known_screen_size.height;
+-        let terminal_height_grew = size.height > terminal.last_known_screen_size.height;
+-        let viewport_was_bottom_aligned =
+-            terminal.viewport_area.bottom() == terminal.last_known_screen_size.height;
+-        let previous_area = terminal.viewport_area;
+-
+-        let mut area = terminal.viewport_area;
+-        area.height = height.min(size.height);
+-        area.width = size.width;
+-        let mut needs_full_repaint = false;
+-
+-        if area.bottom() > size.height {
+-            let scroll_by = area.bottom() - size.height;
+-            if !terminal_height_shrank {
+-                terminal
+-                    .backend_mut()
+-                    .scroll_region_up(0..area.top(), scroll_by)?;
+-            }
+-            area.y = size.height - area.height;
+-        } else if terminal_height_grew && viewport_was_bottom_aligned {
+-            area.y = size.height - area.height;
+-        }
+-
+-        if area != terminal.viewport_area {
+-            let clear_position = Position::new(/*x*/ 0, previous_area.y.min(area.y));
+-            terminal.set_viewport_area(area);
+-            terminal.clear_after_position(clear_position)?;
+-            needs_full_repaint = true;
+-        }
+-
+-        Ok(needs_full_repaint)
+-    }
+-
+     /// Write any buffered history lines above the viewport and clear the buffer.
+     fn flush_pending_history_lines(
+         terminal: &mut Terminal,
+@@ -1134,13 +1093,16 @@ impl Tui {
+             }
+ 
+             let terminal = &mut self.terminal;
++            if !self.pending_history_lines.is_empty() {
++                inline_layout::update_viewport(terminal, height, InlineLayout::HistoryInsertion)?;
++                Self::flush_pending_history_lines(
++                    terminal,
++                    &mut self.pending_history_lines,
++                    self.is_zellij,
++                )?;
++            }
+             let needs_full_repaint =
+-                Self::update_inline_viewport_for_resize_reflow(terminal, height)?;
+-            Self::flush_pending_history_lines(
+-                terminal,
+-                &mut self.pending_history_lines,
+-                self.is_zellij,
+-            )?;
++                inline_layout::update_viewport(terminal, height, InlineLayout::Docked)?;
+ 
+             if needs_full_repaint {
+                 terminal.invalidate_viewport();
+diff --git a/codex-rs/tui/src/tui/inline_layout_tests.rs b/codex-rs/tui/src/tui/inline_layout_tests.rs
+new file mode 100644
+index 0000000..44c7038
+--- /dev/null
++++ b/codex-rs/tui/src/tui/inline_layout_tests.rs
+@@ -0,0 +1,105 @@
++use super::*;
++use crate::insert_history::insert_history_lines;
++use crate::test_backend::VT100Backend;
++use pretty_assertions::assert_eq;
++use ratatui::text::Line;
++
++#[test]
++fn startup_fills_available_rows_and_repeated_frames_do_not_repaint() {
++    let backend = VT100Backend::new(/*width*/ 80, /*height*/ 24);
++    let mut terminal =
++        Terminal::with_options_and_cursor_position(backend, Position::new(/*x*/ 0, /*y*/ 3))
++            .expect("terminal");
++
++    assert!(
++        update_viewport(
++            &mut terminal,
++            /*desired_height*/ 6,
++            InlineLayout::Docked
++        )
++        .expect("initial viewport")
++    );
++    assert_eq!(terminal.viewport_area, Rect::new(0, 3, 80, 21));
++    assert!(
++        !update_viewport(
++            &mut terminal,
++            /*desired_height*/ 6,
++            InlineLayout::Docked
++        )
++        .expect("unchanged viewport")
++    );
++}
++
++#[test]
++fn history_grows_from_top_and_docking_does_not_move_it() {
++    let backend = VT100Backend::new(/*width*/ 40, /*height*/ 18);
++    let mut terminal =
++        Terminal::with_options_and_cursor_position(backend, Position::new(/*x*/ 0, /*y*/ 0))
++            .expect("terminal");
++    update_viewport(
++        &mut terminal,
++        /*desired_height*/ 5,
++        InlineLayout::Docked,
++    )
++    .expect("initial docking");
++    for text in ["first history row", "second history row"] {
++        update_viewport(
++            &mut terminal,
++            /*desired_height*/ 5,
++            InlineLayout::HistoryInsertion,
++        )
++        .expect("insertion area");
++        insert_history_lines(&mut terminal, vec![Line::from(text)]).expect("insert history");
++        update_viewport(
++            &mut terminal,
++            /*desired_height*/ 5,
++            InlineLayout::Docked,
++        )
++        .expect("restore docking");
++    }
++
++    assert_eq!(terminal.viewport_area, Rect::new(0, 2, 40, 16));
++    let rows: Vec<_> = terminal
++        .backend()
++        .vt100()
++        .screen()
++        .rows(/*start*/ 0, /*width*/ 40)
++        .collect();
++    assert_eq!(&rows[..2], &["first history row", "second history row"]);
++    assert!(rows[2..].iter().all(|row| row.trim().is_empty()));
++}
++
++#[test]
++fn tall_composer_reserves_bottom_rows_without_losing_history_tail() {
++    let backend = VT100Backend::new(/*width*/ 40, /*height*/ 18);
++    let mut terminal =
++        Terminal::with_options_and_cursor_position(backend, Position::new(/*x*/ 0, /*y*/ 0))
++            .expect("terminal");
++    update_viewport(
++        &mut terminal,
++        /*desired_height*/ 5,
++        InlineLayout::HistoryInsertion,
++    )
++    .expect("insertion area");
++    insert_history_lines(
++        &mut terminal,
++        (1..=30)
++            .map(|index| Line::from(format!("history {index:02}")))
++            .collect(),
++    )
++    .expect("history overflow");
++    update_viewport(
++        &mut terminal,
++        /*desired_height*/ 9,
++        InlineLayout::Docked,
++    )
++    .expect("tall composer");
++    assert_eq!(terminal.viewport_area, Rect::new(0, 9, 40, 9));
++    let rows: Vec<_> = terminal
++        .backend()
++        .vt100()
++        .screen()
++        .rows(/*start*/ 0, /*width*/ 40)
++        .collect();
++    assert_eq!(rows[8], "history 30");
++}
+diff --git a/codex-rs/tui/src/tui/inline_layout.rs b/codex-rs/tui/src/tui/inline_layout.rs
+new file mode 100644
+index 0000000..9b5d34f
+--- /dev/null
++++ b/codex-rs/tui/src/tui/inline_layout.rs
+@@ -0,0 +1,52 @@
++//! Inline history keeps its native scrollback; only the live viewport fills the remaining screen.
++//!
++//! History insertion briefly uses the widget's minimum height so finalized rows can consume spare
++//! space below the transcript. Before painting, expand that same viewport to the terminal bottom.
++//! Ordinary redraws keep the expanded viewport unchanged, preserving incremental rendering.
++
++use std::io;
++use std::io::Write;
++
++use ratatui::backend::Backend;
++use ratatui::layout::Position;
++use ratatui::layout::Rect;
++
++use crate::custom_terminal::Terminal;
++
++pub(super) enum InlineLayout {
++    HistoryInsertion,
++    Docked,
++}
++
++pub(super) fn update_viewport<B: Backend + Write>(
++    terminal: &mut Terminal<B>,
++    desired_height: u16,
++    layout: InlineLayout,
++) -> io::Result<bool> {
++    let size = terminal.size()?;
++    let previous = terminal.viewport_area;
++    let minimum_height = desired_height.min(size.height);
++    let y = previous.y.min(size.height.saturating_sub(minimum_height));
++    let height = match layout {
++        InlineLayout::HistoryInsertion => minimum_height,
++        InlineLayout::Docked => size.height.saturating_sub(y),
++    };
++    let area = Rect::new(previous.x, y, size.width, height);
++    if area == previous {
++        return Ok(false);
++    }
++
++    // Resize reflow rebuilds rows after a terminal shrink; only widget growth moves history here.
++    if y < previous.y && size.height >= terminal.last_known_screen_size.height {
++        terminal
++            .backend_mut()
++            .scroll_region_up(0..previous.y, previous.y - y)?;
++    }
++    terminal.set_viewport_area(area);
++    terminal.clear_after_position(Position::new(/*x*/ 0, previous.y.min(y)))?;
++    Ok(true)
++}
++
++#[cfg(test)]
++#[path = "inline_layout_tests.rs"]
++mod tests;

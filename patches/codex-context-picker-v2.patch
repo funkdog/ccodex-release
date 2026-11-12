@@ -1,0 +1,1786 @@
+diff --git a/codex-rs/tui/src/app_event.rs b/codex-rs/tui/src/app_event.rs
+index 86b95b0..b9b9b0b 100644
+--- a/codex-rs/tui/src/app_event.rs
++++ b/codex-rs/tui/src/app_event.rs
+@@ -174,6 +174,26 @@ pub(crate) enum KeymapEditIntent {
+     ReplaceOne { old_key: String },
+ }
+ 
++/// A context tier chosen while moving through the model picker.
++///
++/// The catalog exposes user-facing total-window labels separately from the
++/// raw input limits used by the running thread, so both values travel with the
++/// pending selection until the reasoning step is accepted.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub(crate) struct ModelContextSelection {
++    pub(crate) service_tier: Option<String>,
++    pub(crate) model_context_window: Option<i64>,
++    pub(crate) effective_context_window: Option<i64>,
++    pub(crate) label: String,
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub(crate) enum ModelSelectionTarget {
++    Global,
++    PlanOnly,
++    GlobalAndPlan,
++}
++
+ #[allow(clippy::large_enum_variant)]
+ #[derive(Debug)]
+ pub(crate) enum AppEvent {
+@@ -760,12 +780,6 @@ pub(crate) enum AppEvent {
+     /// Update the current model slug in the running app and widget.
+     UpdateModel(String),
+ 
+-    /// Update the model context window for the running thread only.
+-    UpdateModelContextWindow {
+-        model_context_window: i64,
+-        effective_context_window: i64,
+-    },
+-
+     /// Apply a selection published by another CodexCopilot surface.
+     ApplyExternalModelSelection {
+         generation: String,
+@@ -798,14 +812,36 @@ pub(crate) enum AppEvent {
+         service_tier: Option<String>,
+     },
+ 
+-    /// Open the reasoning selection popup after picking a model.
+-    OpenReasoningPopup {
++    /// Open the context-window picker after selecting a model.
++    OpenContextWindowPopup {
+         model: ModelPreset,
+     },
+ 
+-    /// Open the session-only context window picker for a model.
+-    OpenContextWindowPopup {
++    /// Open reasoning after a context tier has been selected.
++    OpenReasoningPopupWithContext {
+         model: ModelPreset,
++        context: ModelContextSelection,
++    },
++
++    /// Open advanced reasoning while preserving a pending context selection.
++    OpenAdvancedReasoningPopupWithContext {
++        model: ModelPreset,
++        context: ModelContextSelection,
++    },
++
++    /// Open the Plan-mode scope prompt while preserving a pending context selection.
++    OpenPlanReasoningScopePromptWithContext {
++        model: String,
++        effort: Option<ReasoningEffort>,
++        context: ModelContextSelection,
++    },
++
++    /// Atomically apply and persist a completed Model -> Context -> Effort selection.
++    ApplyModelContextSelection {
++        model: String,
++        effort: Option<ReasoningEffort>,
++        context: ModelContextSelection,
++        target: ModelSelectionTarget,
+     },
+ 
+     /// Open the explicit Max/Ultra reasoning selection popup for a model.
+diff --git a/codex-rs/tui/src/app/config_persistence.rs b/codex-rs/tui/src/app/config_persistence.rs
+index cea0ee7..53036a4 100644
+--- a/codex-rs/tui/src/app/config_persistence.rs
++++ b/codex-rs/tui/src/app/config_persistence.rs
+@@ -778,6 +778,113 @@ impl App {
+         }
+     }
+ 
++    pub(super) async fn apply_model_context_selection(
++        &mut self,
++        app_server: &mut AppServerSession,
++        model: String,
++        effort: Option<ReasoningEffortConfig>,
++        context: crate::app_event::ModelContextSelection,
++        target: crate::app_event::ModelSelectionTarget,
++    ) {
++        use crate::app_event::ModelSelectionTarget;
++
++        self.chat_widget.set_model(&model);
++        self.config.service_tier = context.service_tier.clone();
++        self.chat_widget
++            .set_service_tier(context.service_tier.clone());
++        self.config.model_context_window = context.model_context_window;
++        self.chat_widget.set_model_context_window_selection(
++            context.model_context_window,
++            context.effective_context_window,
++        );
++
++        let is_ultra =
++            target == ModelSelectionTarget::Global && effort == Some(ReasoningEffortConfig::Ultra);
++        let persisted_effort = match target {
++            ModelSelectionTarget::Global if is_ultra => {
++                self.on_apply_advanced_reasoning(model.as_str(), ReasoningEffortConfig::Ultra)
++            }
++            ModelSelectionTarget::Global => {
++                self.config.model = Some(model.clone());
++                self.on_update_reasoning_effort(effort.clone());
++                effort.clone()
++            }
++            ModelSelectionTarget::PlanOnly => {
++                self.on_update_plan_mode_reasoning_effort(effort.clone());
++                effort.clone()
++            }
++            ModelSelectionTarget::GlobalAndPlan => {
++                self.config.model = Some(model.clone());
++                self.on_update_reasoning_effort(effort.clone());
++                self.on_update_plan_mode_reasoning_effort(effort.clone());
++                effort.clone()
++            }
++        };
++
++        let mut params = if target == ModelSelectionTarget::Global && !is_ultra {
++            self.active_thread_reasoning_setting_update_params(effort.clone())
++        } else {
++            self.active_thread_model_setting_update_params(model.clone())
++        };
++        if let Some(params) = params.as_mut() {
++            params.model = Some(model.clone());
++            params.model_context_window = context.model_context_window;
++            params.service_tier = Some(context.service_tier.clone());
++            if target != ModelSelectionTarget::PlanOnly {
++                params.effort = effort.clone();
++            }
++        }
++        if let Some(params) = params {
++            self.send_thread_settings_update(app_server, params).await;
++        }
++        self.sync_active_thread_service_tier_to_cached_session()
++            .await;
++
++        let mut edits = Vec::new();
++        if target != ModelSelectionTarget::PlanOnly {
++            edits.extend(crate::config_update::build_model_selection_edits(
++                model.as_str(),
++                persisted_effort.as_ref(),
++            ));
++        }
++        if matches!(
++            target,
++            ModelSelectionTarget::PlanOnly | ModelSelectionTarget::GlobalAndPlan
++        ) {
++            let key_path = "plan_mode_reasoning_effort";
++            edits.push(if let Some(effort) = effort.as_ref() {
++                crate::config_update::replace_config_value(
++                    key_path,
++                    serde_json::json!(effort.to_string()),
++                )
++            } else {
++                crate::config_update::clear_config_value(key_path)
++            });
++        }
++        edits.extend(crate::config_update::build_service_tier_selection_edits(
++            context.service_tier.as_deref(),
++        ));
++
++        if let Err(err) =
++            crate::config_update::write_config_batch(app_server.request_handle(), edits).await
++        {
++            let error = crate::config_update::format_config_error(&err);
++            tracing::error!(error = %error, "failed to persist model context selection");
++            self.chat_widget
++                .add_error_message(format!("Failed to save model selection: {error}"));
++            return;
++        }
++
++        let reasoning = Self::reasoning_label(effort.as_ref());
++        self.chat_widget.add_info_message(
++            format!(
++                "Model changed to {model} with {} context and {reasoning} reasoning",
++                context.label
++            ),
++            /*hint*/ None,
++        );
++    }
++
+     pub(super) fn on_update_plan_mode_reasoning_effort(
+         &mut self,
+         effort: Option<ReasoningEffortConfig>,
+diff --git a/codex-rs/tui/src/app/event_dispatch.rs b/codex-rs/tui/src/app/event_dispatch.rs
+index ac8ffbb..6c2108d 100644
+--- a/codex-rs/tui/src/app/event_dispatch.rs
++++ b/codex-rs/tui/src/app/event_dispatch.rs
+@@ -9,7 +9,6 @@ use super::*;
+ use crate::app_server_session::ForkGoalContinuation;
+ use crate::config_update::format_config_error;
+ use crate::external_agent_config_migration_flow::ExternalAgentConfigMigrationFlowOutcome;
+-use crate::status::format_tokens_compact;
+ #[cfg(target_os = "windows")]
+ use codex_config::types::WindowsSandboxModeToml;
+ 
+@@ -1080,25 +1079,6 @@ impl App {
+                 self.sync_active_thread_service_tier_to_cached_session()
+                     .await;
+             }
+-            AppEvent::UpdateModelContextWindow {
+-                model_context_window,
+-                effective_context_window,
+-            } => {
+-                self.chat_widget
+-                    .set_model_context_window(model_context_window, effective_context_window);
+-                self.sync_active_thread_model_context_window_setting(
+-                    app_server,
+-                    model_context_window,
+-                )
+-                .await;
+-                self.chat_widget.add_info_message(
+-                    format!(
+-                        "Context window changed to {} for this session",
+-                        format_tokens_compact(model_context_window)
+-                    ),
+-                    /*hint*/ None,
+-                );
+-            }
+             AppEvent::ApplyExternalModelSelection {
+                 generation,
+                 model,
+@@ -1161,12 +1141,34 @@ impl App {
+                     self.chat_widget.maybe_send_next_queued_input();
+                 }
+             }
+-            AppEvent::OpenReasoningPopup { model } => {
+-                self.chat_widget.open_reasoning_popup(model);
+-            }
+             AppEvent::OpenContextWindowPopup { model } => {
+                 self.chat_widget.open_context_window_popup(model);
+             }
++            AppEvent::OpenReasoningPopupWithContext { model, context } => {
++                self.chat_widget
++                    .open_reasoning_popup_with_context(model, context);
++            }
++            AppEvent::OpenAdvancedReasoningPopupWithContext { model, context } => {
++                self.chat_widget
++                    .open_advanced_reasoning_popup_with_context(model, context);
++            }
++            AppEvent::OpenPlanReasoningScopePromptWithContext {
++                model,
++                effort,
++                context,
++            } => {
++                self.chat_widget
++                    .open_plan_reasoning_scope_prompt_with_context(model, effort, context);
++            }
++            AppEvent::ApplyModelContextSelection {
++                model,
++                effort,
++                context,
++                target,
++            } => {
++                self.apply_model_context_selection(app_server, model, effort, context, target)
++                    .await;
++            }
+             AppEvent::OpenAdvancedReasoningPopup { model } => {
+                 self.chat_widget.open_advanced_reasoning_popup(model);
+             }
+@@ -1806,8 +1808,8 @@ impl App {
+                 }
+             }
+             AppEvent::PersistServiceTierSelection { service_tier } => {
+-                self.refresh_status_line();
+                 self.config.service_tier = service_tier.clone();
++                self.chat_widget.set_service_tier(service_tier.clone());
+                 self.sync_active_thread_service_tier_to_cached_session()
+                     .await;
+                 let edits = crate::config_update::build_service_tier_selection_edits(
+diff --git a/codex-rs/tui/src/app/tests.rs b/codex-rs/tui/src/app/tests.rs
+index f4f2bd2..d55935f 100644
+--- a/codex-rs/tui/src/app/tests.rs
++++ b/codex-rs/tui/src/app/tests.rs
+@@ -7036,6 +7036,73 @@ async fn override_turn_context_sends_thread_settings_update() {
+     .await;
+ }
+ 
++#[tokio::test]
++async fn model_context_selection_sends_one_complete_thread_settings_update() -> Result<()> {
++    let mut app = make_test_app().await;
++    let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(
++        app.chat_widget.config_ref(),
++    ))
++    .await?;
++    let started = app_server
++        .start_thread(app.chat_widget.config_ref())
++        .await?;
++    let thread_id = started.session.thread_id;
++    app.enqueue_primary_thread_session(started.session, started.turns)
++        .await?;
++    let mut tui = crate::tui::test_support::make_test_tui()?;
++    let context = crate::app_event::ModelContextSelection {
++        service_tier: Some("context-long".to_string()),
++        model_context_window: Some(922_000),
++        effective_context_window: Some(875_900),
++        label: "1.1M".to_string(),
++    };
++
++    let control = Box::pin(app.handle_event(
++        &mut tui,
++        &mut app_server,
++        AppEvent::ApplyModelContextSelection {
++            model: "gpt-5.4".to_string(),
++            effort: Some(ReasoningEffortConfig::High),
++            context: context.clone(),
++            target: crate::app_event::ModelSelectionTarget::Global,
++        },
++    ))
++    .await?;
++
++    assert!(matches!(control, AppRunControl::Continue));
++    assert_eq!(app.chat_widget.current_model(), "gpt-5.4");
++    assert_eq!(
++        app.chat_widget.current_reasoning_effort(),
++        Some(ReasoningEffortConfig::High)
++    );
++    assert_eq!(
++        app.chat_widget.config_ref().model_context_window,
++        context.model_context_window
++    );
++    assert_eq!(
++        app.chat_widget.configured_service_tier().as_deref(),
++        Some("context-long")
++    );
++
++    let notification = next_thread_settings_updated(&mut app_server, thread_id).await;
++    assert_eq!(notification.thread_settings.model, "gpt-5.4");
++    assert_eq!(
++        notification.thread_settings.model_context_window,
++        Some(922_000)
++    );
++    assert_eq!(
++        notification.thread_settings.service_tier.as_deref(),
++        Some("context-long")
++    );
++    assert_eq!(
++        notification.thread_settings.effort,
++        Some(ReasoningEffortConfig::High)
++    );
++    app_server.shutdown().await?;
++
++    Ok(())
++}
++
+ #[tokio::test]
+ async fn thread_setting_update_params_sync_model_and_default_reasoning() {
+     let mut app = make_test_app().await;
+diff --git a/codex-rs/tui/src/app/thread_settings.rs b/codex-rs/tui/src/app/thread_settings.rs
+index 971f0c2..c03ebd6 100644
+--- a/codex-rs/tui/src/app/thread_settings.rs
++++ b/codex-rs/tui/src/app/thread_settings.rs
+@@ -47,22 +47,6 @@ impl App {
+         self.send_thread_settings_update(app_server, params).await;
+     }
+ 
+-    pub(super) async fn sync_active_thread_model_context_window_setting(
+-        &mut self,
+-        app_server: &mut AppServerSession,
+-        model_context_window: i64,
+-    ) {
+-        let Some(thread_id) = self.active_thread_id else {
+-            return;
+-        };
+-        let params = ThreadSettingsUpdateParams {
+-            thread_id: thread_id.to_string(),
+-            model_context_window: Some(model_context_window),
+-            ..ThreadSettingsUpdateParams::default()
+-        };
+-        self.send_thread_settings_update(app_server, params).await;
+-    }
+-
+     pub(super) fn active_thread_reasoning_setting_update_params(
+         &self,
+         effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index 62049da..a88e619 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -44,6 +44,8 @@ use std::time::Instant;
+ use crate::app::app_server_requests::ResolvedAppServerRequest;
+ use crate::app_command::AppCommand;
+ use crate::app_event::HistoryLookupResponse;
++use crate::app_event::ModelContextSelection;
++use crate::app_event::ModelSelectionTarget;
+ use crate::app_server_approval_conversions::file_update_changes_to_display;
+ use crate::approval_events::ApplyPatchApprovalRequestEvent;
+ use crate::approval_events::ExecApprovalRequestEvent;
+diff --git a/codex-rs/tui/src/chatwidget/context_window_popup.rs b/codex-rs/tui/src/chatwidget/context_window_popup.rs
+index 3a1db05..e8b5983 100644
+--- a/codex-rs/tui/src/chatwidget/context_window_popup.rs
++++ b/codex-rs/tui/src/chatwidget/context_window_popup.rs
+@@ -1,141 +1,194 @@
+-//! Session-only model context window selection.
++//! Context-tier selection used by the model picker.
+ 
+ use super::*;
++use crate::service_tier_resolution::LOCAL_CONTEXT_SERVICE_TIER;
+ 
+-const COMPACT_CONTEXT_WINDOW: i64 = 64_000;
+-const STANDARD_CONTEXT_WINDOW: i64 = 128_000;
++struct ModelContextChoices {
++    default: ModelContextSelection,
++    long: ModelContextSelection,
++}
+ 
+ impl ChatWidget {
+-    pub(super) fn context_window_selection_item(
+-        &self,
+-        preset: &ModelPreset,
+-    ) -> Option<SelectionItem> {
+-        let full_context_window = preset.max_context_window.or(preset.context_window)?;
+-        if full_context_window <= 0 {
+-            return None;
+-        }
+-        let current_context_window = self
+-            .config
+-            .model_context_window
+-            .or(preset.context_window)
+-            .unwrap_or(full_context_window)
+-            .min(full_context_window);
+-        let effective_context_window = effective_context_window(
+-            current_context_window,
+-            preset.effective_context_window_percent,
+-        );
+-        let preset_for_action = preset.clone();
+-        let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+-            tx.send(AppEvent::OpenContextWindowPopup {
+-                model: preset_for_action.clone(),
+-            });
+-        })];
+-
+-        Some(SelectionItem {
+-            name: "Context window".to_string(),
+-            description: Some(format!(
+-                "Choose a session-only context size (current: {} raw, {} usable)",
+-                format_tokens_compact(current_context_window),
+-                format_tokens_compact(effective_context_window),
+-            )),
+-            actions,
+-            dismiss_on_select: true,
+-            ..Default::default()
+-        })
++    pub(super) fn has_context_window_choices(&self, preset: &ModelPreset) -> bool {
++        model_context_choices(preset).is_some()
+     }
+ 
+     pub(crate) fn open_context_window_popup(&mut self, preset: ModelPreset) {
+-        let Some(full_context_window) = preset.max_context_window.or(preset.context_window) else {
+-            self.add_info_message(
+-                "Context window metadata is unavailable for this model.".to_string(),
+-                /*hint*/ None,
+-            );
++        let Some(choices) = model_context_choices(&preset) else {
++            let context = default_context_selection(&preset);
++            self.app_event_tx
++                .send(AppEvent::OpenReasoningPopupWithContext {
++                    model: preset,
++                    context,
++                });
+             return;
+         };
+-        if full_context_window <= 0 {
+-            self.add_info_message(
+-                "Context window metadata is unavailable for this model.".to_string(),
+-                /*hint*/ None,
+-            );
+-            return;
+-        }
+ 
+-        let current_context_window = self
+-            .config
+-            .model_context_window
+-            .or(preset.context_window)
+-            .unwrap_or(full_context_window)
+-            .min(full_context_window);
+-        let percent = preset.effective_context_window_percent;
+-        let choices = [
+-            ("64K", COMPACT_CONTEXT_WINDOW),
+-            ("128K", STANDARD_CONTEXT_WINDOW),
+-            ("Full", full_context_window),
++        let is_current_model = self.current_model() == preset.model.as_str();
++        let current_is_long =
++            is_current_model && self.current_service_tier() == Some(LOCAL_CONTEXT_SERVICE_TIER);
++        let default_actions = self.context_choice_actions(&preset, choices.default.clone());
++        let long_actions = self.context_choice_actions(&preset, choices.long.clone());
++        let reasoning_popup_required = Self::reasoning_popup_required(&preset);
++        let items = vec![
++            SelectionItem {
++                name: choices.default.label.clone(),
++                description: Some("Standard context window".to_string()),
++                is_current: is_current_model && !current_is_long,
++                is_default: true,
++                actions: default_actions,
++                dismiss_on_select: !reasoning_popup_required,
++                dismiss_parent_on_child_accept: reasoning_popup_required,
++                ..Default::default()
++            },
++            SelectionItem {
++                name: choices.long.label,
++                description: Some("Extended context window".to_string()),
++                is_current: current_is_long,
++                actions: long_actions,
++                dismiss_on_select: !reasoning_popup_required,
++                dismiss_parent_on_child_accept: reasoning_popup_required,
++                ..Default::default()
++            },
+         ];
+-        let items = choices
+-            .into_iter()
+-            .map(|(name, model_context_window)| {
+-                let model_context_window = model_context_window.min(full_context_window);
+-                let effective_context_window =
+-                    effective_context_window(model_context_window, percent);
+-                let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+-                    tx.send(AppEvent::UpdateModelContextWindow {
+-                        model_context_window,
+-                        effective_context_window,
+-                    });
+-                })];
+-                let description = if name == "Full" {
+-                    format!(
+-                        "{} raw, {} usable at {}%",
+-                        format_tokens_compact(model_context_window),
+-                        format_tokens_compact(effective_context_window),
+-                        percent.clamp(0, 100),
+-                    )
+-                } else {
+-                    format!(
+-                        "{} usable at {}%",
+-                        format_tokens_compact(effective_context_window),
+-                        percent.clamp(0, 100),
+-                    )
+-                };
+-                SelectionItem {
+-                    name: name.to_string(),
+-                    description: Some(description),
+-                    is_current: model_context_window == current_context_window,
+-                    actions,
+-                    dismiss_on_select: true,
+-                    ..Default::default()
+-                }
+-            })
+-            .collect();
+ 
+         self.bottom_pane.show_selection_view(SelectionViewParams {
+-            title: Some("Select Context Window".to_string()),
+-            subtitle: Some(
+-                "Applies to this session only; config.toml remains unchanged.".to_string(),
+-            ),
++            title: Some(format!("Select Context Window for {}", preset.model)),
++            subtitle: Some("Choose the context capacity for this model.".to_string()),
+             footer_hint: Some(standard_popup_hint_line()),
+             items,
+             ..Default::default()
+         });
+     }
+ 
++    fn context_choice_actions(
++        &self,
++        preset: &ModelPreset,
++        context: ModelContextSelection,
++    ) -> Vec<SelectionAction> {
++        if let Some(effort) = Self::single_standard_reasoning_effort(preset) {
++            let should_prompt_plan_mode_scope = self.should_prompt_plan_mode_reasoning_scope(
++                preset.model.as_str(),
++                Some(effort.clone()),
++            );
++            return self.model_selection_actions(
++                preset.model.clone(),
++                Some(effort),
++                should_prompt_plan_mode_scope,
++                Some(context),
++            );
++        }
++
++        let model = preset.clone();
++        vec![Box::new(move |tx| {
++            tx.send(AppEvent::OpenReasoningPopupWithContext {
++                model: model.clone(),
++                context: context.clone(),
++            });
++        })]
++    }
++
+     pub(crate) fn set_model_context_window(
+         &mut self,
+         model_context_window: i64,
+         effective_context_window: i64,
+     ) {
+-        self.config.model_context_window = Some(model_context_window);
++        self.set_model_context_window_selection(
++            Some(model_context_window),
++            Some(effective_context_window),
++        );
++    }
++
++    pub(crate) fn set_model_context_window_selection(
++        &mut self,
++        model_context_window: Option<i64>,
++        effective_context_window: Option<i64>,
++    ) {
++        self.config.model_context_window = model_context_window;
++        if effective_context_window.is_none() && self.token_info.is_none() {
++            return;
++        }
+         let mut token_info = self.token_info.clone().unwrap_or(TokenUsageInfo {
+             total_token_usage: TokenUsage::default(),
+             last_token_usage: TokenUsage::default(),
+-            model_context_window: Some(effective_context_window),
++            model_context_window: effective_context_window,
+         });
+-        token_info.model_context_window = Some(effective_context_window);
++        token_info.model_context_window = effective_context_window;
+         self.apply_token_info(token_info);
+     }
+ }
+ 
++fn model_context_choices(preset: &ModelPreset) -> Option<ModelContextChoices> {
++    let tier = preset
++        .service_tiers
++        .iter()
++        .find(|tier| tier.id == LOCAL_CONTEXT_SERVICE_TIER)?;
++    let default_window = positive_window(preset.context_window)?;
++    let long_window = positive_window(preset.max_context_window)?;
++    if long_window <= default_window
++        || tier.description.trim().is_empty()
++        || tier.name.trim().is_empty()
++    {
++        return None;
++    }
++
++    Some(ModelContextChoices {
++        default: context_selection(
++            /*service_tier*/ None,
++            default_window,
++            preset.effective_context_window_percent,
++            tier.description.trim().to_string(),
++        ),
++        long: context_selection(
++            Some(LOCAL_CONTEXT_SERVICE_TIER.to_string()),
++            long_window,
++            preset.effective_context_window_percent,
++            tier.name.trim().to_string(),
++        ),
++    })
++}
++
++pub(super) fn default_context_selection(preset: &ModelPreset) -> ModelContextSelection {
++    let model_context_window = positive_window(preset.context_window)
++        .or_else(|| positive_window(preset.max_context_window));
++    let effective_context_window = model_context_window
++        .map(|window| effective_context_window(window, preset.effective_context_window_percent));
++    let label = preset
++        .service_tiers
++        .iter()
++        .find(|tier| tier.id == LOCAL_CONTEXT_SERVICE_TIER)
++        .map(|tier| tier.description.trim())
++        .filter(|label| !label.is_empty())
++        .map(str::to_string)
++        .or_else(|| model_context_window.map(format_tokens_compact))
++        .unwrap_or_else(|| "default".to_string());
++
++    ModelContextSelection {
++        service_tier: None,
++        model_context_window,
++        effective_context_window,
++        label,
++    }
++}
++
++fn context_selection(
++    service_tier: Option<String>,
++    model_context_window: i64,
++    percent: i64,
++    label: String,
++) -> ModelContextSelection {
++    ModelContextSelection {
++        service_tier,
++        model_context_window: Some(model_context_window),
++        effective_context_window: Some(effective_context_window(model_context_window, percent)),
++        label,
++    }
++}
++
++fn positive_window(window: Option<i64>) -> Option<i64> {
++    window.filter(|window| *window > 0)
++}
++
+ pub(crate) fn effective_context_window(context_window: i64, percent: i64) -> i64 {
+     context_window.saturating_mul(percent.clamp(0, 100)) / 100
+ }
+diff --git a/codex-rs/tui/src/chatwidget/model_popups.rs b/codex-rs/tui/src/chatwidget/model_popups.rs
+index 2d95fb1..aace983 100644
+--- a/codex-rs/tui/src/chatwidget/model_popups.rs
++++ b/codex-rs/tui/src/chatwidget/model_popups.rs
+@@ -79,10 +79,6 @@ impl ChatWidget {
+             .collect();
+ 
+         let current_model = self.current_model();
+-        let current_preset = presets
+-            .iter()
+-            .find(|preset| preset.model.as_str() == current_model)
+-            .cloned();
+         let current_label = presets
+             .iter()
+             .find(|preset| preset.model.as_str() == current_model)
+@@ -105,39 +101,15 @@ impl ChatWidget {
+                 let description =
+                     (!preset.description.is_empty()).then_some(preset.description.clone());
+                 let model = preset.model.clone();
+-                let requires_advanced_selection =
+-                    Self::is_advanced_reasoning_effort(&preset.default_reasoning_effort)
+-                        || preset
+-                            .supported_reasoning_efforts
+-                            .iter()
+-                            .any(|option| Self::is_advanced_reasoning_effort(&option.effort));
+-                let actions: Vec<SelectionAction> = if requires_advanced_selection {
+-                    let preset_for_action = preset.clone();
+-                    vec![Box::new(move |tx| {
+-                        tx.send(AppEvent::OpenReasoningPopup {
+-                            model: preset_for_action.clone(),
+-                        });
+-                    })]
+-                } else {
+-                    let should_prompt_plan_mode_scope = self
+-                        .should_prompt_plan_mode_reasoning_scope(
+-                            model.as_str(),
+-                            Some(preset.default_reasoning_effort.clone()),
+-                        );
+-                    self.model_selection_actions(
+-                        model.clone(),
+-                        Some(preset.default_reasoning_effort.clone()),
+-                        should_prompt_plan_mode_scope,
+-                    )
+-                };
++                let (actions, opens_child) = self.model_picker_actions(&preset);
+                 SelectionItem {
+                     name: model.clone(),
+                     description,
+                     is_current: model.as_str() == current_model,
+                     is_default: preset.is_default,
+                     actions,
+-                    dismiss_on_select: !requires_advanced_selection,
+-                    dismiss_parent_on_child_accept: requires_advanced_selection,
++                    dismiss_on_select: !opens_child,
++                    dismiss_parent_on_child_accept: opens_child,
+                     ..Default::default()
+                 }
+             })
+@@ -153,7 +125,7 @@ impl ChatWidget {
+ 
+             let is_current = !items.iter().any(|item| item.is_current);
+             let description = Some(format!(
+-                "Choose a specific model and reasoning level (current: {current_label})"
++                "Choose a model, context window, and reasoning level (current: {current_label})"
+             ));
+ 
+             items.push(SelectionItem {
+@@ -166,16 +138,9 @@ impl ChatWidget {
+             });
+         }
+ 
+-        if let Some(context_item) = current_preset
+-            .as_ref()
+-            .and_then(|preset| self.context_window_selection_item(preset))
+-        {
+-            items.push(context_item);
+-        }
+-
+         let header = self.model_menu_header(
+             "Select Model",
+-            "Pick a quick auto mode or browse all models.",
++            "Pick a quick auto mode or browse all models, then choose context and effort.",
+         );
+         self.bottom_pane.show_selection_view(SelectionViewParams {
+             footer_hint: Some(standard_popup_hint_line()),
+@@ -209,40 +174,26 @@ impl ChatWidget {
+             return;
+         }
+ 
+-        let context_item = presets
+-            .iter()
+-            .find(|preset| preset.model.as_str() == self.current_model())
+-            .and_then(|preset| self.context_window_selection_item(preset));
+         let mut items: Vec<SelectionItem> = Vec::new();
+         for preset in presets.into_iter() {
+             let description =
+                 (!preset.description.is_empty()).then_some(preset.description.to_string());
+             let is_current = preset.model.as_str() == self.current_model();
+-            let single_supported_effort = preset.supported_reasoning_efforts.len() == 1;
+-            let preset_for_action = preset.clone();
+-            let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+-                let preset_for_event = preset_for_action.clone();
+-                tx.send(AppEvent::OpenReasoningPopup {
+-                    model: preset_for_event,
+-                });
+-            })];
++            let (actions, opens_child) = self.model_picker_actions(&preset);
+             items.push(SelectionItem {
+                 name: preset.model.clone(),
+                 description,
+                 is_current,
+                 is_default: preset.is_default,
+                 actions,
+-                dismiss_on_select: single_supported_effort,
+-                dismiss_parent_on_child_accept: !single_supported_effort,
++                dismiss_on_select: !opens_child,
++                dismiss_parent_on_child_accept: opens_child,
+                 ..Default::default()
+             });
+         }
+-        if let Some(context_item) = context_item {
+-            items.push(context_item);
+-        }
+ 
+         let header = self.model_menu_header(
+-            "Select Model and Effort",
++            "Select Model",
+             "Access legacy models by running codex -m <model_name> or in your config.toml",
+         );
+         self.bottom_pane.show_selection_view(SelectionViewParams {
+@@ -255,17 +206,69 @@ impl ChatWidget {
+         });
+     }
+ 
+-    fn model_selection_actions(
++    fn model_picker_actions(&self, preset: &ModelPreset) -> (Vec<SelectionAction>, bool) {
++        let has_context_choices = self.has_context_window_choices(preset);
++        if !has_context_choices && let Some(effort) = Self::single_standard_reasoning_effort(preset)
++        {
++            let should_prompt_plan_mode_scope = self.should_prompt_plan_mode_reasoning_scope(
++                preset.model.as_str(),
++                Some(effort.clone()),
++            );
++            let context = super::context_window_popup::default_context_selection(preset);
++            return (
++                self.model_selection_actions(
++                    preset.model.clone(),
++                    Some(effort),
++                    should_prompt_plan_mode_scope,
++                    Some(context),
++                ),
++                false,
++            );
++        }
++
++        let preset_for_action = preset.clone();
++        let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
++            tx.send(AppEvent::OpenContextWindowPopup {
++                model: preset_for_action.clone(),
++            });
++        })];
++        (actions, true)
++    }
++
++    pub(super) fn model_selection_actions(
+         &self,
+         model_for_action: String,
+         effort_for_action: Option<ReasoningEffortConfig>,
+         should_prompt_plan_mode_scope: bool,
++        context_for_action: Option<ModelContextSelection>,
+     ) -> Vec<SelectionAction> {
+         let warning = effort_for_action
+             .as_ref()
+             .and_then(|effort| self.ultra_reasoning_concurrency_warning(effort));
+         vec![Box::new(move |tx| {
+-            if effort_for_action == Some(ReasoningEffortConfig::Ultra) {
++            if let Some(context) = context_for_action.clone() {
++                if effort_for_action == Some(ReasoningEffortConfig::Ultra) {
++                    tx.send(AppEvent::ApplyModelContextSelection {
++                        model: model_for_action.clone(),
++                        effort: effort_for_action.clone(),
++                        context,
++                        target: ModelSelectionTarget::Global,
++                    });
++                } else if should_prompt_plan_mode_scope {
++                    tx.send(AppEvent::OpenPlanReasoningScopePromptWithContext {
++                        model: model_for_action.clone(),
++                        effort: effort_for_action.clone(),
++                        context,
++                    });
++                } else {
++                    tx.send(AppEvent::ApplyModelContextSelection {
++                        model: model_for_action.clone(),
++                        effort: effort_for_action.clone(),
++                        context,
++                        target: ModelSelectionTarget::Global,
++                    });
++                }
++            } else if effort_for_action == Some(ReasoningEffortConfig::Ultra) {
+                 tx.send(AppEvent::ApplyAdvancedReasoning {
+                     model: model_for_action.clone(),
+                     effort: ReasoningEffortConfig::Ultra,
+@@ -282,11 +285,13 @@ impl ChatWidget {
+                     model: model_for_action.clone(),
+                     effort: effort_for_action.clone(),
+                 });
+-                if effort_for_action == Some(ReasoningEffortConfig::Max) {
+-                    tx.send(AppEvent::ReplayReasoningEffortAnimation(
+-                        ReasoningEffortConfig::Max,
+-                    ));
+-                }
++            }
++            if effort_for_action == Some(ReasoningEffortConfig::Max)
++                && !should_prompt_plan_mode_scope
++            {
++                tx.send(AppEvent::ReplayReasoningEffortAnimation(
++                    ReasoningEffortConfig::Max,
++                ));
+             }
+             if let Some(warning) = warning.clone() {
+                 tx.send(AppEvent::InsertHistoryCell(Box::new(
+@@ -296,7 +301,29 @@ impl ChatWidget {
+         })]
+     }
+ 
+-    fn should_prompt_plan_mode_reasoning_scope(
++    pub(super) fn single_standard_reasoning_effort(
++        preset: &ModelPreset,
++    ) -> Option<ReasoningEffortConfig> {
++        let choices = if preset.supported_reasoning_efforts.is_empty() {
++            vec![preset.default_reasoning_effort.clone()]
++        } else {
++            preset
++                .supported_reasoning_efforts
++                .iter()
++                .map(|option| option.effort.clone())
++                .collect()
++        };
++        (choices.len() == 1)
++            .then(|| choices.into_iter().next())
++            .flatten()
++            .filter(|effort| !Self::is_advanced_reasoning_effort(effort))
++    }
++
++    pub(super) fn reasoning_popup_required(preset: &ModelPreset) -> bool {
++        Self::single_standard_reasoning_effort(preset).is_none()
++    }
++
++    pub(super) fn should_prompt_plan_mode_reasoning_scope(
+         &self,
+         selected_model: &str,
+         selected_effort: Option<ReasoningEffortConfig>,
+@@ -320,6 +347,24 @@ impl ChatWidget {
+         &mut self,
+         model: String,
+         effort: Option<ReasoningEffortConfig>,
++    ) {
++        self.open_plan_reasoning_scope_prompt_internal(model, effort, /*context*/ None);
++    }
++
++    pub(crate) fn open_plan_reasoning_scope_prompt_with_context(
++        &mut self,
++        model: String,
++        effort: Option<ReasoningEffortConfig>,
++        context: ModelContextSelection,
++    ) {
++        self.open_plan_reasoning_scope_prompt_internal(model, effort, Some(context));
++    }
++
++    fn open_plan_reasoning_scope_prompt_internal(
++        &mut self,
++        model: String,
++        effort: Option<ReasoningEffortConfig>,
++        context: Option<ModelContextSelection>,
+     ) {
+         let reasoning_phrase = match effort.as_ref() {
+             Some(ReasoningEffortConfig::None) => "no reasoning".to_string(),
+@@ -363,36 +408,73 @@ impl ChatWidget {
+             .as_ref()
+             .and_then(|effort| self.ultra_reasoning_concurrency_warning(effort));
+ 
+-        let plan_only_actions: Vec<SelectionAction> = vec![Box::new({
+-            let model = model.clone();
+-            let effort = effort.clone();
+-            let warning = warning.clone();
+-            move |tx| {
++        let plan_only_actions: Vec<SelectionAction> = if let Some(context) = context.clone() {
++            vec![Box::new({
++                let model = model.clone();
++                let effort = effort.clone();
++                let warning = warning.clone();
++                move |tx| {
++                    tx.send(AppEvent::ApplyModelContextSelection {
++                        model: model.clone(),
++                        effort: effort.clone(),
++                        context: context.clone(),
++                        target: ModelSelectionTarget::PlanOnly,
++                    });
++                    if let Some(warning) = warning.clone() {
++                        tx.send(AppEvent::InsertHistoryCell(Box::new(
++                            history_cell::new_warning_event(warning),
++                        )));
++                    }
++                }
++            })]
++        } else {
++            vec![Box::new({
++                let model = model.clone();
++                let effort = effort.clone();
++                let warning = warning.clone();
++                move |tx| {
++                    tx.send(AppEvent::UpdateModel(model.clone()));
++                    tx.send(AppEvent::UpdatePlanModeReasoningEffort(effort.clone()));
++                    tx.send(AppEvent::PersistPlanModeReasoningEffort(effort.clone()));
++                    if let Some(warning) = warning.clone() {
++                        tx.send(AppEvent::InsertHistoryCell(Box::new(
++                            history_cell::new_warning_event(warning),
++                        )));
++                    }
++                }
++            })]
++        };
++        let all_modes_actions: Vec<SelectionAction> = if let Some(context) = context {
++            vec![Box::new(move |tx| {
++                tx.send(AppEvent::ApplyModelContextSelection {
++                    model: model.clone(),
++                    effort: effort.clone(),
++                    context: context.clone(),
++                    target: ModelSelectionTarget::GlobalAndPlan,
++                });
++                if let Some(warning) = warning.clone() {
++                    tx.send(AppEvent::InsertHistoryCell(Box::new(
++                        history_cell::new_warning_event(warning),
++                    )));
++                }
++            })]
++        } else {
++            vec![Box::new(move |tx| {
+                 tx.send(AppEvent::UpdateModel(model.clone()));
++                tx.send(AppEvent::UpdateReasoningEffort(effort.clone()));
+                 tx.send(AppEvent::UpdatePlanModeReasoningEffort(effort.clone()));
+                 tx.send(AppEvent::PersistPlanModeReasoningEffort(effort.clone()));
++                tx.send(AppEvent::PersistModelSelection {
++                    model: model.clone(),
++                    effort: effort.clone(),
++                });
+                 if let Some(warning) = warning.clone() {
+                     tx.send(AppEvent::InsertHistoryCell(Box::new(
+                         history_cell::new_warning_event(warning),
+                     )));
+                 }
+-            }
+-        })];
+-        let all_modes_actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+-            tx.send(AppEvent::UpdateModel(model.clone()));
+-            tx.send(AppEvent::UpdateReasoningEffort(effort.clone()));
+-            tx.send(AppEvent::UpdatePlanModeReasoningEffort(effort.clone()));
+-            tx.send(AppEvent::PersistPlanModeReasoningEffort(effort.clone()));
+-            tx.send(AppEvent::PersistModelSelection {
+-                model: model.clone(),
+-                effort: effort.clone(),
+-            });
+-            if let Some(warning) = warning.clone() {
+-                tx.send(AppEvent::InsertHistoryCell(Box::new(
+-                    history_cell::new_warning_event(warning),
+-                )));
+-            }
+-        })];
++            })]
++        };
+ 
+         self.bottom_pane.show_selection_view(SelectionViewParams {
+             title: Some(PLAN_MODE_REASONING_SCOPE_TITLE.to_string()),
+@@ -425,7 +507,24 @@ impl ChatWidget {
+     ///
+     /// Max and Ultra require an explicit second step so expensive efforts cannot
+     /// be selected accidentally while moving through the normal effort scale.
++    #[cfg(test)]
+     pub(crate) fn open_reasoning_popup(&mut self, preset: ModelPreset) {
++        self.open_reasoning_popup_internal(preset, /*context*/ None);
++    }
++
++    pub(crate) fn open_reasoning_popup_with_context(
++        &mut self,
++        preset: ModelPreset,
++        context: ModelContextSelection,
++    ) {
++        self.open_reasoning_popup_internal(preset, Some(context));
++    }
++
++    fn open_reasoning_popup_internal(
++        &mut self,
++        preset: ModelPreset,
++        context: Option<ModelContextSelection>,
++    ) {
+         let default_effort = preset.default_reasoning_effort.clone();
+         let supported = &preset.supported_reasoning_efforts;
+         let in_plan_mode =
+@@ -469,10 +568,27 @@ impl ChatWidget {
+             if self
+                 .should_prompt_plan_mode_reasoning_scope(&selected_model, selected_effort.clone())
+             {
++                if let Some(context) = context {
++                    self.app_event_tx
++                        .send(AppEvent::OpenPlanReasoningScopePromptWithContext {
++                            model: selected_model,
++                            effort: selected_effort,
++                            context,
++                        });
++                } else {
++                    self.app_event_tx
++                        .send(AppEvent::OpenPlanReasoningScopePrompt {
++                            model: selected_model,
++                            effort: selected_effort,
++                        });
++                }
++            } else if let Some(context) = context {
+                 self.app_event_tx
+-                    .send(AppEvent::OpenPlanReasoningScopePrompt {
++                    .send(AppEvent::ApplyModelContextSelection {
+                         model: selected_model,
+                         effort: selected_effort,
++                        context,
++                        target: ModelSelectionTarget::Global,
+                     });
+             } else {
+                 self.apply_model_and_effort(selected_model, selected_effort);
+@@ -537,6 +653,7 @@ impl ChatWidget {
+                 model_slug.clone(),
+                 choice_effort,
+                 should_prompt_plan_mode_scope,
++                context.clone(),
+             );
+ 
+             items.push(SelectionItem {
+@@ -562,10 +679,18 @@ impl ChatWidget {
+                 "consume"
+             };
+             let preset_for_action = preset;
++            let context_for_action = context;
+             let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
+-                tx.send(AppEvent::OpenAdvancedReasoningPopup {
+-                    model: preset_for_action.clone(),
+-                });
++                if let Some(context) = context_for_action.clone() {
++                    tx.send(AppEvent::OpenAdvancedReasoningPopupWithContext {
++                        model: preset_for_action.clone(),
++                        context,
++                    });
++                } else {
++                    tx.send(AppEvent::OpenAdvancedReasoningPopup {
++                        model: preset_for_action.clone(),
++                    });
++                }
+             })];
+             items.push(SelectionItem {
+                 name: "More reasoning…".to_string(),
+@@ -596,6 +721,22 @@ impl ChatWidget {
+ 
+     /// Open the explicit Max/Ultra effort picker for the given model.
+     pub(crate) fn open_advanced_reasoning_popup(&mut self, preset: ModelPreset) {
++        self.open_advanced_reasoning_popup_internal(preset, /*context*/ None);
++    }
++
++    pub(crate) fn open_advanced_reasoning_popup_with_context(
++        &mut self,
++        preset: ModelPreset,
++        context: ModelContextSelection,
++    ) {
++        self.open_advanced_reasoning_popup_internal(preset, Some(context));
++    }
++
++    fn open_advanced_reasoning_popup_internal(
++        &mut self,
++        preset: ModelPreset,
++        context: Option<ModelContextSelection>,
++    ) {
+         let mut choices = preset
+             .supported_reasoning_efforts
+             .iter()
+@@ -634,6 +775,7 @@ impl ChatWidget {
+                 model_slug.clone(),
+                 Some(effort.clone()),
+                 should_prompt_plan_mode_scope,
++                context.clone(),
+             );
+ 
+             items.push(SelectionItem {
+diff --git a/codex-rs/tui/src/chatwidget/service_tiers.rs b/codex-rs/tui/src/chatwidget/service_tiers.rs
+index f9b1f44..47d3110 100644
+--- a/codex-rs/tui/src/chatwidget/service_tiers.rs
++++ b/codex-rs/tui/src/chatwidget/service_tiers.rs
+@@ -5,13 +5,12 @@ use crate::app_command::AppCommand;
+ use crate::app_event::AppEvent;
+ use crate::bottom_pane::slash_commands::ServiceTierCommand;
+ use crate::service_tier_resolution;
++use crate::service_tier_resolution::LOCAL_CONTEXT_SERVICE_TIER;
+ use codex_features::Feature;
+ use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+ use codex_protocol::config_types::ServiceTier;
+ use codex_protocol::openai_models::SPEED_TIER_FAST;
+ 
+-const LOCAL_CONTEXT_SERVICE_TIER: &str = "context-long";
+-
+ impl ChatWidget {
+     pub(crate) fn set_service_tier(&mut self, service_tier: Option<String>) {
+         self.config.service_tier = service_tier;
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap
+index cc7d0c1..82038de 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__context_window_popup.snap
+@@ -1,13 +1,11 @@
+ ---
+ source: tui/src/chatwidget/tests/popups_and_settings.rs
+-assertion_line: 3101
+ expression: popup
+ ---
+-  Select Context Window
+-  Applies to this session only; config.toml remains unchanged.
++  Select Context Window for gpt-5.4
++  Choose the context capacity for this model.
+ 
+-› 1. 64K (current)  60.8K usable at 95%
+-  2. 128K           122K usable at 95%
+-  3. Full           1M raw, 950K usable at 95%
++› 1. 400K (current)  Standard context window
++  2. 1.1M            Extended context window
+ 
+   Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_picker_filters_hidden_models.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_picker_filters_hidden_models.snap
+index cdf903e..dbc766b 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_picker_filters_hidden_models.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_picker_filters_hidden_models.snap
+@@ -2,7 +2,7 @@
+ source: tui/src/chatwidget/tests/popups_and_settings.rs
+ expression: popup
+ ---
+-  Select Model and Effort
++  Select Model
+   Access legacy models by running codex -m <model_name> or in your config.toml
+ 
+ › 1. test-visible-model (current)  test-visible-model description
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+index 313c5c9..ca848e7 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+@@ -2,7 +2,7 @@
+ source: tui/src/chatwidget/tests/popups_and_settings.rs
+ expression: popup
+ ---
+-  Select Model and Effort
++  Select Model
+   Access legacy models by running codex -m <model_name> or in your config.toml
+ 
+   1. gpt-5.6-sol (default)  Latest frontier agentic coding model.
+@@ -10,6 +10,5 @@ expression: popup
+   3. gpt-5.6-luna           Fast and affordable agentic coding model.
+   4. gpt-5.5                Frontier model for complex coding, research, and …
+ › 5. gpt-5.2 (current)      Optimized for professional work and long-running …
+-  6. Context window         Choose a session-only context size (current: 272K…
+ 
+   Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/tests.rs b/codex-rs/tui/src/chatwidget/tests.rs
+index 08c4e12..eeaa8ee 100644
+--- a/codex-rs/tui/src/chatwidget/tests.rs
++++ b/codex-rs/tui/src/chatwidget/tests.rs
+@@ -8,6 +8,8 @@ pub(super) use super::*;
+ pub(super) use crate::app_command::AppCommand as Op;
+ pub(super) use crate::app_event::AppEvent;
+ pub(super) use crate::app_event::ExitMode;
++pub(super) use crate::app_event::ModelContextSelection;
++pub(super) use crate::app_event::ModelSelectionTarget;
+ pub(super) use crate::app_event_sender::AppEventSender;
+ pub(super) use crate::approval_events::ApplyPatchApprovalRequestEvent;
+ pub(super) use crate::approval_events::ExecApprovalRequestEvent;
+diff --git a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+index cadc837..432e8a7 100644
+--- a/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
++++ b/codex-rs/tui/src/chatwidget/tests/composer_submission.rs
+@@ -904,10 +904,10 @@ async fn queued_restore_with_remote_images_keeps_local_placeholder_mapping() {
+     let remote_image_urls = vec!["https://example.com/queued-remote.png".to_string()];
+ 
+     chat.restore_user_message_to_composer(UserMessage {
+-        text: text,
++        text,
+         local_images: local_images.clone(),
+         remote_image_urls: remote_image_urls.clone(),
+-        text_elements: text_elements,
++        text_elements,
+         mention_bindings: Vec::new(),
+     });
+ 
+diff --git a/codex-rs/tui/src/chatwidget/tests/plan_mode.rs b/codex-rs/tui/src/chatwidget/tests/plan_mode.rs
+index 7e23368..5838bb9 100644
+--- a/codex-rs/tui/src/chatwidget/tests/plan_mode.rs
++++ b/codex-rs/tui/src/chatwidget/tests/plan_mode.rs
+@@ -566,6 +566,45 @@ async fn plan_reasoning_scope_popup_all_modes_persists_global_and_plan_override(
+     );
+ }
+ 
++#[tokio::test]
++async fn plan_reasoning_scope_keeps_pending_context_for_both_targets() {
++    for (select_all_modes, expected_target) in [
++        (false, ModelSelectionTarget::PlanOnly),
++        (true, ModelSelectionTarget::GlobalAndPlan),
++    ] {
++        let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++        let context = ModelContextSelection {
++            service_tier: Some("context-long".to_string()),
++            model_context_window: Some(922_000),
++            effective_context_window: Some(875_900),
++            label: "1.1M".to_string(),
++        };
++        while rx.try_recv().is_ok() {}
++        chat.open_plan_reasoning_scope_prompt_with_context(
++            "gpt-5.4".to_string(),
++            Some(ReasoningEffortConfig::High),
++            context.clone(),
++        );
++        if select_all_modes {
++            chat.handle_key_event(KeyEvent::from(KeyCode::Down));
++        }
++        chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++
++        let event = std::iter::from_fn(|| rx.try_recv().ok())
++            .find(|event| matches!(event, AppEvent::ApplyModelContextSelection { .. }))
++            .expect("completed model selection event");
++        assert_matches!(
++            event,
++            AppEvent::ApplyModelContextSelection {
++                effort: Some(ReasoningEffortConfig::High),
++                context: selected_context,
++                target,
++                ..
++            } if selected_context == context && target == expected_target
++        );
++    }
++}
++
+ #[test]
+ fn plan_mode_prompt_notification_uses_dedicated_type_name() {
+     let notification = Notification::PlanModePrompt {
+diff --git a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+index 5e040f0..d3f8b8e 100644
+--- a/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
++++ b/codex-rs/tui/src/chatwidget/tests/popups_and_settings.rs
+@@ -3078,6 +3078,19 @@ async fn memories_reset_confirmation_sends_event_on_confirm() {
+     assert_matches!(rx.try_recv(), Ok(AppEvent::ResetMemories));
+ }
+ 
++fn with_long_context(mut preset: ModelPreset) -> ModelPreset {
++    preset.context_window = Some(272_000);
++    preset.max_context_window = Some(922_000);
++    preset
++        .service_tiers
++        .push(codex_protocol::openai_models::ModelServiceTier {
++            id: "context-long".to_string(),
++            name: "1.1M".to_string(),
++            description: "400K".to_string(),
++        });
++    preset
++}
++
+ #[tokio::test]
+ async fn model_selection_popup_snapshot() {
+     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.2")).await;
+@@ -3092,23 +3105,190 @@ async fn model_selection_popup_snapshot() {
+ async fn context_window_popup_snapshot_and_selection_event() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
+     chat.thread_id = Some(ThreadId::new());
+-    chat.config.model_context_window = Some(64_000);
+-    let preset = get_available_model(&chat, "gpt-5.4");
++    let preset = with_long_context(get_available_model(&chat, "gpt-5.4"));
+ 
+-    chat.open_context_window_popup(preset);
++    chat.open_context_window_popup(preset.clone());
+ 
+     let popup = render_bottom_popup(&chat, /*width*/ 80);
+     assert_chatwidget_snapshot!("context_window_popup", popup);
+     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+     assert_matches!(
+         rx.try_recv(),
+-        Ok(AppEvent::UpdateModelContextWindow {
+-            model_context_window: 64_000,
+-            effective_context_window: 60_800,
++        Ok(AppEvent::OpenReasoningPopupWithContext { model, context })
++            if model.model == preset.model
++                && context == ModelContextSelection {
++                    service_tier: None,
++                    model_context_window: Some(272_000),
++                    effective_context_window: Some(258_400),
++                    label: "400K".to_string(),
++                }
++    );
++}
++
++#[tokio::test]
++async fn model_context_effort_flow_preserves_long_context_until_final_accept() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let preset = with_long_context(get_available_model(&chat, "gpt-5.4"));
++    while rx.try_recv().is_ok() {}
++
++    chat.open_all_models_popup(vec![preset.clone()]);
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++    let selected_model = match rx.try_recv().expect("model selection event") {
++        AppEvent::OpenContextWindowPopup { model } => model,
++        other => panic!("expected context popup event, got {other:?}"),
++    };
++    assert!(
++        rx.try_recv().is_err(),
++        "model selection must not commit early"
++    );
++
++    chat.open_context_window_popup(selected_model);
++    chat.handle_key_event(KeyEvent::from(KeyCode::Down));
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++    let (selected_model, context) = match rx.try_recv().expect("context selection event") {
++        AppEvent::OpenReasoningPopupWithContext { model, context } => (model, context),
++        other => panic!("expected reasoning popup event, got {other:?}"),
++    };
++    assert_eq!(
++        context,
++        ModelContextSelection {
++            service_tier: Some("context-long".to_string()),
++            model_context_window: Some(922_000),
++            effective_context_window: Some(875_900),
++            label: "1.1M".to_string(),
++        }
++    );
++    assert!(
++        rx.try_recv().is_err(),
++        "context selection must not commit early"
++    );
++
++    chat.open_reasoning_popup_with_context(selected_model, context.clone());
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++    assert_matches!(
++        rx.try_recv(),
++        Ok(AppEvent::ApplyModelContextSelection {
++            model,
++            effort: Some(_),
++            context: selected_context,
++            target: ModelSelectionTarget::Global,
++        }) if model == preset.model && selected_context == context
++    );
++}
++
++#[tokio::test]
++async fn single_effort_context_selection_commits_without_intermediate_popup() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = with_long_context(get_available_model(&chat, "gpt-5.4"));
++    preset.default_reasoning_effort = ReasoningEffortConfig::High;
++    preset.supported_reasoning_efforts = vec![ReasoningEffortPreset {
++        effort: ReasoningEffortConfig::High,
++        description: "High reasoning".to_string(),
++    }];
++    while rx.try_recv().is_ok() {}
++
++    chat.open_context_window_popup(preset);
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++
++    assert_matches!(
++        rx.try_recv(),
++        Ok(AppEvent::ApplyModelContextSelection {
++            effort: Some(ReasoningEffortConfig::High),
++            context: ModelContextSelection {
++                service_tier: None,
++                model_context_window: Some(272_000),
++                ..
++            },
++            target: ModelSelectionTarget::Global,
++            ..
+         })
+     );
+ }
+ 
++#[tokio::test]
++async fn model_without_long_context_skips_context_popup_but_carries_default_window() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = get_available_model(&chat, "gpt-5.4");
++    preset.context_window = Some(272_000);
++    preset.max_context_window = Some(272_000);
++    preset
++        .service_tiers
++        .retain(|tier| tier.id != "context-long");
++    while rx.try_recv().is_ok() {}
++
++    chat.open_context_window_popup(preset.clone());
++
++    assert_matches!(
++        rx.try_recv(),
++        Ok(AppEvent::OpenReasoningPopupWithContext { model, context })
++            if model.model == preset.model
++                && context.service_tier.is_none()
++                && context.model_context_window == Some(272_000)
++    );
++    assert!(
++        !render_bottom_popup(&chat, /*width*/ 80).contains("Select Context Window"),
++        "models without a long-context tier must not show a fake context choice"
++    );
++}
++
++#[tokio::test]
++async fn advanced_reasoning_keeps_pending_context_selection() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = with_long_context(get_available_model(&chat, "gpt-5.4"));
++    preset.default_reasoning_effort = ReasoningEffortConfig::Ultra;
++    preset.supported_reasoning_efforts = vec![ReasoningEffortPreset {
++        effort: ReasoningEffortConfig::Ultra,
++        description: "Ultra reasoning".to_string(),
++    }];
++    let context = ModelContextSelection {
++        service_tier: Some("context-long".to_string()),
++        model_context_window: Some(922_000),
++        effective_context_window: Some(875_900),
++        label: "1.1M".to_string(),
++    };
++    while rx.try_recv().is_ok() {}
++
++    chat.open_advanced_reasoning_popup_with_context(preset, context.clone());
++    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
++
++    assert_matches!(
++        rx.try_recv(),
++        Ok(AppEvent::ApplyModelContextSelection {
++            effort: Some(ReasoningEffortConfig::Ultra),
++            context: selected_context,
++            target: ModelSelectionTarget::Global,
++            ..
++        }) if selected_context == context
++    );
++}
++
++#[tokio::test]
++async fn cancelling_context_or_reasoning_does_not_apply_pending_selection() {
++    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let preset = with_long_context(get_available_model(&chat, "gpt-5.4"));
++    while rx.try_recv().is_ok() {}
++
++    chat.open_context_window_popup(preset.clone());
++    chat.handle_key_event(KeyEvent::from(KeyCode::Esc));
++    assert!(
++        std::iter::from_fn(|| rx.try_recv().ok())
++            .all(|event| !matches!(event, AppEvent::ApplyModelContextSelection { .. }))
++    );
++
++    let context = ModelContextSelection {
++        service_tier: Some("context-long".to_string()),
++        model_context_window: Some(922_000),
++        effective_context_window: Some(875_900),
++        label: "1.1M".to_string(),
++    };
++    chat.open_reasoning_popup_with_context(preset, context);
++    chat.handle_key_event(KeyEvent::from(KeyCode::Esc));
++    assert!(
++        std::iter::from_fn(|| rx.try_recv().ok())
++            .all(|event| !matches!(event, AppEvent::ApplyModelContextSelection { .. }))
++    );
++}
++
+ #[tokio::test]
+ async fn personality_selection_popup_snapshot() {
+     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
+@@ -3699,7 +3879,7 @@ async fn advanced_only_reasoning_option_requires_explicit_selection() {
+ }
+ 
+ #[tokio::test]
+-async fn auto_model_advertising_advanced_effort_opens_reasoning_picker() {
++async fn auto_model_advertising_advanced_effort_opens_context_step_first() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+     let mut preset = get_available_model(&chat, "gpt-5.6-terra");
+     preset.id = "codex-auto-test".to_string();
+@@ -3726,7 +3906,7 @@ async fn auto_model_advertising_advanced_effort_opens_reasoning_picker() {
+     assert!(
+         events
+             .iter()
+-            .any(|event| matches!(event, AppEvent::OpenReasoningPopup { .. }))
++            .any(|event| matches!(event, AppEvent::OpenContextWindowPopup { .. }))
+     );
+ }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+index ef2bf0a..c4c572d 100644
+--- a/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
++++ b/codex-rs/tui/src/chatwidget/tests/slash_commands.rs
+@@ -158,6 +158,46 @@ async fn local_context_tier_is_not_exposed_as_a_slash_command() {
+     );
+ }
+ 
++#[tokio::test]
++async fn local_context_tier_does_not_depend_on_fast_mode_feature() {
++    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = get_available_model(&chat, "gpt-5.4");
++    preset
++        .service_tiers
++        .push(codex_protocol::openai_models::ModelServiceTier {
++            id: "context-long".to_string(),
++            name: "1.1M".to_string(),
++            description: "400K".to_string(),
++        });
++    chat.model_catalog = std::sync::Arc::new(ModelCatalog::new(vec![preset]));
++    chat.set_feature_enabled(Feature::FastMode, /*enabled*/ false);
++
++    chat.set_service_tier(Some("context-long".to_string()));
++
++    assert_eq!(chat.current_service_tier(), Some("context-long"));
++}
++
++#[tokio::test]
++async fn default_context_explicitly_resets_core_without_fast_mode() {
++    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
++    let mut preset = get_available_model(&chat, "gpt-5.4");
++    preset
++        .service_tiers
++        .push(codex_protocol::openai_models::ModelServiceTier {
++            id: "context-long".to_string(),
++            name: "1.1M".to_string(),
++            description: "400K".to_string(),
++        });
++    chat.model_catalog = std::sync::Arc::new(ModelCatalog::new(vec![preset]));
++    chat.set_feature_enabled(Feature::FastMode, /*enabled*/ false);
++    chat.set_service_tier(/*service_tier*/ None);
++
++    assert_eq!(
++        chat.service_tier_update_for_core(),
++        Some(Some(SERVICE_TIER_DEFAULT_REQUEST_VALUE.to_string()))
++    );
++}
++
+ #[tokio::test]
+ async fn slash_compact_eagerly_queues_follow_up_before_turn_start() {
+     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+@@ -434,7 +474,7 @@ async fn queued_settings_selection_applies_before_next_input() {
+ 
+     let popup = render_bottom_popup(&chat, /*width*/ 80);
+     assert!(
+-        popup.contains("Select Model and Effort"),
++        popup.contains("Select Model"),
+         "expected model menu to open; popup:\n{popup}"
+     );
+ 
+@@ -442,7 +482,26 @@ async fn queued_settings_selection_applies_before_next_input() {
+     assert_matches!(op_rx.try_recv(), Err(TryRecvError::Empty));
+     while let Ok(event) = rx.try_recv() {
+         match event {
+-            AppEvent::OpenReasoningPopup { model } => chat.open_reasoning_popup(model),
++            AppEvent::OpenContextWindowPopup { model } => {
++                chat.open_context_window_popup(model);
++            }
++            AppEvent::OpenReasoningPopupWithContext { model, context } => {
++                chat.open_reasoning_popup_with_context(model, context);
++            }
++            AppEvent::ApplyModelContextSelection {
++                model,
++                effort,
++                context,
++                ..
++            } => {
++                chat.set_model(&model);
++                chat.set_service_tier(context.service_tier);
++                chat.set_model_context_window_selection(
++                    context.model_context_window,
++                    context.effective_context_window,
++                );
++                chat.set_reasoning_effort(effort);
++            }
+             AppEvent::UpdateModel(model) => chat.set_model(&model),
+             AppEvent::UpdateReasoningEffort(effort) => chat.set_reasoning_effort(effort),
+             AppEvent::SettingsSelectionClosed => {
+diff --git a/codex-rs/tui/src/pets/mod.rs b/codex-rs/tui/src/pets/mod.rs
+index aa3e9e8..a79a9b9 100644
+--- a/codex-rs/tui/src/pets/mod.rs
++++ b/codex-rs/tui/src/pets/mod.rs
+@@ -324,6 +324,20 @@ mod tests {
+         let dir = tempfile::tempdir().unwrap();
+         let frame = dir.path().join("frame.png");
+         std::fs::write(&frame, b"png").unwrap();
++        let expected_file_command = image_protocol::kitty_transmit_png_file_with_id(
++            &frame,
++            /*columns*/ 4,
++            /*rows*/ 2,
++            Some(0xC0DE),
++        )
++        .unwrap();
++        let inline_command = image_protocol::kitty_transmit_png_with_id(
++            &frame,
++            /*columns*/ 4,
++            /*rows*/ 2,
++            Some(0xC0DE),
++        )
++        .unwrap();
+         let request = AmbientPetDraw {
+             frame,
+             protocol: ImageProtocol::KittyLocalFile,
+@@ -344,7 +358,8 @@ mod tests {
+         assert!(output.contains("a=d,d=I,i=49374,q=2;"));
+         assert!(output.contains("\x1b[4;3H"));
+         assert!(output.contains("a=T,t=f,f=100,c=4,r=2,q=2,i=49374;"));
+-        assert!(!output.contains("cG5n"));
++        assert!(output.contains(&expected_file_command));
++        assert!(!output.contains(&inline_command));
+         assert!(output.contains("\x1b8"));
+     }
+ 
+diff --git a/codex-rs/tui/src/service_tier_resolution.rs b/codex-rs/tui/src/service_tier_resolution.rs
+index 9a32ae8..5bc81fd 100644
+--- a/codex-rs/tui/src/service_tier_resolution.rs
++++ b/codex-rs/tui/src/service_tier_resolution.rs
+@@ -3,6 +3,8 @@ use codex_features::Feature;
+ use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+ use codex_protocol::openai_models::ModelPreset;
+ 
++pub(crate) const LOCAL_CONTEXT_SERVICE_TIER: &str = "context-long";
++
+ pub(crate) fn configured_service_tier(config: &Config) -> Option<String> {
+     config.service_tier.clone().or_else(|| {
+         (config.notices.fast_default_opt_out == Some(true))
+@@ -15,15 +17,26 @@ pub(crate) fn effective_service_tier(
+     model: &str,
+     models: &[ModelPreset],
+ ) -> Option<String> {
+-    if !config.features.enabled(Feature::FastMode) {
+-        return None;
+-    }
+-
+     let configured = configured_service_tier(config);
+-    let Some(preset) = models.iter().find(|preset| preset.model == model) else {
++    if configured.as_deref() == Some(SERVICE_TIER_DEFAULT_REQUEST_VALUE) {
+         return configured;
++    }
++    let Some(preset) = models.iter().find(|preset| preset.model == model) else {
++        return (configured.as_deref() == Some(LOCAL_CONTEXT_SERVICE_TIER)
++            || config.features.enabled(Feature::FastMode))
++        .then_some(configured)
++        .flatten();
+     };
+ 
++    if configured.as_deref() == Some(LOCAL_CONTEXT_SERVICE_TIER) {
++        return model_supports_service_tier(preset, LOCAL_CONTEXT_SERVICE_TIER)
++            .then_some(configured)
++            .flatten();
++    }
++    if !config.features.enabled(Feature::FastMode) {
++        return None;
++    }
++
+     match configured.as_deref() {
+         Some(service_tier) if service_tier == SERVICE_TIER_DEFAULT_REQUEST_VALUE => configured,
+         Some(service_tier) if model_supports_service_tier(preset, service_tier) => configured,
+@@ -40,7 +53,13 @@ pub(crate) fn service_tier_update_for_core(
+     model: &str,
+     models: &[ModelPreset],
+ ) -> Option<Option<String>> {
+-    if !config.features.enabled(Feature::FastMode) {
++    let configured = configured_service_tier(config);
++    let preset = models.iter().find(|preset| preset.model == model);
++    let context_selection_relevant = configured.as_deref() == Some(LOCAL_CONTEXT_SERVICE_TIER)
++        || configured.as_deref() == Some(SERVICE_TIER_DEFAULT_REQUEST_VALUE)
++        || preset
++            .is_some_and(|preset| model_supports_service_tier(preset, LOCAL_CONTEXT_SERVICE_TIER));
++    if !config.features.enabled(Feature::FastMode) && !context_selection_relevant {
+         return None;
+     }
+ 
+@@ -49,9 +68,7 @@ pub(crate) fn service_tier_update_for_core(
+         return Some(Some(service_tier));
+     }
+ 
+-    if !models.iter().any(|preset| preset.model == model) {
+-        return None;
+-    }
++    preset?;
+ 
+     Some(Some(SERVICE_TIER_DEFAULT_REQUEST_VALUE.to_string()))
+ }

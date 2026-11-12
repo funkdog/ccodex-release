@@ -1,0 +1,615 @@
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs b/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
+index f8e804c..fa0405a 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer_effort_tests.rs
+@@ -40,7 +40,7 @@ fn effort_composer_baseline_repeat_and_lowering_do_not_replay() {
+ }
+ 
+ #[test]
+-fn effort_transition_does_not_queue_a_missing_outgoing_status_line() {
++fn effort_transition_keeps_queue_hint_and_status_fields_while_drafting() {
+     let (mut composer, _rx) = new_test_composer();
+     composer.set_status_line_enabled(/*enabled*/ true);
+     composer.set_status_line(Some(Line::from("gpt-5.4 high · main")));
+@@ -51,6 +51,31 @@ fn effort_transition_does_not_queue_a_missing_outgoing_status_line() {
+         /*animations_enabled*/ true,
+     );
+ 
++    assert!(composer.set_active_reasoning_effort(
++        Some(&ReasoningEffort::Ultra),
++        /*animations_enabled*/ true,
++    ));
++    assert!(composer.effort_ignition.is_some());
++    assert!(composer.effort_status_line_transition.is_some());
++    assert_eq!(
++        passive_footer_status_line(&composer.footer_props())
++            .unwrap()
++            .to_string(),
++        "tab to queue message · gpt-5.4 high · main"
++    );
++}
++
++#[test]
++fn effort_transition_does_not_queue_a_missing_outgoing_status_line() {
++    let (mut composer, _rx) = new_test_composer();
++    composer.set_status_line_enabled(/*enabled*/ true);
++    composer.set_task_running(/*running*/ true);
++    composer.set_text_content("queued draft".to_string(), Vec::new(), Vec::new());
++    composer.set_active_reasoning_effort(
++        Some(&ReasoningEffort::High),
++        /*animations_enabled*/ true,
++    );
++
+     assert!(composer.set_active_reasoning_effort(
+         Some(&ReasoningEffort::Ultra),
+         /*animations_enabled*/ true,
+diff --git a/codex-rs/tui/src/bottom_pane/footer.rs b/codex-rs/tui/src/bottom_pane/footer.rs
+index c53583c..73f1e2c 100644
+--- a/codex-rs/tui/src/bottom_pane/footer.rs
++++ b/codex-rs/tui/src/bottom_pane/footer.rs
+@@ -17,6 +17,8 @@
+ //! - "contextual footer" means the footer is free to show ambient context instead of an
+ //!   instruction. In that state, the footer may render the configured status line, the active
+ //!   agent label, side-conversation state, or some combination of those.
++//!   With a configured status line, an active draft keeps its queue hint alongside
++//!   the status fields; responsive wrapping preserves both instead of replacing the status.
+ //!
+ //! Single-line collapse overview:
+ //! 1. The composer decides the current `FooterMode` and hint flags, then calls
+@@ -904,8 +906,8 @@ fn footer_from_props_lines(
+ /// Returns the contextual footer row when the footer is not busy showing an instructional hint.
+ ///
+ /// The returned line may contain the configured status line, the currently viewed agent label, or
+-/// both combined. Active instructional states such as quit reminders, shortcut overlays, and queue
+-/// prompts deliberately return `None` so those call-to-action hints stay visible.
++/// both combined. Quit reminders and shortcut overlays deliberately return `None`.
++/// Queue hints are prepended to configured status content so neither disappears while typing.
+ pub(crate) fn passive_footer_status_line(props: &FooterProps) -> Option<Line<'static>> {
+     if !shows_passive_footer_line(props) {
+         return None;
+@@ -926,17 +928,30 @@ pub(crate) fn passive_footer_status_line(props: &FooterProps) -> Option<Line<'st
+         }
+     }
+ 
++    if props.mode == FooterMode::ComposerHasDraft
++        && props.is_task_running
++        && let Some(queue) = props.key_hints.queue
++        && let Some(status) = line.as_mut()
++    {
++        let mut spans = vec![Span::from(queue), " to queue message · ".dim()];
++        spans.append(&mut status.spans);
++        status.spans = spans;
++    }
++
+     line
+ }
+ 
+ /// Whether the current footer mode allows contextual information to replace instructional hints.
+ ///
+-/// In practice this means the composer is idle, or it has a draft but is not currently running a
+-/// task, so the footer can spend the row on ambient context instead of "what to do next" text.
++/// Running drafts can use the responsive status layout when it has content; their queue hint
++/// remains part of that same line. Without status content the original hint layout is retained.
+ pub(crate) fn shows_passive_footer_line(props: &FooterProps) -> bool {
+     match props.mode {
+         FooterMode::ComposerEmpty => true,
+-        FooterMode::ComposerHasDraft => !props.is_task_running,
++        FooterMode::ComposerHasDraft => {
++            !props.is_task_running
++                || (props.status_line_enabled && props.status_line_value.is_some())
++        }
+         FooterMode::HistorySearch
+         | FooterMode::QuitShortcutReminder
+         | FooterMode::ShortcutOverlay
+@@ -2037,6 +2052,10 @@ mod tests {
+             active_agent_label: None,
+         };
+ 
++        assert_eq!(
++            passive_footer_status_line(&props).map(|line| line.to_string()),
++            Some("tab to queue message · Status line content".to_string())
++        );
+         snapshot_footer("footer_status_line_yields_to_queue_hint", props);
+ 
+         let props = FooterProps {
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_yields_to_queue_hint.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_yields_to_queue_hint.snap
+index 2169909..3bf8053 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_yields_to_queue_hint.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_status_line_yields_to_queue_hint.snap
+@@ -1,5 +1,6 @@
+ ---
+ source: tui/src/bottom_pane/footer.rs
++assertion_line: 1684
+ expression: terminal.backend()
+ ---
+-"  tab to queue message                                       100% context left  "
++"  tab to queue message · Status line content                                    "
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_setup.rs b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+index 97087d1..be11087 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_setup.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+@@ -154,12 +154,25 @@ pub(crate) enum StatusLineItem {
+ 
+     /// Latest checklist task progress from `update_plan` (if available).
+     TaskProgress,
++    /// Active GitHub account reported by the Copilot bridge.
++    CopilotAccount,
++    /// Verification state of the most recent request in this thread.
++    RequestState,
++    /// Input and output token counts from the latest native usage report.
++    LastRequestUsage,
+ }
+ 
+ impl StatusLineItem {
+     /// User-visible description shown in the popup.
+     pub(crate) fn description(self) -> &'static str {
+         match self {
++            StatusLineItem::CopilotAccount => "GitHub Copilot account (omitted when unavailable)",
++            StatusLineItem::RequestState => {
++                "Current thread's request versus selected model, context and effort"
++            }
++            StatusLineItem::LastRequestUsage => {
++                "Latest request input/output tokens (omitted until reported)"
++            }
+             StatusLineItem::ModelName => "Current model name",
+             StatusLineItem::ModelWithReasoning => "Current model name with reasoning level",
+             StatusLineItem::Reasoning => "Current reasoning level",
+@@ -221,6 +234,9 @@ impl StatusLineItem {
+ 
+     pub(crate) fn preview_item(self) -> StatusSurfacePreviewItem {
+         match self {
++            StatusLineItem::CopilotAccount => StatusSurfacePreviewItem::CopilotAccount,
++            StatusLineItem::RequestState => StatusSurfacePreviewItem::RequestState,
++            StatusLineItem::LastRequestUsage => StatusSurfacePreviewItem::LastRequestUsage,
+             StatusLineItem::ModelName => StatusSurfacePreviewItem::Model,
+             StatusLineItem::ModelWithReasoning => StatusSurfacePreviewItem::ModelWithReasoning,
+             StatusLineItem::Reasoning => StatusSurfacePreviewItem::Reasoning,
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+index a8b2ed3..874d1c7 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+@@ -30,6 +30,9 @@ enum StatusLineAccent {
+ impl StatusLineAccent {
+     fn for_item(item: StatusLineItem) -> Self {
+         match item {
++            StatusLineItem::CopilotAccount => Self::Metadata,
++            StatusLineItem::RequestState => Self::State,
++            StatusLineItem::LastRequestUsage => Self::Usage,
+             StatusLineItem::ModelName
+             | StatusLineItem::ModelWithReasoning
+             | StatusLineItem::Reasoning => Self::Model,
+diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+index 7d2df32..0a4047f 100644
+--- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
++++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+@@ -7,6 +7,9 @@ use super::status_line_setup::StatusLineItem;
+ 
+ #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+ pub(crate) enum StatusSurfacePreviewItem {
++    CopilotAccount,
++    RequestState,
++    LastRequestUsage,
+     AppName,
+     ProjectName,
+     ProjectRoot,
+@@ -44,6 +47,9 @@ pub(crate) enum StatusSurfacePreviewItem {
+ impl StatusSurfacePreviewItem {
+     fn placeholder(self) -> &'static str {
+         match self {
++            StatusSurfacePreviewItem::CopilotAccount => "GitHub @account",
++            StatusSurfacePreviewItem::RequestState => "Pending first request",
++            StatusSurfacePreviewItem::LastRequestUsage => "Last -- in / -- out",
+             StatusSurfacePreviewItem::AppName => "codex",
+             StatusSurfacePreviewItem::ProjectName => "my-project",
+             StatusSurfacePreviewItem::ProjectRoot => "my-project",
+@@ -81,6 +87,9 @@ impl StatusSurfacePreviewItem {
+ 
+     pub(crate) fn iter() -> impl Iterator<Item = Self> {
+         [
++            Self::CopilotAccount,
++            Self::RequestState,
++            Self::LastRequestUsage,
+             Self::AppName,
+             Self::ProjectName,
+             Self::ProjectRoot,
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index a71d98b..8fa9c5b 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -413,6 +413,7 @@ mod windows_sandbox_prompts;
+ use self::status_state::StatusIndicatorState;
+ use self::status_state::StatusState;
+ use self::status_state::TerminalTitleStatusKind;
++mod copilot_status;
+ mod status_controls;
+ mod status_surfaces;
+ mod streaming;
+@@ -589,6 +590,7 @@ pub(crate) struct ChatWidget {
+     pending_stream_consolidations: usize,
+     /// Holds the platform clipboard lease so copied text remains available while supported.
+     clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
++    copilot_status: copilot_status::CopilotStatus,
+     copy_last_response_binding: Vec<KeyBinding>,
+     running_commands: HashMap<String, RunningCommand>,
+     collab_agent_metadata: HashMap<ThreadId, AgentMetadata>,
+@@ -1204,6 +1206,7 @@ impl ChatWidget {
+             self.refresh_terminal_title();
+         }
+         self.refresh_status_line_if_workspace_headline_due();
++        self.refresh_copilot_status_if_due();
+     }
+ 
+     fn flush_active_cell(&mut self) {
+diff --git a/codex-rs/tui/src/chatwidget/constructor.rs b/codex-rs/tui/src/chatwidget/constructor.rs
+index f14f1c9..ba72eed 100644
+--- a/codex-rs/tui/src/chatwidget/constructor.rs
++++ b/codex-rs/tui/src/chatwidget/constructor.rs
+@@ -152,6 +152,7 @@ impl ChatWidget {
+             plan_stream_controller: None,
+             pending_stream_consolidations: 0,
+             clipboard_lease: None,
++            copilot_status: super::copilot_status::CopilotStatus::default(),
+             copy_last_response_binding,
+             running_commands: HashMap::new(),
+             collab_agent_metadata: HashMap::new(),
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status_tests.rs b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+new file mode 100644
+index 0000000..3a3d8da
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+@@ -0,0 +1,110 @@
++use super::*;
++use pretty_assertions::assert_eq;
++use serde_json::json;
++
++#[test]
++fn status_never_uses_another_thread_or_account_request_as_proof() {
++    let root = tempfile::tempdir().unwrap();
++    let thread = ThreadId::new();
++    let other = ThreadId::new();
++    let statuses = root.path().join("request-status");
++    std::fs::create_dir(&statuses).unwrap();
++    std::fs::write(
++        root.path().join("account-generation.json"),
++        r#"{"generation":"one","login":"test-user"}"#,
++    )
++    .unwrap();
++    let mut request = json!({
++        "schemaVersion":1, "threadId":other.to_string(), "accountGeneration":"one",
++        "requestedModel":"gpt-test", "upstreamModel":"gpt-test", "serializedEffort":"high",
++        "contextTier":"default", "status":"complete", "httpStatus":200
++    });
++    let file = statuses.join(format!("{thread}.json"));
++    std::fs::write(&file, request.to_string()).unwrap();
++    let now = Instant::now();
++    let mut status = CopilotStatus::default();
++    status.refresh(root.path(), Some(thread), now);
++    assert_eq!(status.account_text().as_deref(), Some("GitHub @test-user"));
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("high"), "default")
++            .as_deref(),
++        Some("Pending first request")
++    );
++
++    request["threadId"] = thread.to_string().into();
++    std::fs::write(&file, request.to_string()).unwrap();
++    status.refresh(root.path(), Some(thread), now + REFRESH_INTERVAL);
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("high"), "default")
++            .as_deref(),
++        Some("Request verified")
++    );
++    assert_eq!(
++        status
++            .request_text("other-model", Some("high"), "default")
++            .as_deref(),
++        Some("Pending next request")
++    );
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("max"), "default")
++            .as_deref(),
++        Some("Pending next request")
++    );
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("high"), "long_context")
++            .as_deref(),
++        Some("Pending next request")
++    );
++
++    request["strippedParameters"] = json!(["reasoning"]);
++    std::fs::write(&file, request.to_string()).unwrap();
++    status.refresh(root.path(), Some(thread), now + REFRESH_INTERVAL * 2);
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("high"), "default")
++            .as_deref(),
++        Some("Request completed (unverified)")
++    );
++    std::fs::write(
++        root.path().join("account-generation.json"),
++        r#"{"generation":"two","login":"other-user"}"#,
++    )
++    .unwrap();
++    status.refresh(root.path(), Some(thread), now + REFRESH_INTERVAL * 3);
++    assert_eq!(
++        status
++            .request_text("gpt-test", Some("high"), "default")
++            .as_deref(),
++        Some("Pending next request")
++    );
++}
++
++#[test]
++fn missing_malformed_and_oversized_status_records_are_omitted() {
++    let root = tempfile::tempdir().unwrap();
++    let mut status = CopilotStatus::default();
++    let now = Instant::now();
++    status.refresh(root.path(), None, now);
++    assert_eq!(status.account_text(), None);
++    assert_eq!(status.request_text("gpt-test", None, "default"), None);
++    let file = root.path().join("account-generation.json");
++    for (index, bytes) in [
++        b"{broken".to_vec(),
++        vec![b' '; MAX_STATUS_BYTES as usize + 1],
++    ]
++    .into_iter()
++    .enumerate()
++    {
++        std::fs::write(&file, bytes).unwrap();
++        status.refresh(
++            root.path(),
++            None,
++            now + REFRESH_INTERVAL * (index as u32 + 1),
++        );
++        assert_eq!(status.account_text(), None);
++    }
++}
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status.rs b/codex-rs/tui/src/chatwidget/copilot_status.rs
+new file mode 100644
+index 0000000..e659d65
+--- /dev/null
++++ b/codex-rs/tui/src/chatwidget/copilot_status.rs
+@@ -0,0 +1,155 @@
++//! Poll small, credential-free bridge records without confusing concurrent threads or accounts.
++
++use std::fs::File;
++use std::io::Read;
++use std::path::Path;
++use std::time::Duration;
++use std::time::Instant;
++
++use codex_protocol::ThreadId;
++use serde::Deserialize;
++
++use super::ChatWidget;
++
++const REFRESH_INTERVAL: Duration = Duration::from_millis(500);
++const MAX_STATUS_BYTES: u64 = 64 * 1024;
++
++#[derive(Debug, Default)]
++pub(super) struct CopilotStatus {
++    account: Option<Account>,
++    request: Option<Request>,
++    thread: Option<ThreadId>,
++    checked_at: Option<Instant>,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++struct Account {
++    generation: String,
++    login: Option<String>,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++#[serde(rename_all = "camelCase")]
++struct Request {
++    schema_version: u32,
++    thread_id: String,
++    account_generation: Option<String>,
++    requested_model: Option<String>,
++    upstream_model: Option<String>,
++    serialized_effort: Option<String>,
++    context_tier: String,
++    status: String,
++    http_status: Option<u16>,
++    #[serde(default)]
++    stripped_parameters: Vec<String>,
++}
++
++fn read_record<T: serde::de::DeserializeOwned>(path: &Path) -> Option<T> {
++    let file = File::open(path).ok()?;
++    if file.metadata().ok()?.len() > MAX_STATUS_BYTES {
++        return None;
++    }
++    let mut bytes = Vec::new();
++    file.take(MAX_STATUS_BYTES + 1)
++        .read_to_end(&mut bytes)
++        .ok()?;
++    if bytes.len() as u64 > MAX_STATUS_BYTES {
++        return None;
++    }
++    serde_json::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes)).ok()
++}
++
++fn label(value: &str) -> String {
++    value
++        .chars()
++        .filter(|character| !character.is_control())
++        .take(64)
++        .collect()
++}
++
++impl CopilotStatus {
++    fn refresh(&mut self, home: &Path, thread: Option<ThreadId>, now: Instant) -> bool {
++        if self.thread == thread
++            && self
++                .checked_at
++                .is_some_and(|last| now.duration_since(last) < REFRESH_INTERVAL)
++        {
++            return false;
++        }
++        self.checked_at = Some(now);
++        self.thread = thread;
++        let account = read_record::<Account>(&home.join("account-generation.json"));
++        let request = thread.and_then(|thread| {
++            let request = read_record::<Request>(
++                &home.join("request-status").join(format!("{thread}.json")),
++            )?;
++            (request.schema_version == 1 && request.thread_id == thread.to_string())
++                .then_some(request)
++        });
++        let changed = self.account != account || self.request != request;
++        self.account = account;
++        self.request = request;
++        changed
++    }
++
++    pub(super) fn account_text(&self) -> Option<String> {
++        let login = label(self.account.as_ref()?.login.as_deref()?);
++        (!login.is_empty()).then(|| format!("GitHub @{login}"))
++    }
++
++    pub(super) fn request_text(
++        &self,
++        model: &str,
++        effort: Option<&str>,
++        tier: &str,
++    ) -> Option<String> {
++        let account = self.account.as_ref()?;
++        let Some(request) = &self.request else {
++            return Some("Pending first request".to_string());
++        };
++        let matches = request.account_generation.as_deref() == Some(account.generation.as_str())
++            && (request.requested_model.as_deref() == Some(model)
++                || request.upstream_model.as_deref() == Some(model))
++            && request.serialized_effort.as_deref() == effort
++            && request.context_tier == tier;
++        if !matches {
++            return Some("Pending next request".to_string());
++        }
++        Some(match request.status.as_str() {
++            "started" => "Request in flight".to_string(),
++            "complete"
++                if request
++                    .http_status
++                    .is_some_and(|status| (200..300).contains(&status))
++                    && !request
++                        .stripped_parameters
++                        .iter()
++                        .any(|parameter| parameter.starts_with("reasoning")) =>
++            {
++                "Request verified".to_string()
++            }
++            "complete" => "Request completed (unverified)".to_string(),
++            "error" => "Last request failed".to_string(),
++            _ => "Request unverified".to_string(),
++        })
++    }
++}
++
++impl ChatWidget {
++    pub(super) fn refresh_copilot_status_if_due(&mut self) {
++        if self.config.model_provider_id != "github-copilot" {
++            return;
++        }
++        if self
++            .copilot_status
++            .refresh(&self.config.codex_home, self.thread_id, Instant::now())
++        {
++            self.refresh_status_line();
++        }
++        self.frame_requester.schedule_frame_in(REFRESH_INTERVAL);
++    }
++}
++
++#[cfg(test)]
++#[path = "copilot_status_tests.rs"]
++mod tests;
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_exec_and_status_layout_vt100_snapshot.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_exec_and_status_layout_vt100_snapshot.snap
+index 1b4eec2..9cbf528 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_exec_and_status_layout_vt100_snapshot.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_exec_and_status_layout_vt100_snapshot.snap
+@@ -1,5 +1,6 @@
+ ---
+ source: tui/src/chatwidget/tests/status_and_layout.rs
++assertion_line: 4873
+ expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
+ ---
+ 
+@@ -41,4 +42,4 @@ expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
+ 
+ › Summarize recent commits
+ 
+-  tab to queue message                                       100% context left
++  tab to queue message · gpt-5.6-sol default · /tmp/project
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 98bf773..3d624cd 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -654,6 +654,27 @@ impl ChatWidget {
+     /// git metadata.
+     pub(super) fn status_line_value_for_item(&mut self, item: StatusLineItem) -> Option<String> {
+         match item {
++            StatusLineItem::CopilotAccount => self.copilot_status.account_text(),
++            StatusLineItem::RequestState => {
++                let effort = self
++                    .current_reasoning_effort()
++                    .map(|effort| effort.to_string());
++                let tier = if self.current_service_tier() == Some("context-long") {
++                    "long_context"
++                } else {
++                    "default"
++                };
++                self.copilot_status
++                    .request_text(self.current_model(), effort.as_deref(), tier)
++            }
++            StatusLineItem::LastRequestUsage => {
++                let usage = &self.token_info.as_ref()?.last_token_usage;
++                Some(format!(
++                    "Last {} in / {} out",
++                    format_tokens_compact(usage.input_tokens),
++                    format_tokens_compact(usage.output_tokens)
++                ))
++            }
+             StatusLineItem::ModelName => Some(self.model_display_name().to_string()),
+             StatusLineItem::ModelWithReasoning => Some(self.model_with_reasoning_display_name()),
+             StatusLineItem::Reasoning => Some(self.reasoning_display_name()),
+@@ -749,7 +770,10 @@ impl ChatWidget {
+                     Some("Cache --".to_string())
+                 } else {
+                     let percent = ((cached as f64 / total_input as f64) * 100.0).clamp(0.0, 100.0);
+-                    Some(format!("Cache {percent:.1}%"))
++                    Some(format!(
++                        "Cache {percent:.1}% ({} read)",
++                        format_tokens_compact(cached)
++                    ))
+                 }
+             }
+             StatusLineItem::CompactionCount => (self.successful_compaction_count > 0)
+@@ -805,6 +829,9 @@ impl ChatWidget {
+         item: StatusSurfacePreviewItem,
+     ) -> Option<String> {
+         let status_line_item = match item {
++            StatusSurfacePreviewItem::CopilotAccount => StatusLineItem::CopilotAccount,
++            StatusSurfacePreviewItem::RequestState => StatusLineItem::RequestState,
++            StatusSurfacePreviewItem::LastRequestUsage => StatusLineItem::LastRequestUsage,
+             StatusSurfacePreviewItem::AppName => return Some("codex".to_string()),
+             StatusSurfacePreviewItem::ProjectName => return self.terminal_title_project_name(),
+             StatusSurfacePreviewItem::ProjectRoot => StatusLineItem::ProjectRoot,
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index 01ded62..cb945a4 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -80,7 +80,7 @@ async fn status_line_cache_hit_is_truthful_and_marks_unavailable_cache_usage() {
+     );
+     assert_eq!(
+         chat.status_line_value_for_item(crate::bottom_pane::StatusLineItem::CacheHit),
+-        Some("Cache 75.0%".to_string())
++        Some("Cache 75.0% (750 read)".to_string())
+     );
+ }
+ 

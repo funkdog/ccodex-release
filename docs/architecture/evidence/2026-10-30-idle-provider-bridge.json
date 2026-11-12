@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T17:48:13.411Z",
+  "localDate": "2026-10-30",
+  "scope": "Mac local startup repair; not a published release",
+  "version": "1.2.36",
+  "targetedTests": {
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "suites": [
+      "bridge-runtime",
+      "bridge-control",
+      "gateway-backend-stage",
+      "desktop-shortcut",
+      "desktop-current-host",
+      "copilot-provider-native"
+    ]
+  },
+  "typeScriptBuild": {
+    "passed": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "moduleCheck": {
+    "modules": 159,
+    "relativeImportsVerified": 362,
+    "evaluatedCode": false
+  },
+  "bridgeUpgrade": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-10-29T17:42:57.292Z",
+    "oldPid": 73079,
+    "newPid": 74333,
+    "oldGeneration": "07225d0db9f344063b795e14539c30a584476590360be9aa568936ab943629ab",
+    "newGeneration": "bbc28fc567913e0751152a4afaced1cb466301cbdcdc7c736bf7952ca0dda05f",
+    "bridgeHealthy": true,
+    "bridgeAuthenticated": true,
+    "bridgeVersionMatches": true,
+    "modelCount": 36,
+    "originalBridgeExited": true,
+    "desktopLifetimePreserved": true,
+    "githubCredentialUnchanged": true,
+    "modelInferenceCalls": 0
+  },
+  "repairedStartup": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-10-29T17:46:25.396Z",
+    "applicationVersion": "26.1023.51421",
+    "gatewayPid": 75144,
+    "checks": {
+      "nativeProviderRegistered": true,
+      "nativeDefaultProviderPreserved": true,
+      "nativeThreadCreationUsesCopilotProvider": true,
+      "nativeThreadCreationUsesSelectedModel": true,
+      "nativeThreadMetadataReadable": true,
+      "existingCliHistoryUnchanged": true,
+      "globalConfigUnchanged": true,
+      "desktopLifetimePreserved": true,
+      "gatewayReused": true
+    },
+    "passed": true,
+    "modelInferenceCalls": 0,
+    "desktopRestarted": false,
+    "existingNativeProfileUsed": false
+  },
+  "realWindowAcceptance": "pending user-coordinated reopen; no Desktop restart or UI inspection performed",
+  "sourceSha256": {
+    "bridge/ensure.mjs": "afb3100145b302cbec0de5d7607dc901fc4e7284da1aa4a64125be2b0dfd9cbe",
+    "bridge/control.mjs": "cb0ba72de4cf726eb2fe6538defba3539608de46aa72ce4dabb73117624ac1a9",
+    "bridge/desktop-backends/app-server-gateway.mjs": "34087bfc8e20e7fe559f20caa3ddb6e6f7594386afe493ead00a38691a7c4c29",
+    "tests/bridge-runtime-test.mjs": "700978e2de37c374ee0794c231e9bdca3f0aee069d554f8cfc59567f90d9b909"
+  }
+}

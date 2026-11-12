@@ -1,0 +1,166 @@
+{
+  "recordedAt": "2026-11-02T01:52:42.774785+00:00",
+  "scope": "current Mac version launch preparation; notification UX deferred",
+  "branch": "codex/mycodex-app-server-design",
+  "version": "1.2.36",
+  "readyForCoordinatedRestart": true,
+  "loadedInCurrentWindow": false,
+  "clientRestarted": false,
+  "clientPid": 15499,
+  "currentFrontendPid": 15524,
+  "currentProtectedConnectionModified": false,
+  "originalChatHistoryModified": false,
+  "officialApplicationModified": false,
+  "launcherBindingAndSignatureVerified": true,
+  "runtimeSourceUnchangedSincePreviousFullRegression": true,
+  "previousRegression": {
+    "tests": 224,
+    "passed": 224,
+    "browserVersions": 3,
+    "checksPerBrowserVersion": 33
+  },
+  "backendPreparation": {
+    "recordedAt": "2026-11-02T01:46:02.721Z",
+    "hostVersion": "26.1027.51404",
+    "backendReady": true,
+    "gatewayPid": 32900,
+    "configuredEngines": [
+      "copilot",
+      "codex-copilot",
+      "antigravity"
+    ],
+    "catalogCounts": {
+      "copilot": 14,
+      "codex-copilot": 15,
+      "antigravity": 2
+    },
+    "warnings": [],
+    "inferenceTurns": 0,
+    "clientRestarted": false
+  },
+  "configuredLaunchPath": {
+    "recordedAt": "2026-11-02T01:46:38.254Z",
+    "kind": "configured-launcher-shim-isolated-native-profile",
+    "existingNativeProfileUsed": false,
+    "inferenceTurns": 0,
+    "desktopRestarted": false,
+    "checks": {
+      "allEngineGroups": true,
+      "nativeModelsPreserved": true,
+      "configuredProviderRestoresOldChat": true,
+      "historyRetained": true,
+      "settingsRetained": true,
+      "isolatedRollout": true,
+      "originalHistoryUnchanged": true,
+      "ownedTemporaryProfileRemoved": true
+    },
+    "modelCounts": {
+      "native": 9,
+      "copilot": 14,
+      "codex-copilot": 15,
+      "antigravity": 2
+    },
+    "restored": {
+      "provider": "mycodex-copilot",
+      "model": "mycodex/codex-copilot/gpt-6.1-sol",
+      "effort": "xhigh",
+      "approvalPolicy": "never",
+      "turnCount": 31
+    },
+    "passed": true
+  },
+  "initialCliProbe": {
+    "recordedAt": "2026-11-02T01:48:32.409Z",
+    "hostVersion": "26.1027.51404",
+    "nativeCliVersion": "0.166.0-alpha.5.1",
+    "clientRestarted": false,
+    "productionGatewayTouched": false,
+    "temporaryProfiles": true,
+    "inferenceTurns": 2,
+    "results": [
+      {
+        "engine": "copilot",
+        "checks": {
+          "expectedReply": true,
+          "historyStored": true,
+          "settingsRetained": true,
+          "workspaceUntouched": true
+        },
+        "model": "mycodex/copilot/gpt-6.1-sol",
+        "effort": "high",
+        "passed": true
+      },
+      {
+        "engine": "antigravity",
+        "checks": {
+          "expectedReply": true,
+          "historyStored": true,
+          "settingsRetained": true,
+          "workspaceUntouched": false
+        },
+        "model": "mycodex/antigravity/gemini-3.8-flash",
+        "effort": "high",
+        "passed": false
+      }
+    ],
+    "temporaryProfilesRemoved": true,
+    "passed": false
+  },
+  "antigravityWorkspaceDiagnosis": {
+    "recordedAt": "2026-11-02T01:50:10.378Z",
+    "inferenceTurns": 0,
+    "workspaceBefore": [],
+    "clientToolsRequested": 0,
+    "runtime": {
+      "name": "antigravity-acp",
+      "title": "Google Antigravity",
+      "version": "1.4.4"
+    },
+    "workspaceAfterInitialize": [],
+    "workspaceAfterSessionNew": [
+      "skills",
+      "skills/system",
+      "skills/system/run-workflow",
+      "skills/system/run-workflow/SKILL.md"
+    ]
+  },
+  "antigravityCorrectedGuardProbe": {
+    "recordedAt": "2026-11-02T01:51:07.538Z",
+    "kind": "antigravity-model-turn-compared-to-runtime-session-initialization",
+    "model": "gemini-3.8-flash",
+    "effort": "high",
+    "inferenceTurns": 1,
+    "clientRestarted": false,
+    "toolEvents": 0,
+    "permissionRequests": 0,
+    "checks": {
+      "expectedReply": true,
+      "sessionBaselineMatchesMetadataProbe": true,
+      "noModelWorkspaceChanges": true,
+      "noToolsOrPermissionRequests": true,
+      "temporaryCredentialAndWorkspaceRemoved": true
+    },
+    "runtimeCreatedFiles": [
+      "skills/system/run-workflow/SKILL.md"
+    ],
+    "passed": true
+  },
+  "inferenceTurnsThisPreparation": 3,
+  "interpretation": "Initial empty-workspace assertion failed for ACP session initialization. The failure is retained; metadata-only and live baseline checks separately establish no model-triggered tool calls or file changes.",
+  "remaining": [
+    "Quit the current ChatGPT at a convenient point and launch the existing MyCodex icon.",
+    "Real original-window creation, engine/model/effort controls and old chat continuation acceptance.",
+    "Implement non-modal compatibility status UX after current-version loading acceptance."
+  ],
+  "notVerified": [
+    "Antigravity Argon inference quota was not retested.",
+    "Current-window UI and post-restart persistence are pending."
+  ],
+  "preservedSha256": {
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce"
+  },
+  "published": false,
+  "committed": false
+}

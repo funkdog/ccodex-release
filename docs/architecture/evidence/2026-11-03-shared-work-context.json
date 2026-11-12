@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-03",
+  "timezone": "Asia/Shanghai",
+  "validatedAt": "2026-11-03T17:38:23.063Z",
+  "scope": "Shared work records, source-backed continuation and connected-computer local executor entry; actual dot-originated invocation remains pending",
+  "status": {
+    "sourceVerified": true,
+    "currentDesktopLoaded": false,
+    "realMouseHeadToolsVerified": false,
+    "genericSquadExecutionImplemented": false,
+    "fullApprovedLayoutImplemented": false,
+    "published": false,
+    "largerProductGoal": "in_progress"
+  },
+  "sourceVersion": "1.2.36",
+  "branch": "codex/mycodex-app-server-design",
+  "sourceHashes": {
+    "gateway/spine/work-context.mts": "95fbc0c87581d7f1ee8c47904904c6f364da4e61ac77647403b973e906227143",
+    "gateway/spine/work-store.mts": "5a7902000284321d2ff2b5c1ac7e2a76c1702acc143d5abb879fa9d88a12c161",
+    "gateway/spine/work-service.mts": "9a90f3d3df06707d8dca0fb1659c545f4b23e1e62d9d4d9c9d885870a0b17a65",
+    "gateway/server.mts": "1fe598659bb2500dfbd859948e7a042c2a5e7405fabe1f9de41379e207212a15",
+    "gateway/spine/mcp-server.mts": "29a9b115a3f82a079993307967abfd910f51efc160f5b440826b0166c03c1a71",
+    "bridge/diy/work-panel.mts": "68a629dd24ef8c60969db3fcebdd4b4225763cc20d3dbb9ab9c53961d89dc27f",
+    "tools/typescript-task.mjs": "30da172239cebf01cabc45b8f19b71033d5b5a040bb1892fad868f1972729b2e",
+    "tests/spine-shared-work-test.mjs": "f2950523545bd5745d99f059644afff35166f33b9ef8309bc921dee4ccbd414c",
+    "tests/spine-mcp-test.mjs": "3f37b9883e4abe81c01638ff4f56b93e9fe9e8ee0b5eec1bdcd555275923237a",
+    "gateway/spine/work-cli.mts": "1115384fef703b2e124ee528f12d865c7b708b3ca0b1273a23dde8bf8735ab43",
+    "tools/install-workbench-skill.mjs": "bf95d251242b7f006906e7470cb4902bf892cd186dbbb6319731fe386c7b56a3",
+    "skills/mycodex-workbench/SKILL.md": "f96a2c6558228195cc7ec0844ccaa30cd5191f2e97f0c8c543b83bd992cde9e8",
+    "tests/spine-work-cli-test.mjs": "b12516ed26e2e5a8280ee9b3e9abb1fd6b4226562ffa11b287464d06c1a1f997"
+  },
+  "approvedDesign": {
+    "name": "mycodex-shared-work.html",
+    "sha256": "bac11568b4160343a114e85e7aa14c768ac55ec3f68d3532c20b04a8cb699c3f"
+  },
+  "verification": {
+    "command": "Existing tools/typescript-task.mjs gate list and strict build/module checks, repository heavy-task wrappers, test concurrency 4",
+    "tests": 311,
+    "passed": 311,
+    "failed": 0,
+    "skipped": 0,
+    "testDurationMs": 13831.546042,
+    "modules": 207,
+    "relativeImports": 482,
+    "newFeatureModelCalls": 0,
+    "modelCallsInNewTests": 0,
+    "concurrency": 4,
+    "defaultSixWorkerGatePassed": false
+  },
+  "behaviorEvidence": [
+    "non-code work survives process recreation without Git or a synthetic commit",
+    "adopted context and candidates remain distinct; stale and missing revisions reject updates",
+    "ready work requires an output and acceptance criteria",
+    "general and code records cannot overwrite each other; legacy readers skip .general.json records",
+    "authenticated IPC registers the shared writer and exact work read",
+    "serialized compiled UI uses real WorkService data; candidate adoption persists on reload",
+    "discussion insertion includes revision, original intent, current adopted context, unresolved questions and next action; existing host draft is appended to"
+  ],
+  "browserBoundary": "Real WorkService with synthetic temporary records; host navigation and composer use explicit fixture adapters, not the current Desktop window.",
+  "liveEvidence": {
+    "existingGatewayStartedAt": "2026-11-03T06:00:31.089Z",
+    "newSharedMethodsRegistered": false,
+    "hostBindings": 0,
+    "workingClientRestarted": false,
+    "directLocalProbe": {
+      "ready": false,
+      "startedAt": "2026-11-03T06:00:31.089Z",
+      "missingMethods": [
+        "diy/work/shared_list",
+        "diy/work/record",
+        "diy/work/context"
+      ]
+    }
+  },
+  "releaseAttempt": {
+    "command": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 '& ./tools/Publish-Release.ps1'",
+    "exitCode": 127,
+    "reason": "pwsh not found",
+    "promotionStarted": false,
+    "releaseManifestPresent": false,
+    "releaseTestsPresent": false,
+    "installedReleaseHashComparison": "not performed; promoted manifest and core-current evidence unavailable"
+  },
+  "protectedHashes": {
+    "docs/DEVELOPMENT.zh-CN.md": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "VERSION": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b",
+    "NATIVE_PATCH_CHAIN.json": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28"
+  },
+  "cleanup": {
+    "isolatedProfilesRemovedByTests": true,
+    "ownedBrowserServiceStopped": true,
+    "temporaryTypeScriptStagesRemovedByBuilder": true,
+    "intermediateArchivesCreated": false,
+    "ownedSkillValidatorDependencyDirectoryRemoved": true
+  },
+  "remaining": [
+    "prove tool reachability inside the actual built-in mouse-head runtime",
+    "connect generic squad execution and the full approved companion layout",
+    "verify actual Desktop target/draft and upgrade continuity",
+    "complete formal release when its prerequisites are available"
+  ],
+  "gateAttempts": [
+    {
+      "tests": 304,
+      "passed": 303,
+      "failed": 1,
+      "failure": "Existing offline protected router fixture initialize request exceeded its 2000 ms timeout; source and threshold unchanged."
+    },
+    {
+      "tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "scope": "Focused protected-start recheck; offline router case passed in 1141.978792 ms."
+    },
+    {
+      "tests": 305,
+      "passed": 305,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Complete required TypeScript/package gate after adding native skill discovery acceptance."
+    },
+    {
+      "tests": 307,
+      "passed": 307,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Connection diagnostics: real macOS sandbox denial, missing socket, rejected handshake, initialization errors and private diagnostic redaction."
+    },
+    {
+      "tests": 309,
+      "passed": 309,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Restricted read-only MCP catalog, denied write dispatch, actual gateway/subprocess work context, unchanged record revision and invalid CLI flag refusal."
+    },
+    {
+      "tests": 311,
+      "passed": 310,
+      "failed": 1,
+      "concurrency": 6,
+      "scope": "First unified MCP full gate: existing sandboxed routed shim initialize exceeded 3000 ms."
+    },
+    {
+      "tests": 6,
+      "passed": 6,
+      "failed": 0,
+      "scope": "Focused desktop acceptance recheck passed, failing case took 1604.838583 ms."
+    },
+    {
+      "tests": 311,
+      "passed": 310,
+      "failed": 1,
+      "concurrency": 6,
+      "scope": "Second full six-worker run hit the same existing startup deadline."
+    },
+    {
+      "tests": 311,
+      "passed": 311,
+      "failed": 0,
+      "skipped": 0,
+      "concurrency": 4,
+      "scope": "Same unchanged gate list, strict build and module checks, lower local concurrency; no deadline or unrelated code changed."
+    }
+  ],
+  "localExecutorEntry": {
+    "canonicalSkill": "skills/mycodex-workbench/SKILL.md",
+    "commands": [
+      "describe",
+      "status",
+      "goals",
+      "list",
+      "context",
+      "goal",
+      "record"
+    ],
+    "explicitPrivateGatewayBinding": true,
+    "singleGatewayWriter": true,
+    "automaticRetry": false,
+    "nativeSkillDiscoveryVerified": true,
+    "installedSkill": true,
+    "skillValidatorPassed": true,
+    "userConfirmedDotComputerAccess": true,
+    "actualDotInvocationVerified": true,
+    "pendingUserProbe": "Unified read/write Platform form prepared. Await actual creation confirmation, then secure runtime credential input and authorized connection setup; do not retry the denied shell path.",
+    "tests": 9,
+    "modelCalls": 0,
+    "lostReplyEvidence": "Actual authenticated gateway commits once, proxy drops the reply, caller returns outcome unknown, original ID resolves to revision 1 without retry.",
+    "oldGatewayEvidence": "Missing method is reported before write dispatch; no store fallback or restart.",
+    "actualDotInvocationBoundary": "Actual dot task executes bound status command; gateway connect denied with EPERM. Read-only MCP surface prepared but no connector activated and no workbench records read or written from dot."
+  },
+  "unifiedMcpPreparation": {
+    "flag": "--shared-work",
+    "server": "mycodex-work",
+    "connectionsPlanned": 1,
+    "tunnelsPlanned": 1,
+    "reads": [
+      "mycodex.spine_status",
+      "mycodex.goals_list",
+      "mycodex.shared_work_list",
+      "mycodex.work_context"
+    ],
+    "writes": [
+      "mycodex.goal_upsert",
+      "mycodex.work_record"
+    ],
+    "writeIdentityAndRevisionValidatedBeforeDispatch": true,
+    "agentDispatchOrCodeExecutionExposed": false,
+    "actualIsolatedReadWriteRoundTripVerified": true,
+    "remoteConnected": false
+  }
+}

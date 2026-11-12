@@ -1,0 +1,429 @@
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_setup.rs b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+index d9eb36a..3faf041 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_setup.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+@@ -158,6 +158,8 @@ pub(crate) enum StatusLineItem {
+     CopilotAccount,
+     /// Remaining quota of the exact authenticated GitHub Copilot account.
+     CopilotQuota,
++    /// Exact AI-credit usage projected by the authenticated bridge.
++    CopilotCredits,
+     /// Verification state of the most recent request in this thread.
+     RequestState,
+     /// Input and output token counts from the latest native usage report.
+@@ -172,6 +174,9 @@ impl StatusLineItem {
+             StatusLineItem::CopilotQuota => {
+                 "Current Copilot quota, including unavailable/stale state"
+             }
++            StatusLineItem::CopilotCredits => {
++                "AI credits used, allowance and current usage percentage"
++            }
+             StatusLineItem::RequestState => {
+                 "Current thread's request versus selected model, context and effort"
+             }
+@@ -241,6 +246,7 @@ impl StatusLineItem {
+         match self {
+             StatusLineItem::CopilotAccount => StatusSurfacePreviewItem::CopilotAccount,
+             StatusLineItem::CopilotQuota => StatusSurfacePreviewItem::CopilotQuota,
++            StatusLineItem::CopilotCredits => StatusSurfacePreviewItem::CopilotCredits,
+             StatusLineItem::RequestState => StatusSurfacePreviewItem::RequestState,
+             StatusLineItem::LastRequestUsage => StatusSurfacePreviewItem::LastRequestUsage,
+             StatusLineItem::ModelName => StatusSurfacePreviewItem::Model,
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+index 0254380..0fd0169 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+@@ -32,6 +32,7 @@ impl StatusLineAccent {
+         match item {
+             StatusLineItem::CopilotAccount => Self::Metadata,
+             StatusLineItem::CopilotQuota => Self::Limit,
++            StatusLineItem::CopilotCredits => Self::Limit,
+             StatusLineItem::RequestState => Self::State,
+             StatusLineItem::LastRequestUsage => Self::Usage,
+             StatusLineItem::ModelName
+diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+index 81ce92a..e54480d 100644
+--- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
++++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+@@ -9,6 +9,7 @@ use super::status_line_setup::StatusLineItem;
+ pub(crate) enum StatusSurfacePreviewItem {
+     CopilotAccount,
+     CopilotQuota,
++    CopilotCredits,
+     RequestState,
+     LastRequestUsage,
+     AppName,
+@@ -50,6 +51,7 @@ impl StatusSurfacePreviewItem {
+         match self {
+             StatusSurfacePreviewItem::CopilotAccount => "GitHub @account",
+             StatusSurfacePreviewItem::CopilotQuota => "Copilot 240/300 left",
++            StatusSurfacePreviewItem::CopilotCredits => "AI credits used / allowance",
+             StatusSurfacePreviewItem::RequestState => "Pending first request",
+             StatusSurfacePreviewItem::LastRequestUsage => "Last -- in / -- out",
+             StatusSurfacePreviewItem::AppName => "codex",
+@@ -91,6 +93,7 @@ impl StatusSurfacePreviewItem {
+         [
+             Self::CopilotAccount,
+             Self::CopilotQuota,
++            Self::CopilotCredits,
+             Self::RequestState,
+             Self::LastRequestUsage,
+             Self::AppName,
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status.rs b/codex-rs/tui/src/chatwidget/copilot_status.rs
+index b9a4039..8639021 100644
+--- a/codex-rs/tui/src/chatwidget/copilot_status.rs
++++ b/codex-rs/tui/src/chatwidget/copilot_status.rs
+@@ -21,6 +21,9 @@ pub(super) struct CopilotStatus {
+     thread: Option<ThreadId>,
+     checked_at: Option<Instant>,
+     last_quota_text: Option<String>,
++    last_credit_text: Option<String>,
++    credit_transition_from: Option<f64>,
++    credit_transition_at: Option<Instant>,
+ }
+ 
+ #[derive(Debug, Deserialize, PartialEq)]
+@@ -29,6 +32,32 @@ struct Account {
+     login: Option<String>,
+     #[serde(default)]
+     quota: Option<Quota>,
++    #[serde(default)]
++    credits: Option<CreditView>,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++#[serde(rename_all = "camelCase")]
++struct CreditView {
++    schema_version: u32,
++    account_generation: String,
++    status: String,
++    status_text: String,
++    progress: Option<f64>,
++    checked_at: Option<String>,
++    expires_at: Option<String>,
++    stale_at: Option<String>,
++    stale_suffix: String,
++    unavailable_text: String,
++    color: CreditColor,
++    stale_color: CreditColor,
++    frame_ms: u64,
++    transition_ms: u64,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++struct CreditColor {
++    ansi: u8,
+ }
+ 
+ #[derive(Debug, Deserialize, PartialEq)]
+@@ -99,7 +128,10 @@ impl CopilotStatus {
+                 .checked_at
+                 .is_some_and(|last| now.duration_since(last) < REFRESH_INTERVAL)
+         {
+-            return false;
++            let text = self.credits_text();
++            let changed = self.last_credit_text != text;
++            self.last_credit_text = text;
++            return changed;
+         }
+         self.checked_at = Some(now);
+         self.thread = thread;
+@@ -112,14 +144,135 @@ impl CopilotStatus {
+                 .then_some(request)
+         });
+         let mut changed = self.account != account || self.request != request;
++        if self
++            .account
++            .as_ref()
++            .and_then(|value| value.credits.as_ref())
++            != account.as_ref().and_then(|value| value.credits.as_ref())
++        {
++            self.credit_transition_from = self
++                .account
++                .as_ref()
++                .filter(|old| {
++                    account
++                        .as_ref()
++                        .is_some_and(|next| next.generation == old.generation)
++                })
++                .and_then(|value| value.credits.as_ref())
++                .and_then(|view| view.progress)
++                .filter(|value| value.is_finite() && (0.0..=1.0).contains(value));
++            self.credit_transition_at = Some(Instant::now());
++        }
+         self.account = account;
+         self.request = request;
+         let quota_text = self.quota_text();
+         changed |= self.last_quota_text != quota_text;
+         self.last_quota_text = quota_text;
++        let text = self.credits_text();
++        changed |= self.last_credit_text != text;
++        self.last_credit_text = text;
+         changed
+     }
+ 
++    fn current_credits(&self) -> Option<&CreditView> {
++        let account = self.account.as_ref()?;
++        let credits = account.credits.as_ref()?;
++        (credits.schema_version == 1
++            && credits.account_generation == account.generation
++            && credits.status_text.chars().count() <= 200)
++            .then_some(credits)
++    }
++
++    pub(super) fn credits_text(&self) -> Option<String> {
++        let Some(view) = self.current_credits() else {
++            return Some("AI credits unavailable".to_string());
++        };
++        let now = chrono::Utc::now();
++        let checked = view
++            .checked_at
++            .as_deref()
++            .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok());
++        let expires = view
++            .expires_at
++            .as_deref()
++            .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok());
++        if !matches!(view.status.as_str(), "available" | "stale")
++            || checked.is_none_or(|value| value > now)
++            || expires.is_none_or(|value| value <= now)
++        {
++            return Some(
++                view.unavailable_text
++                    .chars()
++                    .filter(|c| !c.is_control())
++                    .take(64)
++                    .collect(),
++            );
++        }
++        let target = view
++            .progress
++            .filter(|value| value.is_finite() && (0.0..=1.0).contains(value));
++        let progress = match (
++            self.credit_transition_from,
++            target,
++            self.credit_transition_at,
++        ) {
++            (Some(from), Some(to), Some(started)) if view.transition_ms > 0 => {
++                let phase = (started.elapsed().as_secs_f64() * 1000.0 / view.transition_ms as f64)
++                    .clamp(0.0, 1.0);
++                Some(from + (to - from) * (1.0 - (1.0 - phase).powi(3)))
++            }
++            _ => target,
++        };
++        let ascii = std::env::var("TERM").is_ok_and(|value| value == "dumb")
++            || std::env::var_os("NO_UNICODE").is_some();
++        let gauge = if ascii {
++            let fill = (progress.unwrap_or(0.0) * 12.0).round() as usize;
++            format!("[{}{}]", "=".repeat(fill), "-".repeat(12 - fill))
++        } else {
++            ["○", "◔", "◑", "◕", "●"][(progress.unwrap_or(0.0) * 4.0).round() as usize].to_string()
++        };
++        let mut text: String = view
++            .status_text
++            .chars()
++            .filter(|c| !c.is_control())
++            .take(200)
++            .collect();
++        if view.status != "stale"
++            && view
++                .stale_at
++                .as_deref()
++                .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
++                .is_some_and(|value| value <= now)
++        {
++            text.push_str(&view.stale_suffix);
++        }
++        if ascii {
++            text = text.replace(" · ", " | ");
++        }
++        Some(format!("{gauge} {text}"))
++    }
++
++    pub(super) fn credits_color(&self) -> Option<ratatui::style::Color> {
++        let view = self.current_credits()?;
++        let fresh = view.status == "available"
++            && view
++                .stale_at
++                .as_deref()
++                .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
++                .is_some_and(|value| value > chrono::Utc::now());
++        match if fresh {
++            view.color.ansi
++        } else {
++            view.stale_color.ansi
++        } {
++            31 => Some(ratatui::style::Color::Red),
++            32 => Some(ratatui::style::Color::Green),
++            33 => Some(ratatui::style::Color::Yellow),
++            90 => Some(ratatui::style::Color::DarkGray),
++            _ => None,
++        }
++    }
++
+     pub(super) fn account_text(&self) -> Option<String> {
+         let login = label(self.account.as_ref()?.login.as_deref()?);
+         (!login.is_empty()).then(|| format!("GitHub @{login}"))
+@@ -230,7 +383,12 @@ impl ChatWidget {
+         {
+             self.refresh_status_line();
+         }
+-        self.frame_requester.schedule_frame_in(REFRESH_INTERVAL);
++        let interval = self
++            .copilot_status
++            .current_credits()
++            .map(|view| Duration::from_millis(view.frame_ms.clamp(40, 1000)))
++            .unwrap_or(REFRESH_INTERVAL);
++        self.frame_requester.schedule_frame_in(interval);
+     }
+ }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status_tests.rs b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+index 825b9fa..f05aba6 100644
+--- a/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
++++ b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+@@ -2,6 +2,100 @@ use super::*;
+ use pretty_assertions::assert_eq;
+ use serde_json::json;
+ 
++fn credit_projection() -> serde_json::Value {
++    let now = chrono::Utc::now();
++    json!({
++        "schemaVersion": 1, "accountGeneration": "one", "status": "available",
++        "statusText": "2,612 / 1,000,000 AI credits · 0.3% used",
++        "progress": 0.002612,
++        "checkedAt": now.to_rfc3339(),
++        "expiresAt": (now + chrono::Duration::minutes(15)).to_rfc3339(),
++        "staleAt": (now + chrono::Duration::minutes(2)).to_rfc3339(),
++        "staleSuffix": " (Last known, not live)",
++        "unavailableText": "AI credits unavailable",
++        "color": { "ansi": 32 }, "staleColor": { "ansi": 90 },
++        "frameMs": 80, "transitionMs": 480
++    })
++}
++
++#[test]
++fn credits_render_the_shared_projection_instead_of_recalculating_request_or_token_usage() {
++    let root = tempfile::tempdir().unwrap();
++    std::fs::write(
++        root.path().join("account-generation.json"),
++        json!({
++            "generation": "one", "login": "test-user", "credits": credit_projection()
++        })
++        .to_string(),
++    )
++    .unwrap();
++    let mut status = CopilotStatus::default();
++    status.refresh(root.path(), None, Instant::now());
++    assert_eq!(
++        (status.credits_text(), status.credits_color()),
++        (
++            Some("○ 2,612 / 1,000,000 AI credits · 0.3% used".to_string()),
++            Some(ratatui::style::Color::Green)
++        )
++    );
++}
++
++#[test]
++fn credits_clear_another_account_projection_and_mark_expired_data_unavailable() {
++    let root = tempfile::tempdir().unwrap();
++    let mut status = CopilotStatus::default();
++    let now = Instant::now();
++    for (index, changed) in ["accountGeneration", "expiresAt", "checkedAt"]
++        .into_iter()
++        .enumerate()
++    {
++        let mut projection = credit_projection();
++        projection[changed] = json!(match changed {
++            "accountGeneration" => "other".to_string(),
++            "expiresAt" => (chrono::Utc::now() - chrono::Duration::seconds(1)).to_rfc3339(),
++            "checkedAt" => (chrono::Utc::now() + chrono::Duration::minutes(1)).to_rfc3339(),
++            _ => unreachable!(),
++        });
++        std::fs::write(
++            root.path().join("account-generation.json"),
++            json!({
++                "generation": "one", "credits": projection
++            })
++            .to_string(),
++        )
++        .unwrap();
++        status.refresh(root.path(), None, now + REFRESH_INTERVAL * index as u32);
++        assert_eq!(
++            status.credits_text().as_deref(),
++            Some("AI credits unavailable")
++        );
++    }
++}
++
++#[test]
++fn credits_expire_using_projected_timestamps_and_share_the_stale_caption_and_color() {
++    let root = tempfile::tempdir().unwrap();
++    let mut projection = credit_projection();
++    projection["staleAt"] = json!((chrono::Utc::now() - chrono::Duration::seconds(1)).to_rfc3339());
++    std::fs::write(
++        root.path().join("account-generation.json"),
++        json!({
++            "generation": "one", "credits": projection
++        })
++        .to_string(),
++    )
++    .unwrap();
++    let mut status = CopilotStatus::default();
++    status.refresh(root.path(), None, Instant::now());
++    assert_eq!(
++        (status.credits_text(), status.credits_color()),
++        (
++            Some("○ 2,612 / 1,000,000 AI credits · 0.3% used (Last known, not live)".to_string()),
++            Some(ratatui::style::Color::DarkGray)
++        )
++    );
++}
++
+ #[test]
+ fn quota_is_current_account_remaining_and_marks_unknown_stale_and_unlimited() {
+     let root = tempfile::tempdir().unwrap();
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 1417591..e3ecc67 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -190,10 +190,19 @@ impl ChatWidget {
+             }
+         }
+ 
+-        self.set_status_line(status_line_from_segments(
+-            segments,
+-            self.config.tui_status_line_use_colors,
+-        ));
++        let credit_index = segments
++            .iter()
++            .position(|(item, _)| *item == StatusLineItem::CopilotCredits)
++            .map(|index| index * 2);
++        let mut line = status_line_from_segments(segments, self.config.tui_status_line_use_colors);
++        if self.config.tui_status_line_use_colors
++            && let Some(index) = credit_index
++            && let Some(color) = self.copilot_status.credits_color()
++            && let Some(span) = line.as_mut().and_then(|line| line.spans.get_mut(index))
++        {
++            span.style = span.style.fg(color);
++        }
++        self.set_status_line(line);
+         let hyperlink_url = selections
+             .status_line_items
+             .contains(&StatusLineItem::PullRequestNumber)
+@@ -656,6 +665,7 @@ impl ChatWidget {
+         match item {
+             StatusLineItem::CopilotAccount => self.copilot_status.account_text(),
+             StatusLineItem::CopilotQuota => self.copilot_status.quota_text(),
++            StatusLineItem::CopilotCredits => self.copilot_status.credits_text(),
+             StatusLineItem::RequestState => {
+                 let effort = self
+                     .current_reasoning_effort()
+@@ -833,6 +843,7 @@ impl ChatWidget {
+         let status_line_item = match item {
+             StatusSurfacePreviewItem::CopilotAccount => StatusLineItem::CopilotAccount,
+             StatusSurfacePreviewItem::CopilotQuota => StatusLineItem::CopilotQuota,
++            StatusSurfacePreviewItem::CopilotCredits => StatusLineItem::CopilotCredits,
+             StatusSurfacePreviewItem::RequestState => StatusLineItem::RequestState,
+             StatusSurfacePreviewItem::LastRequestUsage => StatusLineItem::LastRequestUsage,
+             StatusSurfacePreviewItem::AppName => return Some("codex".to_string()),

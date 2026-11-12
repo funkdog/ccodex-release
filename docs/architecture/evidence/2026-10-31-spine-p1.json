@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-31",
+  "timezone": "Asia/Shanghai",
+  "phase": "P1",
+  "branch": "codex/mycodex-app-server-design",
+  "version": "1.2.36",
+  "sourceAndIsolatedValidation": "complete",
+  "liveWindowAcceptance": "not-performed; P1 not enabled in current instance",
+  "gates": {
+    "typecheck": { "exitCode": 0, "command": "node tools/typescript-task.mjs typecheck", "log": "/private/tmp/mycodex-p1-typecheck-final.txt" },
+    "build": { "exitCode": 0, "sources": 40, "outputs": 80, "command": "node tools/typescript-task.mjs build" },
+    "testDiy": { "exitCode": 0, "tests": 205, "passed": 205, "failed": 0, "skipped": 0, "command": "node tools/typescript-task.mjs test", "log": "/private/tmp/mycodex-p1-gates-final.txt" },
+    "esm": { "modules": 172, "relativeImports": 398, "evaluatedCode": false },
+    "sourceAudit": { "passed": true, "files": 34, "scope": "explicit task source list using existing auditSourceFiles; shared checkout not staged", "command": "bash tools/Invoke-HeavyTask.sh node tools/check-spine-source.mjs" }
+  },
+  "integration": {
+    "nativeCliVersion": "0.165.0-alpha.1.2",
+    "nativeMcpDiscovery": "actual installed native CLI + routed stdio + isolated profile + authenticated private gateway",
+    "toolsDiscovered": ["mycodex.read_log", "mycodex.spine_status"],
+    "modelTurnsSent": 0,
+    "drawer": "isolated headless Chrome; actual compiled ESM + serialized installer; mount/switch/abort/dispose; HostActions preserve existing draft",
+    "protectedStartup": "OpenAI installation signature verified read-only; startup/ownership/error behaviors verified only in isolated fixtures"
+  },
+  "runtimeObservation": {
+    "clientPid": 42126,
+    "gatewayPid": 85785,
+    "helperPid": 85892,
+    "p1Enabled": false,
+    "clientRestarted": false,
+    "activeChatsModified": false,
+    "currentProfileModified": false
+  },
+  "preserved": {
+    "developmentDocumentSha256": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce",
+    "standardProtocolSha256": "6131c5860f467add4fcb6306fd4381201db045ccf403049460a220c9e298e4e9",
+    "nativePatchChainSha256": "0b1f9ffb76215e26389f4903f84e46395a79aace0da0f4361429b88bbb3d1d28",
+    "versionSha256": "ac468803fafb558c7035327ef52d7057a75a209ed53775e6dd24a6e8c439926b"
+  },
+  "limits": [
+    "No live Desktop drawer or GPT active read_log acceptance yet; source completion is distinct from loaded runtime.",
+    "PATH interception is explicit and child-local; absolute executables, login shell PATH resets and unintegrated third-party tools may bypass it.",
+    "Oversized failure text is preserved in original spillover and requires explicit read_log continuations.",
+    "No commits, pushes, publication, VERSION upgrade, native Rust changes or P2 implementation."
+  ]
+}

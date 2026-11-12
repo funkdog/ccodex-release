@@ -1,0 +1,30 @@
+diff --git a/codex-rs/tui/src/tui/keyboard_modes.rs b/codex-rs/tui/src/tui/keyboard_modes.rs
+index 51b369d..a9a2c8e 100644
+--- a/codex-rs/tui/src/tui/keyboard_modes.rs
++++ b/codex-rs/tui/src/tui/keyboard_modes.rs
+@@ -211,6 +211,8 @@ pub(super) fn restore_keyboard_enhancement_stack() {
+ }
+ 
+ pub(super) fn reset_keyboard_reporting_after_exit() {
++    #[cfg(windows)]
++    super::windows_console::reset_key_records_after_exit();
+     let _ = execute!(
+         stdout(),
+         PopKeyboardEnhancementFlags,
+diff --git a/codex-rs/tui/src/tui/windows_console.rs b/codex-rs/tui/src/tui/windows_console.rs
+index 570dee7..7607a3c 100644
+--- a/codex-rs/tui/src/tui/windows_console.rs
++++ b/codex-rs/tui/src/tui/windows_console.rs
+@@ -67,6 +67,12 @@ pub(super) fn request_key_records() {
+     write_keyboard_mode(b"\x1b[?9001h");
+ }
+ 
++#[cfg(windows)]
++pub(super) fn reset_key_records_after_exit() {
++    // Process exit must reset reporting even if an inner mode guard remains.
++    write_keyboard_mode(b"\x1b[?9001l");
++}
++
+ #[cfg(windows)]
+ pub(super) fn set_input_record_mode() -> std::io::Result<()> {
+     use windows_sys::Win32::System::Console::SetConsoleMode;

@@ -1,0 +1,38 @@
+{
+  "scope": "User-coordinated manual restart; read-only loaded-generation verification; native window operations pending",
+  "userReportedRestartComplete": true,
+  "nativeWindowSixOperationAcceptanceComplete": false,
+  "recordedAt": "2026-10-31T04:33:05.608Z",
+  "client": {
+    "pid": 30348,
+    "sameLifetime": true
+  },
+  "gateway": {
+    "pid": 30320,
+    "sameLifetime": true,
+    "loadedGeneration": "fe373dc6fbd948418d66a6e730c1222c48e07ad4d0f63d57ae0108a8ebd66b69",
+    "sourceGeneration": "fe373dc6fbd948418d66a6e730c1222c48e07ad4d0f63d57ae0108a8ebd66b69"
+  },
+  "helper": {
+    "pid": 30448,
+    "sameLifetime": true
+  },
+  "launchReceiptSourceGeneration": "49b23c47f376a3743e242e17e64547c3667437d677880a233e3d39515a9c9b69",
+  "currentSource": "49b23c47f376a3743e242e17e64547c3667437d677880a233e3d39515a9c9b69",
+  "version": "1.2.36",
+  "host": {
+    "version": "26.1023.51421",
+    "archiveSha256": "1c8ef1bef66e5fc416ae66eff8e6529972aa3601e27a1c7b5f61d6a292b957d3",
+    "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2"
+  },
+  "build": {
+    "applicable": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "shortcut": {
+    "action": "activate-existing",
+    "launchPerformed": false
+  },
+  "sharedDevelopmentDocSha256": "11675a375f5fd555395684cab472778e897f07e11fa94f38e259e8e53631abce"
+}

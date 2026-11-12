@@ -1,0 +1,182 @@
+{
+  "recordedAt": "2026-10-31T12:45:12.954714+00:00",
+  "scope": "Accept native multi-project context hints while retaining immutable CLI cwd and approval policy",
+  "actualProductionEnvelope": {
+    "method": "thread/start",
+    "cwd": "/Users/<user>/workspace/ccodex-release",
+    "rootCount": 2,
+    "roots": [
+      "/Users/<user>/workspace/ccodex-release",
+      "/Users/<user>/workspace/other-project"
+    ]
+  },
+  "sources": {
+    "gateway/protocol.mts": "6131c5860f467add4fcb6306fd4381201db045ccf403049460a220c9e298e4e9",
+    "gateway/server.mts": "8d4b77cd3fcd15754f911fe13a969caa1fb9f0697243378e6a688cf5d5138016",
+    "tests/gateway-protocol-test.mjs": "a2100a628a19d64c1750e3efaef0c4dbc5935c130ac55602c7e84b2955987656"
+  },
+  "tests": {
+    "matchingTwoRootIpcFailedBeforeFix": true,
+    "directedPassed": 81,
+    "typescriptSources": 30,
+    "typescriptOutputs": 60,
+    "modules": 161,
+    "relativeImports": 373
+  },
+  "realCli": {
+    "recordedAt": "2026-10-31T12:41:18.672Z",
+    "temporaryProfile": true,
+    "productionThreadsModified": false,
+    "desktopRestarted": false,
+    "nativeInferenceTurns": 0,
+    "cliTurns": 1,
+    "hostRootCount": 2,
+    "passed": true,
+    "model": "antigravity/gemini-4-argon",
+    "reasoningEffort": "high",
+    "cliApprovalMode": "deny",
+    "cwdPreserved": true,
+    "reply": "MYCODEX_OK",
+    "temporaryDataRemoved": true
+  },
+  "runtime": {
+    "oldGatewayPid": 81858,
+    "gatewayPid": 85785,
+    "helperPid": 85892,
+    "applicationPid": 42126,
+    "applicationRestarted": false,
+    "activeCliChatsBeforeRefresh": 0,
+    "capabilityPreserved": true,
+    "generationPreserved": true,
+    "helperInstallerAcknowledged": true
+  },
+  "nativeWindowAcceptance": "passed-user-confirmed-reply",
+  "nativeConfigSha256": "49edefaec5ed91953ab3d952fb22513f257ad273c2f430225ab2b0dd27d867ca",
+  "published": false,
+  "versionChanged": false,
+  "acceptanceVerifiedAt": "2026-10-31T13:12:06.017890+00:00",
+  "productionVerification": {
+    "model": "antigravity/gemini-4-argon",
+    "reasoningEffort": "high",
+    "cwd": "/Users/<user>/workspace/ccodex-release",
+    "completedThreadsWithExpectedReply": [
+      "c56d7495-53a5-4bea-afac-ff9d7f988cfd",
+      "815fcc6b-52f8-4daf-a9b3-96fa81bc16fc"
+    ],
+    "approvalModesObserved": [
+      "ask",
+      "auto"
+    ],
+    "settingsChangedByVerification": false
+  },
+  "projectRootSource": {
+    "storageKey": "local-projects",
+    "selectedProject": {
+      "type": "local",
+      "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+    },
+    "projects": [
+      {
+        "id": "0a506a2c-780e-43c0-91f9-05670cfb9c46",
+        "name": "MyCodex",
+        "rootPaths": [
+          "/Users/<user>/workspace/ccodex-release",
+          "/Users/<user>/workspace/other-project"
+        ],
+        "updatedAt": 1793446813977
+      },
+      {
+        "id": "96019ccc-8a36-433f-a41b-10add8bf643a",
+        "name": "Ainvest-Terminal-Cloud",
+        "rootPaths": [
+          "/Users/<user>/workspace/other-project",
+          "/Users/<user>/workspace/ccodex-release"
+        ],
+        "updatedAt": 1793446809079
+      }
+    ],
+    "writerKnown": false,
+    "projectConfigurationModifiedByInvestigation": false
+  },
+  "projectRootsCleanup": {
+    "recordedAt": "2026-10-31T14:05:56.606796+00:00",
+    "status": "completed-native-and-desktop-config-verified",
+    "method": "official native app-server project/update, roots only",
+    "projects": [
+      {
+        "name": "MyCodex",
+        "nativeId": "01a186dc-b3a8-7471-bb44-75c7de3b57ec",
+        "legacyId": "0a506a2c-780e-43c0-91f9-05670cfb9c46",
+        "nativeRoots": [
+          {
+            "path": "/Users/<user>/workspace/ccodex-release"
+          }
+        ],
+        "desktopRoots": [
+          "/Users/<user>/workspace/ccodex-release"
+        ],
+        "nativeMatches": true,
+        "desktopMatches": true
+      },
+      {
+        "name": "Ainvest-Terminal-Cloud",
+        "nativeId": "01a15877-8f80-7ed3-a118-619d6af75156",
+        "legacyId": "96019ccc-8a36-433f-a41b-10add8bf643a",
+        "nativeRoots": [
+          {
+            "path": "/Users/<user>/workspace/other-project"
+          }
+        ],
+        "desktopRoots": [
+          "/Users/<user>/workspace/other-project"
+        ],
+        "nativeMatches": true,
+        "desktopMatches": true
+      }
+    ],
+    "protectedLegacyAssignmentsAndSelectionUnchanged": true,
+    "nativeMembershipListsUnchanged": true,
+    "nativeMembershipCounts": [
+      0,
+      0
+    ],
+    "membershipLimitation": "Native project assignment migration is incomplete; zero database members does not validate all legacy chats.",
+    "desktopLegacyRootsStillCrossLinked": false,
+    "liveGlobalStateJsonEdited": false,
+    "appRestarted": false,
+    "backupOutsideRepository": true,
+    "desktopOwnerSave": "User confirmed both projects saved through native Edit project UI.",
+    "verifiedAt": "2026-10-31T14:22:17.159Z",
+    "existingLegacyAssignmentsUnchanged": true,
+    "oldProjectlessMembershipsPreserved": true,
+    "sampledCliThreads": [
+      {
+        "threadId": "6ca4dcca-d9e5-4993-8ae4-fd28d87b34e1",
+        "cwd": "/Users/<user>/workspace/ccodex-release",
+        "model": "antigravity/gemini-4-argon",
+        "reasoningEffort": "high",
+        "cliApprovalMode": "auto",
+        "turnCount": 5
+      },
+      {
+        "threadId": "815fcc6b-52f8-4daf-a9b3-96fa81bc16fc",
+        "cwd": "/Users/<user>/workspace/ccodex-release",
+        "model": "antigravity/gemini-4-argon",
+        "reasoningEffort": "high",
+        "cliApprovalMode": "auto",
+        "turnCount": 2
+      }
+    ],
+    "sampledCliCwdsMatch": true,
+    "historicalSampleLimitation": "Native peer reported unloaded gateway-owned threads; gateway reports the first old acceptance sample permanently deleted. No deleted thread was restored. Current listed threads sampled instead.",
+    "runtimePidsUnchanged": {
+      "app": 42126,
+      "gateway": 85785,
+      "helper": 85892
+    },
+    "testMessagesSent": false
+  },
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

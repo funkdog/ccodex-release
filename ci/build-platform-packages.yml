@@ -1,0 +1,274 @@
+name: Build platform packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-copilot-platform-release
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24.18.0
+  CARGO_PROFILE_RELEASE_STRIP: symbols
+  CARGO_BUILD_JOBS: 6
+  CMAKE_BUILD_PARALLEL_LEVEL: 6
+  RUST_TEST_THREADS: 6
+  MACOSX_DEPLOYMENT_TARGET: "13.0"
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Prepare pinned patched Codex source
+        shell: pwsh
+        run: |
+          $commit = node tools/read-source-revision.mjs
+          git clone --filter=blob:none --no-checkout https://github.com/openai/codex.git codex-source
+          git -C codex-source fetch --depth 1 origin $commit
+          git -C codex-source checkout --detach $commit
+          node tools/apply-native-patches.mjs codex-source
+      - name: Test patched native TUI
+        shell: pwsh
+        working-directory: codex-source/codex-rs
+        run: |
+          (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
+          $env:CODEX_HOME = Join-Path $env:RUNNER_TEMP 'ccodex-test-profile'
+          $env:CODEX_COPILOT_HOME = $env:CODEX_HOME
+          New-Item -ItemType Directory -Path $env:CODEX_HOME -Force | Out-Null
+          cargo install --locked just --version 1.57.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo install --locked cargo-nextest --version 0.9.140
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path .\code-mode-host) {
+            cargo build --locked -p codex-code-mode-host --bin codex-code-mode-host -p codex-rmcp-client --bin test_stdio_server
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          just test -p codex-tui --test-threads 6
+      - name: Build pinned Windows cores
+        shell: pwsh
+        run: |
+          (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
+          $targets = [ordered]@{
+            arm64 = 'aarch64-pc-windows-msvc'
+            x64 = 'x86_64-pc-windows-msvc'
+          }
+          foreach ($arch in $targets.Keys) {
+            $rustTarget = $targets[$arch]
+            rustup target add $rustTarget
+            cargo build --manifest-path .\codex-source\codex-rs\Cargo.toml --release --target $rustTarget -p codex-cli --bin codex
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $destination = ".\bin\runtimes\$arch\codex-copilot-core.exe"
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+            Copy-Item ".\codex-source\codex-rs\target\$rustTarget\release\codex.exe" $destination -Force
+            $packageBuilder = Join-Path $PWD 'codex-source\scripts\build_codex_package.py'
+            if (Test-Path -LiteralPath $packageBuilder) {
+              $env:CODEX_REPO_ROOT = Join-Path $PWD 'codex-source'
+              $packageDirectory = Join-Path $env:RUNNER_TEMP "codex-package-$arch"
+              python $packageBuilder --target $rustTarget --cargo-profile release `
+                --entrypoint-bin ".\codex-source\codex-rs\target\$rustTarget\release\codex.exe" `
+                --package-dir $packageDirectory
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+              $coreVersion = "codex-cli " + ((Get-Content .\codex-source\codex-rs\Cargo.toml |
+                Select-String '^version = "([^"]+)"').Matches.Groups[1].Value)
+              node tools/stage-cli-package-components.mjs $packageDirectory $destination "windows-$arch" $coreVersion
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            node tools/write-core-manifest.mjs --target "windows-$arch" --core $destination `
+              --output ".\bin\runtimes\$arch\codex-copilot-core.manifest.json"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build Windows architecture packages
+        shell: pwsh
+        run: |
+          (Get-Process -Id $PID).PriorityClass = 'BelowNormal'
+          $version = (Get-Content VERSION -Raw).Trim()
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          & .\tools\New-TransferBundle.ps1 `
+            -Target windows-arm64 `
+            -OutputPath ".\dist\codex-copilot-windows-arm64-$version.zip" `
+            -Force
+          & .\tools\New-TransferBundle.ps1 `
+            -Target windows-x64 `
+            -OutputPath ".\dist\codex-copilot-windows-x64-$version.zip" `
+            -Force
+          foreach ($archive in Get-ChildItem .\dist\*.zip) {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive.FullName).Hash.ToLowerInvariant()
+            "$hash  $($archive.Name)" | Set-Content -LiteralPath "$($archive.FullName).sha256" -Encoding ascii
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          path: dist/*
+
+  unix:
+    needs: windows
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - package_target: linux-arm64
+            rust_target: aarch64-unknown-linux-gnu
+            node_platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            node_archive: tar.xz
+          - package_target: linux-x64
+            rust_target: x86_64-unknown-linux-gnu
+            node_platform: linux-x64
+            runner: ubuntu-24.04
+            node_archive: tar.xz
+          - package_target: macos-arm64
+            rust_target: aarch64-apple-darwin
+            node_platform: darwin-arm64
+            runner: macos-15
+            node_archive: tar.gz
+          - package_target: macos-x64
+            rust_target: x86_64-apple-darwin
+            node_platform: darwin-x64
+            runner: macos-15-intel
+            node_archive: tar.gz
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux build and packaging tools
+        if: startsWith(matrix.package_target, 'linux-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake libssl-dev libcap-dev libasound2-dev make perl pkg-config rpm
+      - name: Prepare patched Codex source
+        shell: bash
+        run: |
+          CODEX_COMMIT="$(node tools/read-source-revision.mjs)"
+          git clone --filter=blob:none --no-checkout https://github.com/openai/codex.git codex-source
+          git -C codex-source fetch --depth 1 origin "$CODEX_COMMIT"
+          git -C codex-source checkout --detach "$CODEX_COMMIT"
+          node tools/apply-native-patches.mjs codex-source
+      - name: Test patched native TUI
+        shell: bash
+        run: |
+          export CODEX_HOME="$RUNNER_TEMP/ccodex-test-profile"
+          export CODEX_COPILOT_HOME="$CODEX_HOME"
+          mkdir -p "$CODEX_HOME"
+          cargo install --locked just --version 1.57.0
+          cargo install --locked cargo-nextest --version 0.9.140
+          cd codex-source/codex-rs
+          if [[ -d code-mode-host ]]; then
+            nice -n 10 cargo build --locked -p codex-code-mode-host --bin codex-code-mode-host -p codex-rmcp-client --bin test_stdio_server
+          fi
+          nice -n 10 just test -p codex-tui --test-threads 6
+      - name: Install target for the Codex toolchain
+        shell: bash
+        run: |
+          cd codex-source
+          rustup target add "${{ matrix.rust_target }}"
+      - name: Build patched Codex core
+        shell: bash
+        run: |
+          cd codex-source/codex-rs
+          nice -n 10 cargo build --release --target "${{ matrix.rust_target }}" -p codex-cli --bin codex
+          cd ../..
+          mkdir -p "artifacts/${{ matrix.package_target }}"
+          if [[ -f codex-source/scripts/build_codex_package.py ]]; then
+            export CODEX_REPO_ROOT="$PWD/codex-source"
+            CORE="codex-source/codex-rs/target/${{ matrix.rust_target }}/release/codex"
+            PACKAGE="$RUNNER_TEMP/codex-package-${{ matrix.package_target }}"
+            nice -n 10 python3 codex-source/scripts/build_codex_package.py \
+              --target "${{ matrix.rust_target }}" --cargo-profile release \
+              --entrypoint-bin "$CORE" --package-dir "$PACKAGE"
+            CORE_VERSION="$(sed -n 's/^version = "\([^"]*\)"/\1/p' codex-source/codex-rs/Cargo.toml | head -n 1)"
+            node tools/stage-cli-package-components.mjs "$PACKAGE" "$CORE" \
+              "${{ matrix.package_target }}" "codex-cli $CORE_VERSION"
+          fi
+          node tools/write-core-manifest.mjs \
+            --target "${{ matrix.package_target }}" \
+            --core "codex-source/codex-rs/target/${{ matrix.rust_target }}/release/codex" \
+            --output "artifacts/${{ matrix.package_target }}/codex-copilot-core.manifest.json"
+      - name: Download target Node runtime
+        shell: bash
+        run: |
+          mkdir -p runtime
+          ARCHIVE="node-v$NODE_VERSION-${{ matrix.node_platform }}.${{ matrix.node_archive }}"
+          curl --fail --location --retry 3 \
+            "https://nodejs.org/dist/v$NODE_VERSION/$ARCHIVE" \
+            --output "$ARCHIVE"
+          tar -xf "$ARCHIVE" -C runtime
+          mv "runtime/node-v$NODE_VERSION-${{ matrix.node_platform }}" runtime/node
+      - name: Package target
+        shell: bash
+        run: |
+          node tools/package-unix.mjs \
+            --target "${{ matrix.package_target }}" \
+            --core "codex-source/codex-rs/target/${{ matrix.rust_target }}/release/codex" \
+            --manifest "artifacts/${{ matrix.package_target }}/codex-copilot-core.manifest.json" \
+            --node-dir runtime/node \
+            --output-dir dist
+      - name: Validate target artifacts
+        shell: bash
+        run: |
+          VERSION="$(tr -d '\r\n' < VERSION)"
+          NAME="codex-copilot-${{ matrix.package_target }}-$VERSION"
+          test -f "dist/$NAME.tar.gz"
+          tar -tzf "dist/$NAME.tar.gz" | grep -q "$NAME/platform-target.json"
+          CORE="codex-source/codex-rs/target/${{ matrix.rust_target }}/release/codex"
+          FILE_TYPE="$(file "$CORE")"
+          echo "$FILE_TYPE"
+          case "${{ matrix.package_target }}" in
+            *-x64) grep -Eq 'x86[-_]64|x86-64' <<<"$FILE_TYPE" ;;
+            *-arm64) grep -Eq 'arm64|aarch64' <<<"$FILE_TYPE" ;;
+          esac
+          if [[ "${{ matrix.package_target }}" == linux-* ]]; then
+            test -f "dist/$NAME.deb"
+            test -f "dist/$NAME.rpm"
+          else
+            test -f "dist/$NAME.pkg"
+          fi
+          case "$(uname -m):${{ matrix.package_target }}" in
+            x86_64:*-x64|arm64:*-arm64|aarch64:*-arm64)
+              EXPECTED_CORE_VERSION="$(sed -n 's/^version = "\([^"]*\)"/\1/p' codex-source/codex-rs/Cargo.toml | head -n 1)"
+              test "$("$CORE" --version)" = "codex-cli $EXPECTED_CORE_VERSION"
+              ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package_target }}-packages
+          path: dist/*
+
+  checksums:
+    needs: [windows, unix]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create checksum manifest
+        run: |
+          cd artifacts
+          sha256sum * | sort > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-checksums
+          path: artifacts/SHA256SUMS.txt

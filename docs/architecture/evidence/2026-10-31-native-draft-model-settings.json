@@ -1,0 +1,59 @@
+{
+  "recordedAt": "2026-10-31T12:08:44.082157+00:00",
+  "scope": "Mac local draft model settings and helper probe timeout repair",
+  "nativeWindowAcceptance": "pending-user-feedback",
+  "sources": {
+    "bridge/desktop-diy-contracts.mts": "8eed955cf26859158939eec1d29395f9c4afbfd117b7b000092419e700358ba6",
+    "bridge/desktop-host-contracts.mts": "e86eb557d873f341695aad958fa3cbba80b81f29b96e363cbf406f2d1e7ac166",
+    "bridge/desktop-native-session.mts": "213138d3c10104ffcab3c6669d6157e68ca0ffa98b3bf33b19f22a6ce8580f64",
+    "bridge/desktop-native-composer.mts": "61e0287de4440f2ab035167abb060e2cf7da4af830e45033c60aae73050e61f9",
+    "bridge/desktop-gateway-ui.mts": "5c912c1c4249019f693e130a6f7a39b0e38f132284bef91ae792b496206600f6",
+    "tests/desktop-native-session-test.mjs": "19d183bd5cc6266891e60a46395681053155c1e5eb01695a172955757384edf9",
+    "tools/probe-native-composer.mjs": "0c475e55c7158b6c0e82daac1ac1c19b002a920b8cb72dd68751b8a0081d147e"
+  },
+  "regressions": {
+    "newFailuresBeforeFix": 3,
+    "directedPassed": 85,
+    "finalStartupBoundaryNativeSessionPassed": 15,
+    "build": {
+      "sources": 30,
+      "outputs": 60
+    },
+    "modules": 161,
+    "relativeImports": 373
+  },
+  "browsers": [
+    {
+      "file": "2026-10-31-native-draft-browser-new.json",
+      "version": "26.1023.51421",
+      "checks": 32,
+      "passed": true
+    },
+    {
+      "file": "2026-10-31-native-draft-browser-old.json",
+      "version": "26.1023.50603",
+      "checks": 32,
+      "passed": true
+    }
+  ],
+  "runtime": {
+    "hostPid": 42126,
+    "gatewayPid": 42100,
+    "helperPid": 73271,
+    "applicationRestarted": false,
+    "gatewayRestarted": false,
+    "installerAcknowledgedActive": true,
+    "uiSourceGeneration": "f62882c2892217c6dbb6b7816e5f380b5ad5476aa2462de99e105f6cc00169d9",
+    "originalFullLaunchSourceGenerationPreserved": true,
+    "startupProbeRefinementLoaded": false
+  },
+  "nativeConfigUnchanged": {
+    "sha256Before": "49edefaec5ed91953ab3d952fb22513f257ad273c2f430225ab2b0dd27d867ca",
+    "sha256After": "49edefaec5ed91953ab3d952fb22513f257ad273c2f430225ab2b0dd27d867ca"
+  },
+  "inferenceCalls": 0,
+  "productionThreadsModified": false,
+  "officialAppFilesModified": false,
+  "versionChanged": false,
+  "published": false
+}

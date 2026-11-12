@@ -1,0 +1,175 @@
+{
+  "recordedAt": "2026-10-31T05:16:40.852Z",
+  "scope": "Pin fix loaded and native window pin/unpin verified; runtime-relocation startup wait fixed and isolated tests passed; remaining session-management window acceptance in progress",
+  "branch": "codex/mycodex-app-server-design",
+  "versionUnchanged": "1.2.36",
+  "targetedTests": {
+    "tests": 174,
+    "pass": 174,
+    "fail": 0,
+    "skipped": 0
+  },
+  "modules": {
+    "esm": 161,
+    "relativeImportsVerified": 373,
+    "evaluatedCode": false
+  },
+  "nativeProviderFixture": {
+    "realPinnedNativeCore": true,
+    "model": "loopback deterministic stub",
+    "realExternalInference": 0,
+    "passed": true,
+    "forkAtSelectedTurn": true,
+    "providerEffortAndPermissionsRetained": true,
+    "coldResume": true,
+    "pinUnpin": true,
+    "archiveAndDelete": true,
+    "sourceDeletionBlockedWhileReferenced": true,
+    "coldSidebarForkWithoutResume": true
+  },
+  "liveCopilot": {
+    "report": "2026-10-31-management-copilot.json",
+    "cliTurns": 5,
+    "passed": true,
+    "temporaryCliHome": true,
+    "nativeInferenceTurns": 0,
+    "toolsExecuted": 0,
+    "privateStateRemoved": true,
+    "existingHomeAuthContextReused": true
+  },
+  "antigravityDiscovery": {
+    "runtime": "1.4.4",
+    "isolatedAccountAndWorkspace": true,
+    "inferenceTurns": 0,
+    "sessionCapabilities": [
+      "list",
+      "additionalDirectories",
+      "resume"
+    ],
+    "forkResponse": {},
+    "independentSessionIdReturned": false,
+    "deleteError": "Method not found",
+    "privateStateRemoved": true
+  },
+  "browserFixtures": [
+    {
+      "version": "26.1023.51421",
+      "checks": 29,
+      "passed": true,
+      "report": "2026-10-31-management-browser-new.json",
+      "desktopTouched": false
+    },
+    {
+      "version": "26.1023.50603",
+      "checks": 29,
+      "passed": true,
+      "report": "2026-10-31-management-browser-old.json",
+      "desktopTouched": false
+    }
+  ],
+  "loadedState": {
+    "client": {
+      "pid": 42126,
+      "sameLifetime": true
+    },
+    "gateway": {
+      "pid": 42100,
+      "sameLifetime": true,
+      "loadedGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44",
+      "sourceGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44"
+    },
+    "helper": {
+      "pid": 42193,
+      "sameLifetime": true
+    },
+    "launchReceiptSourceGeneration": "ce04e0884fdac2159e9e999768aa85d96b1956c678cf8e7e01c197ac35e36d2b",
+    "currentSource": "fd24fe4ee0c640cc06e45f2df9b5d81640173357364839f5e87709a1781b9ce8",
+    "version": "1.2.36",
+    "sourceGenerationMatches": true,
+    "startupSourceChangedSinceLaunch": true
+  },
+  "limitations": [
+    "Antigravity populated sessions cannot be reliably forked with verified runtime 1.4.4",
+    "Antigravity deletion permanently removes MyCodex local record; provider-owned archive remains",
+    "Old CLI intermediate fork points require recorded runtime event IDs; latest-context forks remain available",
+    "Pinned native core refuses deleting a source while ordinary fork history still references it",
+    "Custom CLI sections and cross-store interleaved manual ordering were not added",
+    "Native pin/unpin now accepted; running metadata, other management operations and other engine native-window checks remain pending"
+  ],
+  "sharedDevelopmentDocUnchanged": true,
+  "buildManifestSha256": "c0f39dd55e83f2dce0ccc33991541f58e10c08d4bf719713de3ab5a7f650b8c1",
+  "published": false,
+  "nativeCoreChanged": false,
+  "powerShellOrCrossPlatformBuildRun": false,
+  "installedHost": {
+    "version": "26.1023.51421",
+    "archiveSha256": "1c8ef1bef66e5fc416ae66eff8e6529972aa3601e27a1c7b5f61d6a292b957d3",
+    "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2"
+  },
+  "generatedBuild": {
+    "applicable": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "sourceAudit": {
+    "passed": true,
+    "files": 26,
+    "findings": []
+  },
+  "finalChecks": {
+    "generatedRuntimeCurrent": true,
+    "gitDiffWhitespacePassed": true,
+    "ownedTestProcessesRemaining": 0,
+    "ownedTemporaryBuildAndBrowserSourcesRemoved": true,
+    "livePrivateProfilesRemoved": true
+  },
+  "preReloadState": {
+    "client": {
+      "pid": 65495,
+      "sameLifetime": true
+    },
+    "gateway": {
+      "pid": 65465,
+      "sameLifetime": true,
+      "loadedGeneration": "373b75c6c02274c3c420b095e1d02fae1c4f1e4186e33dede3aae246a0dbc9f7",
+      "sourceGeneration": "fe373dc6fbd948418d66a6e730c1222c48e07ad4d0f63d57ae0108a8ebd66b69"
+    },
+    "helper": {
+      "pid": 65579,
+      "sameLifetime": false,
+      "activeSourceHelpers": []
+    },
+    "currentSource": "49b23c47f376a3743e242e17e64547c3667437d677880a233e3d39515a9c9b69",
+    "version": "1.2.36",
+    "launchReceiptSourceGeneration": "f12af06c726ca61b870638060181d15cf4c012bd5f805c8898289ca3f8694b04",
+    "routedFrontendProcessesPredateThisChange": true
+  },
+  "reloadEvidence": "2026-10-31-core-session-management-reload.json",
+  "nativeWindowSixOperationAcceptanceComplete": false,
+  "prePinFixTests": {
+    "tests": 172,
+    "pass": 172,
+    "fail": 0,
+    "skipped": 0
+  },
+  "pinFixEvidence": "2026-10-31-core-session-pin-fix.json",
+  "nativeWindowAcceptance": {
+    "copilot": {
+      "send": true,
+      "rename": true,
+      "pinDisplay": true,
+      "unpin": true,
+      "repin": true,
+      "runningRenameProtocolVerified": true
+    },
+    "pinFixLoaded": true,
+    "runningMetadataSearchAndContinuationPending": true,
+    "reportedProjectRemovalFailure": true,
+    "projectRemovalSymptomPending": false,
+    "officialProjectRemovalSucceeded": true,
+    "nativeContextMenuProjectRemovalPassed": false,
+    "controlledIdleProjectRemovalFailed": true
+  },
+  "startupRuntimeRelocationEvidence": "2026-10-31-gateway-runtime-relocation.json",
+  "nativeProjectMembershipEvidence": "2026-10-31-native-project-membership-investigation.json"
+}

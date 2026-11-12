@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { SpineRegistry } from "../gateway/spine/registry.mjs";
+import { TraceStore, nativeTraceSummary, nativeTraceToken } from "../gateway/spine/trace.mjs";
+import { RadarService } from "../gateway/spine/radar.mjs";
+import { DailyService, dayRange } from "../gateway/spine/daily.mjs";
+import { KnowledgeService } from "../gateway/spine/knowledge.mjs";
+import { startGateway } from "../gateway/server.mjs";
+import { RpcPeer } from "../gateway/rpc-peer.mjs";
+import { connectGateway, writeMessage } from "../gateway/ipc.mjs";
+import { validateSpineOptions } from "../gateway/spine/config.mjs";
+import { validateSchema } from "../gateway/spine/schema.mjs";
+const root = path.resolve(import.meta.dirname, "..");
+const radarSchema = process.env.MYCODEX_TEST_RADAR_SCHEMA ?? path.resolve(root, "../ai-agent-frontier-radar/plugin/report.schema.json");
+const date = "2026-11-01", at = Date.parse(date + "T12:00:00+08:00");
+const report = () => ({ schema_version: 1, report_date: date, timezone: "Asia/Shanghai", window_start: date + "T00:00:00+08:00", window_end: date + "T09:00:00+08:00", title: "fixture radar", intro: "verified fixture only", status: "complete", coverage: "synthetic coverage", items: [{ title: "Agent fixture", topics: ["agents"], summary: "An evidence-backed fixture.", sources: [{ title: "Source", url: "https://example.test/agent" }], priority: { score: 5, reason: "test ranking" } }, { title: "Infra fixture", topics: ["infra"], summary: "Infrastructure fixture.", sources: [{ title: "Source", url: "https://example.test/infra" }], priority: { score: 3, reason: "test ranking" } }] });
+function fixture(t) { const home = fs.mkdtempSync("/private/tmp/mc-p2-"); t.after(() => fs.rmSync(home, { force: true, recursive: true })); return home; }
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+test("Spine background tasks prevent idle retirement and close waits for outstanding work", async t => {
+  const home = fixture(t); let idle = 0, release;
+  const gateway = await startGateway({ home, endpoint: path.join(home, "s"), token: randomUUID(), generation: "fixture", engines: new Map(), defaultEngine: "fixture", idleTimeoutMs: 30, onIdle: () => idle++ }); t.after(() => gateway.close());
+  const task = gateway.spine.track(() => new Promise(resolve => { release = resolve; })); await delay(80); assert.equal(idle, 0); assert.equal(gateway.spine.activeTasks, 1);
+  let closed = false; const closing = gateway.close().then(() => { closed = true; }); await delay(20); assert.equal(closed, false); release(); await task; await closing; assert.equal(closed, true);
+  await assert.rejects(gateway.spine.track(() => {}), /closing/);
+});
+test("trace projection excludes tokens/raw tool content, records native state, and rejects spoofing from the ordinary UI channel", async t => {
+  const home = fixture(t), trace = new TraceStore(home), threadId = randomUUID();
+  const summary = nativeTraceSummary("turn/start", { threadId, input: [{ type: "text", text: 'Fix this; "password":"fixture-sensitive"' }], token: "not-copyable", tools: "never-copy" }, { turn: { id: randomUUID(), status: "inProgress" } }, at);
+  assert.doesNotMatch(JSON.stringify(summary), /fixture-sensitive|not-copyable|never-copy/); assert.equal(nativeTraceSummary("item/agentMessage/delta", { threadId, delta: "secret" }), null);
+  trace.record({ ...summary }); trace.record({ method: "turn/completed", threadId, at: at + 1, status: "completed" }); assert.equal(trace.list()[0].status, "completed");
+  const config = { home, endpoint: path.join(home, "s"), token: randomUUID(), generation: "fixture", engines: new Map(), defaultEngine: "fixture" };
+  const gateway = await startGateway(config); const sockets = []; t.after(async () => { sockets.forEach(s => s.destroy()); await gateway.close(); });
+  const connect = async token => { let socket; const peer = new RpcPeer(m => writeMessage(socket, m)); socket = await connectGateway({ ...config, token }, m => peer.receive(m)); sockets.push(socket); await peer.request("initialize", { clientInfo: { name: "fixture", version: "1" } }); return peer; };
+  const ui = await connect(config.token); await assert.rejects(ui.request("diy/trace/record", { method: "thread/started", threadId, at, role: "native-trace" }), /denied/);
+  const native = await connect(nativeTraceToken(config.token, config.generation)); assert.equal((await native.request("diy/trace/record", { method: "thread/started", threadId, at: at + 2, title: "native title", cwd: home, model: "native" })).recorded, true);
+  await assert.rejects(native.request("diy/radar/refresh", {}), /cannot perform/);
+  await assert.rejects(native.request("thread/delete", { threadId }), /cannot perform/);
+});
+test("radar validates the existing source schema, supports feedback/undo and persisted MyCodex knowledge cards", async t => {
+  const home = fixture(t), file = path.join(home, "report.json"); fs.writeFileSync(file, JSON.stringify(report()));
+  const registry = new SpineRegistry(home), knowledge = new KnowledgeService(home), radar = new RadarService(home, registry, knowledge, { schemaFile: radarSchema, reportFile: file });
+  let list = await radar.list(); assert.equal(list.items.length, 2); assert.equal(list.items[0].score, 100); const id = list.items[0].id;
+  await radar.feedback({ id, value: -1 }); assert.equal((await radar.list()).items[0].feedback, -1);
+  const restarted = new RadarService(home, registry, knowledge, { schemaFile: radarSchema, reportFile: file }); assert.equal((await restarted.list()).items[0].feedback, -1); await restarted.feedback({ id, value: 0 }); assert.equal((await restarted.list()).items[0].score, 100);
+  const saved = await restarted.saveCard({ id }); assert.equal(saved.destination, "mycodex"); assert.equal((await restarted.list()).items[0].saved, true); assert.equal(fs.readdirSync(knowledge.library).filter(name => name.endsWith(".md")).length, 1);
+  fs.writeFileSync(file, '{"invalid":true}'); const cached = await restarted.list(); assert.equal(cached.stale, true); assert.equal(cached.items.length, 2); assert.ok(cached.sourceError);
+  await assert.rejects(restarted.feedback({ id: "unknown", value: 1 }), /Unknown/);
+  assert.equal(restarted.refresh().state, "running"); await registry.close(); assert.equal((await restarted.list()).refresh.state, "failed");
+});
+test("radar refresh is a tracked configured process with failure consistency and no shell-argument injection", async t => {
+  const home = fixture(t), file = path.join(home, "report.json"); fs.writeFileSync(file, JSON.stringify(report()));
+  const registry = new SpineRegistry(home), knowledge = new KnowledgeService(home);
+  const command = { executable: process.execPath, args: ["-e", "setTimeout(()=>{console.log('done')},60)"] };
+  const radar = new RadarService(home, registry, knowledge, { schemaFile: radarSchema, reportFile: file, refreshCommand: command });
+  const job = radar.refresh(); assert.equal(job.state, "running"); assert.ok(registry.activeTasks > 0); assert.equal(radar.refresh().id, job.id); await registry.close(); assert.equal(registry.activeTasks, 0); assert.equal((await radar.list()).refresh.state, "completed");
+  assert.throws(() => validateSpineOptions({ radar: { schemaFile: radarSchema, reportFile: file, refreshCommand: { executable: "relative", args: [] } } }));
+});
+test("MyCodex card contract directly accepts CLI/radar/Git sources and preserves human edits and revisions", async t => {
+  const home = fixture(t), knowledge = new KnowledgeService(home), id = randomUUID();
+  const card = knowledge.candidate(id, date, "Evidence", "Observed evidence; candidate needs review.", ["tag"], [`mycodex://thread/${id}`, "mycodex://radar/" + "a".repeat(32), "mycodex://git/" + "b".repeat(16) + "/" + "c".repeat(40)], "copilot");
+  const first = await knowledge.save(card); const again = await knowledge.save({ ...card, createdAt: card.createdAt + 1, updatedAt: card.updatedAt + 1 }); assert.equal(first.revision, again.revision);
+  const second = await knowledge.save({ ...card, title: "Edited title" }); assert.equal(second.revision, 2); assert.equal(fs.readdirSync(knowledge.library).filter(name => name.endsWith(".md")).length, 2);
+  const firstFile = path.join(knowledge.library, `${card.id}@1.md`); assert.match(fs.readFileSync(firstFile, "utf8"), /mycodex:\/\/thread/); assert.equal(fs.statSync(firstFile).mode & 0o777, 0o600);
+  await assert.rejects(knowledge.save({ ...card, sources: [{ kind: "thread", uri: "cat-cafe://message/fake" }] }), /validation/);
+  await assert.rejects(knowledge.save({ ...card, sources: [{ kind: "web", uri: "javascript:alert(1)" }] }), /validation/);
+});
+test("daily joins native and CLI activity with read-only Git evidence and produces a redacted portable digest", async t => {
+  const home = fixture(t), repo = path.join(home, "repo"); fs.mkdirSync(repo);
+  const git = args => { const result = spawnSync("/usr/bin/git", ["-C", repo, ...args], { env: { ...process.env, GIT_AUTHOR_DATE: date + "T10:00:00+08:00", GIT_COMMITTER_DATE: date + "T10:00:00+08:00" }, encoding: "utf8" }); assert.equal(result.status, 0, result.stderr); };
+  git(["init", "--initial-branch=fixture"]); fs.writeFileSync(path.join(repo, "a.txt"), "fixture"); git(["add", "a.txt"]); git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "fixture commit"]);
+  const registry = new SpineRegistry(home), trace = new TraceStore(home), knowledge = new KnowledgeService(home), nativeId = randomUUID(), cliId = randomUUID();
+  trace.record({ method: "thread/started", threadId: nativeId, at, title: "native task", cwd: repo, model: "native", provider: "codex-copilot" });
+  trace.record({ method: "turn/completed", threadId: nativeId, at: at + 1, status: "completed" });
+  const threads = () => [{ id: cliId, engineId: "antigravity", cwd: repo, archived: false, name: "debug token=fixture-sensitive", preview: "", updatedAt: Math.floor(at / 1000), turns: [{ status: "interrupted" }] }];
+  const daily = new DailyService(home, registry, threads, trace, knowledge, { repositories: [repo], timezone: "Asia/Shanghai" }, () => at + 100);
+  const digest = await daily.digest(); assert.equal(digest.handoff.length, 2); assert.equal(digest.coverage.repositories, 1); assert.match(digest.markdown, /fixture commit/); assert.doesNotMatch(digest.markdown, /fixture-sensitive|fixture@example/);
+  assert.equal(digest.cards.length, 3); digest.cards.forEach(card => knowledge.validate(card)); assert.ok(digest.cards.some(card => card.sources.some(source => source.kind === "git")));
+  const saved = await daily.saveCard({ id: digest.cards[0].id, title: "My edit", tags: ["edited"] }); assert.equal(saved.destination, "mycodex");
+  const dst = dayRange("2026-03-08", "America/New_York"); assert.equal(dst.end - dst.start, 23 * 3600000);
+  assert.throws(() => validateSchema({}, { type: "object", $ref: "remote" }), /Unsupported/);
+});

@@ -1,0 +1,38 @@
+{
+  "recordedAt": "2026-10-29T01:53:13.614Z",
+  "model": "gpt-6-luna",
+  "desktopRestarted": false,
+  "existingCodexProfileUsed": false,
+  "cliAuthSource": "current-user-native-login",
+  "cliSessionStorage": "CLI-managed new probe session",
+  "nativeInferenceTurns": 0,
+  "cliTurns": 2,
+  "toolEvents": 1,
+  "questionsDenied": 1,
+  "questionsAllowed": 0,
+  "checks": {
+    "deniedWrite": true,
+    "approvedWrite": false,
+    "historyStored": true,
+    "onlyProbeFile": true
+  },
+  "availableCliModels": [
+    "auto",
+    "gpt-6.1-sol",
+    "gpt-6-sol",
+    "gpt-6-luna",
+    "gpt-6-astra",
+    "gpt-5.6-sol",
+    "gpt-5.6-sol-fast",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-5.3-codex",
+    "mai-code-1.1-flash",
+    "grok-4.7",
+    "grok-4.6",
+    "gpt-6.1-terra",
+    "mai-code-2-flash"
+  ],
+  "geminiAvailable": false,
+  "passed": false
+}

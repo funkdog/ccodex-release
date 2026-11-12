@@ -1,0 +1,210 @@
+{
+  "date": "2026-11-02",
+  "timezone": "Asia/Shanghai",
+  "branch": "codex/mycodex-app-server-design",
+  "sourceVersion": "1.2.36",
+  "status": "isolated official-client acceptance complete for the three human-observed behaviors; test copies removed",
+  "implementation": {
+    "module": "bridge/desktop-acceptance.mts",
+    "runtimeGenerated": true,
+    "existingR0UiAutomationUsed": false,
+    "uiActions": "human only; product helper used only for normal page mounting and request delivery",
+    "nativeBackend": "synthetic fixture; original native/model process not invoked",
+    "gateway": "dedicated authenticated IPC with acceptance/fixture engine only",
+    "noModelOrExternalToolExecution": true,
+    "freshHomeAndProfiles": true,
+    "credentialsCopied": false,
+    "guiSandbox": "official Chromium sandbox preserved; no outer sandbox-exec or --no-sandbox",
+    "guiNetworkIsolation": false,
+    "backendSandbox": "sandbox-exec blocks writes outside owned root and Internet, allows local fixture IPC"
+  },
+  "humanAcceptance": {
+    "source": "user feedback in this chat",
+    "imageInline": true,
+    "radarAndDailyDrawer": true,
+    "escapeClose": true
+  },
+  "isolatedHost": {
+    "hostVersion": "26.1027.51404",
+    "appPid": 4262,
+    "helperPid": 4297,
+    "threadIds": [
+      "07f1fb34-dff9-4ac2-a281-11a99c067525"
+    ],
+    "applicationSha256": "52e0a65f9fea51f4287bbd98c63343761f9424517bb793652bb554764bc0bcc8",
+    "cliSha256": "58a91f6ea19bea477ae3a2ec48d619f0039afe75d3476260747e11d201fa7cea",
+    "helperWasReady": true
+  },
+  "checks": {
+    "typecheck": {
+      "passed": true
+    },
+    "build": {
+      "passed": true,
+      "strictSources": 58,
+      "generatedOutputs": 116
+    },
+    "targeted": {
+      "passed": true,
+      "tests": 6
+    },
+    "testDiy": {
+      "passed": true,
+      "tests": 238,
+      "passedTests": 238,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 12510.441583
+    },
+    "esm": {
+      "passed": true,
+      "modules": 191,
+      "relativeImports": 459,
+      "evaluatedCode": false
+    },
+    "sourceAudit": {
+      "passed": true,
+      "files": 73,
+      "findings": 0,
+      "scope": "Explicit P1/P2 foundation and isolated acceptance task files; shared checkout not staged or published",
+      "implementation": "tools/check-source-publication.mjs auditSourceFiles"
+    },
+    "generatedFreshness": {
+      "passed": true,
+      "applicable": true,
+      "sources": 58,
+      "outputs": 116
+    }
+  },
+  "preservation": {
+    "baselineFileCount": 8,
+    "baselineFilesUnchanged": true,
+    "workClientPid": 68483,
+    "workGatewayPid": 68440,
+    "workHelperPid": 68542,
+    "originalProcessLifetimesUnchanged": true,
+    "workClientRestarted": false,
+    "workBackendReplaced": false,
+    "userChatsModified": false,
+    "versionOrNativeCoreChanged": false,
+    "sharedDevelopmentDocumentChangedByThisTask": false,
+    "committedOrPublished": false,
+    "workInstanceSpineConfigured": false
+  },
+  "cleanup": {
+    "testAppExited": true,
+    "testHelperExited": true,
+    "testGatewayExited": true,
+    "temporaryRootsRemoved": true,
+    "retained": "bounded test logs and source evidence; no copied app, profile or runtime retained",
+    "remainingOwnedSnapshotProcesses": []
+  },
+  "failedAttempts": [
+    {
+      "kind": "probe startup timing",
+      "resolution": "bounded waits for launcher exec and owned endpoint; tested wrong lifetime rejection"
+    },
+    {
+      "kind": "GUI sandbox-exec",
+      "observed": "Chromium required system-temp singleton socket; nested sandbox prevented GPU/network service child initialization",
+      "resolution": "retain standard Chromium sandbox and independent profiles; external sandbox only for backend probes"
+    },
+    {
+      "kind": "first full suite",
+      "passed": 235,
+      "failed": 1,
+      "reason": "shared new desktop-status-test fixture lacked defaultEngine; not edited by this task; later shared version corrected before successful full rerun"
+    }
+  ],
+  "logs": {
+    "mycodex-acceptance-typecheck-final-2.txt": {
+      "path": "/private/tmp/mycodex-acceptance-typecheck-final-2.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "mycodex-acceptance-gates.txt": {
+      "path": "/private/tmp/mycodex-acceptance-gates.txt",
+      "sha256": "6d5092c11f0b99f4dbbd56c4217ab11d2fede34f7a9b353444332910ac63a0f1"
+    },
+    "mycodex-acceptance-gates-final.txt": {
+      "path": "/private/tmp/mycodex-acceptance-gates-final.txt",
+      "sha256": "09abc7c8b90821e380342a60cdca22a588026513284c7625718e9d35bec719f9"
+    },
+    "mycodex-acceptance-targeted-2.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-2.txt",
+      "sha256": "df2849dfb86b086bab1b19f54aaaa7842c5a7cf9d3d4bcc2e68079ae023f56d7"
+    },
+    "mycodex-acceptance-targeted-3.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-3.txt",
+      "sha256": "57029e15e931932c45fbf6b136b83f652db8b3b0d69c21123f91288f213fda91"
+    },
+    "mycodex-acceptance-targeted-4.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-4.txt",
+      "sha256": "8fbeadba6a91d425698bc6f525bcca803823cc299b55c394a6a26882d1f56cb1"
+    },
+    "mycodex-acceptance-targeted-5.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-5.txt",
+      "sha256": "42cf1860fb15bcbecc31067c8f3879fd2a11d6619cf08ad953592368709a3c2c"
+    },
+    "mycodex-acceptance-targeted-6.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-6.txt",
+      "sha256": "7c5d63d3b100ae067d2863ee0a2e60511a474333db841dcdabbd01e46d9aee9d"
+    },
+    "mycodex-acceptance-targeted-7.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-7.txt",
+      "sha256": "d9f58f2375d8f33326f6027beb7c895771a95ea19f43e765518cd74e26c57487"
+    },
+    "mycodex-acceptance-targeted-8.txt": {
+      "path": "/private/tmp/mycodex-acceptance-targeted-8.txt",
+      "sha256": "f277e12cd421809fa1c9bf2f3bdf93b69f821ef5e68931486ad582d0fc3cbc7b"
+    },
+    "mycodex-acceptance-runtime.txt": {
+      "path": "/private/tmp/mycodex-acceptance-runtime.txt",
+      "sha256": "955f2a7aef1ca09df647bbc89074bd0efd29c20c93fa7389a028bd874d9b2dd7"
+    },
+    "mycodex-acceptance-runtime-2.txt": {
+      "path": "/private/tmp/mycodex-acceptance-runtime-2.txt",
+      "sha256": "793add8c952c13b5ba984e48f5a7da9050ad5d1269720a6cc6480387885b784d"
+    },
+    "mycodex-acceptance-runtime-3.txt": {
+      "path": "/private/tmp/mycodex-acceptance-runtime-3.txt",
+      "sha256": "0c02f58c8b49613403518f37866f4490f2d6500bf004648feeee167a386f3bd6"
+    },
+    "mycodex-acceptance-runtime-4.txt": {
+      "path": "/private/tmp/mycodex-acceptance-runtime-4.txt",
+      "sha256": "45a9a0894059880d165733e8dbd015c8b53dadec5f9090c5e4cf8603faac6d88"
+    },
+    "mycodex-acceptance-runtime-5.txt": {
+      "path": "/private/tmp/mycodex-acceptance-runtime-5.txt",
+      "sha256": "d1aaad65185b1fdecb25f7268a7807655842a28b66acfa4e72351d3b61e50c6e"
+    },
+    "mycodex-acceptance-desktop.log": {
+      "path": "/private/tmp/mycodex-acceptance-desktop.log",
+      "sha256": "27df2105e9b3557400ef71ff0694a3a675cccfb47cfef0c030ca7dd11cd65881"
+    },
+    "mycodex-acceptance-helper.log": {
+      "path": "/private/tmp/mycodex-acceptance-helper.log",
+      "sha256": "96f6b5ad594a62e67d05cdfe5ea714d0a068a461263ab3a72e1a9d588df7e736"
+    },
+    "mycodex-acceptance-failed-sandbox.log": {
+      "path": "/private/tmp/mycodex-acceptance-failed-sandbox.log",
+      "sha256": "fa5670d33941958c06ef99e0693317e43ad837ef76c2440907b6df99d0460798"
+    },
+    "mycodex-acceptance-source-audit.txt": {
+      "path": "/private/tmp/mycodex-acceptance-source-audit.txt"
+    },
+    "mycodex-acceptance-generated.txt": {
+      "path": "/private/tmp/mycodex-acceptance-generated.txt",
+      "sha256": "0a520dc9bdf909944ef7beeb613d61e89275c0a4a9ada0a096e1de2a27a57b29"
+    },
+    "mycodex-acceptance-final-preservation.json": {
+      "path": "/private/tmp/mycodex-acceptance-final-preservation.json",
+      "sha256": "0a94d708c46f57bd32a9d53e537810543fe1b2a5c56278aa533665c03a7190e2"
+    }
+  },
+  "limits": [
+    "Human acceptance covers image rendering, radar/daily drawer expansion and Escape only.",
+    "Synthetic data does not establish real radar collection, private vault writes, real model/account access or all original-profile coexistence.",
+    "No automatic live UI reads, clicks or screenshots through shell/CDP were used.",
+    "P3/P4 and ordinary current-client restart were not part of this acceptance."
+  ]
+}

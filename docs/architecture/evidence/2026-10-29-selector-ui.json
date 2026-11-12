@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-29T02:14:58.453Z",
+  "environment": "isolated-browser-fixture",
+  "desktopTouched": false,
+  "checks": {
+    "untrustedLabelsAreText": true,
+    "doubleSubmitCreatesOnce": true,
+    "navigationRetryDoesNotRecreate": true,
+    "canCreateAnotherThread": true,
+    "disposeRemovesComponent": true,
+    "repeatedPatchIsIdempotent": true,
+    "serializedBindingRoundTrip": true,
+    "unverifiedRendererIsNotMounted": true
+  },
+  "passed": true
+}

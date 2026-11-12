@@ -1,0 +1,10 @@
+{
+  "configVersion": 1,
+  "defaultInstance": "legacy",
+  "instances": [
+    {
+      "id": "legacy",
+      "mode": "provider-bridge"
+    }
+  ]
+}

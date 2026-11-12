@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "product": "MyCodex Adapters",
+  "platform": "darwin-arm64",
+  "releaseTarget": "funkdog/ccodex-release",
+  "status": "pending",
+  "cases": [
+    {
+      "id": "candidate-binding",
+      "scope": "desktop",
+      "requirement": "Start through the candidate's own launcher and verify its source/config binding; backend and page must both report ready."
+    },
+    {
+      "id": "native-first-onboarding",
+      "scope": "desktop",
+      "requirement": "Fresh setup offers native Codex without CLI/SDK downloads; existing native account, Provider and model stay selected. No third-party model is prefilled. Connecting a CLI lists unverified candidates separately; only a user-selected model that passes the consented short inference appears."
+    },
+    {
+      "id": "model-selection",
+      "scope": "each-released-engine",
+      "requirement": "The visible engine and model must match the engine and model recorded for the submitted turn."
+    },
+    {
+      "id": "same-engine-model-switch",
+      "scope": "each-released-engine",
+      "requirement": "Existing chats lock engine/source. Only compatible, explicitly enabled models may be selected; Apply preserves history and routes the next turn to the acknowledged selection. A failed switch preserves the committed model."
+    },
+    {
+      "id": "native-speed",
+      "scope": "native-codex",
+      "requirement": "When the official account/model offers speed options, Standard/Fast uses the host action, is acknowledged, and persists when reopened. CLI engines do not show the native speed setting."
+    },
+    {
+      "id": "text",
+      "scope": "each-released-engine",
+      "requirement": "Complete a real short reply and retain a fresh nonce for continuation checks."
+    },
+    {
+      "id": "approval-once",
+      "scope": "each-released-engine",
+      "requirement": "Approve one exact file write in the isolated acceptance workspace and verify its exact contents."
+    },
+    {
+      "id": "denial",
+      "scope": "each-released-engine",
+      "requirement": "Reject a different file write and verify that file was not created."
+    },
+    {
+      "id": "cancel",
+      "scope": "each-released-engine",
+      "requirement": "Cancel an active turn from the real UI; observe terminal cancelled/interrupted state and no late successful reply."
+    },
+    {
+      "id": "cold-continuation",
+      "scope": "each-released-engine",
+      "requirement": "Quit and reopen the actual desktop through the candidate launcher, then continue the same chat and recover its nonce without resupplying it."
+    },
+    {
+      "id": "native-coexistence",
+      "scope": "native-codex",
+      "requirement": "Verify the native Codex chat, existing sidebar and a previously available plugin remain usable."
+    },
+    {
+      "id": "disable",
+      "scope": "desktop",
+      "requirement": "Quit the enhanced client and open the official app normally; verify stock operation without deleting chats or credentials."
+    }
+  ],
+  "evidenceRules": [
+    "Manual UI results require an explicit user report for the exact case; process liveness and catalog discovery are insufficient.",
+    "Runtime and filesystem observations must be bound to the exact candidate digest, configuration and dedicated test chats.",
+    "Never upload private profiles, credentials, raw personal logs or unrelated chats as release evidence.",
+    "A failed or pending case prevents stable publication."
+  ],
+  "candidateVersion": "0.1.0-rc.3",
+  "publication": {
+    "repository": "funkdog/ccodex-release",
+    "tag": "mycodex-adapters-v0.1.0-rc.3",
+    "url": "https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.3",
+    "publishedAt": "2026-11-12T12:48:23Z",
+    "channel": "prerelease",
+    "releaseId": 442938408,
+    "manualAcceptance": "pending"
+  }
+}

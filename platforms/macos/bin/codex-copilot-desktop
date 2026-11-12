@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_PATH" ]]; do
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd -P)"
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+  [[ "$SCRIPT_PATH" == /* ]] || SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd -P)"
+NODE="$ROOT/runtime/node/bin/node"
+if [[ ! -x "$NODE" || ! -f "$ROOT/bridge/desktop-launch.mjs" ]]; then
+  printf 'The independent Desktop launcher/runtime is missing; repair this enhanced installation. The original ChatGPT Desktop was not opened.\n' >&2
+  exit 1
+fi
+exec "$NODE" "$ROOT/bridge/desktop-launch.mjs" "$@"

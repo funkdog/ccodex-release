@@ -1,0 +1,121 @@
+{
+  "recordedAt": "2026-10-31T11:36:30.609826+00:00",
+  "scope": "Dedicated Copilot CLI test chat only; native project-removal report under investigation",
+  "testThreadId": "6d4188ba-3b58-4b8e-abb6-5a4fd0878350",
+  "title": "MYCODEX-MGMT-COPILOT-RUN",
+  "reportedRemovalFailure": true,
+  "nativeMenuSymptomPending": false,
+  "gatewayRecordBeforeRemoval": {
+    "projectId": null,
+    "cwd": "/Users/<user>/workspace/ccodex-release"
+  },
+  "officialAppBeforeRemoval": {
+    "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+  },
+  "officialAppOperation": {
+    "tool": "move_thread_to_project",
+    "projectId": null,
+    "hostId": "local",
+    "success": true
+  },
+  "officialAppAfterRemoval": {
+    "projectId": null,
+    "cwd": "/Users/<user>/workspace/ccodex-release"
+  },
+  "nativeOwner": "Existing host ThreadProjectAssignments membership service; no new persistence store",
+  "runningRenameEvidence": {
+    "turnStartedAt": "2026-10-31T05:16:27.603Z",
+    "renameSucceededAt": "2026-10-31T05:16:46.608Z",
+    "titlePersistedAfterCompletion": true
+  },
+  "searchReopenAndNonceContinuationPending": true,
+  "unrelatedMetadataWarning": {
+    "method": "thread/metadata/update",
+    "error": "Unsupported CLI thread metadata update.",
+    "hostContext": "Primary repository Git branch metadata; not evidence of a project-clear request."
+  },
+  "userWorkChatsModified": false,
+  "reportedNativeMenuSymptom": "Clicking removal left the chat displayed in its project",
+  "controlledIdleRetest": {
+    "preparedAt": "2026-10-31T06:46:44.817786+00:00",
+    "temporaryTestAssignment": "0a506a2c-780e-43c0-91f9-05670cfb9c46",
+    "projectLabel": "MyCodex",
+    "gatewayProjectIdAfterPreparation": null,
+    "cwdUnchanged": true,
+    "requestedEntry": "Sidebar chat context menu",
+    "userFeedbackPending": false,
+    "userConfirmedEntry": "Sidebar chat context menu",
+    "userConfirmedOutcome": "Still in project group",
+    "nativeAssignmentAfterAttempt": {
+      "projectKind": "local",
+      "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+    },
+    "nativeExplicitProjectlessAfterAttempt": false
+  },
+  "nativeMenuFixComplete": false,
+  "readOnlyWatch": {
+    "durationSeconds": 180,
+    "records": [
+      {
+        "recordedAt": "2026-10-31T11:28:44.270Z",
+        "assignment": {
+          "projectKind": "local",
+          "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+        },
+        "projectlessFlags": {
+          "projectless-thread-ids": false
+        },
+        "workspace": {
+          "revision": "0c0de74f-e3e7-486b-9951-30b1fa1b0453",
+          "project": {
+            "projectKind": "local",
+            "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+          },
+          "appliedCwd": "/Users/<user>/workspace/ccodex-release",
+          "pendingCwd": "/Users/<user>/workspace/ccodex-release"
+        }
+      }
+    ],
+    "clickDuringWatchConfirmationPending": true,
+    "stateChanged": false,
+    "noUiAutomation": true
+  },
+  "latestUserCorrection": "Removal did not succeed",
+  "latestNativeState": {
+    "assignment": {
+      "projectKind": "local",
+      "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+    },
+    "projectless": false,
+    "workspace": {
+      "revision": "0c0de74f-e3e7-486b-9951-30b1fa1b0453",
+      "project": {
+        "projectKind": "local",
+        "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+      },
+      "applied": {
+        "projectSources": [
+          "/Users/<user>/workspace/ccodex-release"
+        ],
+        "cwd": "/Users/<user>/workspace/ccodex-release",
+        "runtimeWorkspaceRoots": [
+          "/Users/<user>/workspace/ccodex-release"
+        ]
+      },
+      "pending": {
+        "projectSources": [
+          "/Users/<user>/workspace/ccodex-release"
+        ],
+        "cwd": "/Users/<user>/workspace/ccodex-release",
+        "runtimeWorkspaceRoots": [
+          "/Users/<user>/workspace/ccodex-release"
+        ]
+      }
+    }
+  },
+  "nativeMenuEntryConfirmed": "Sidebar chat context menu",
+  "currentTestAssignmentTemporarilyRestoredForReproduction": true,
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

@@ -1,0 +1,23 @@
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index 6542263..31b4d97 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -234,6 +234,9 @@ mod tests {
+ 
+ pub fn set_modes() -> Result<()> {
+     ensure_virtual_terminal_processing()?;
++    // Mouse capture can replace the input flags, so remember the parent first.
++    #[cfg(windows)]
++    windows_console::set_input_record_mode()?;
+ 
+     execute!(stdout(), EnableBracketedPaste)?;
+     if mouse_capture_enabled() {
+@@ -248,7 +251,7 @@ pub fn set_modes() -> Result<()> {
+ 
+     enable_raw_mode()?;
+     #[cfg(windows)]
+-    windows_console::set_input_record_mode()?;
++    windows_console::ensure_input_record_mode()?;
+     // Enable keyboard enhancement flags so modifiers for keys like Enter are disambiguated.
+     // chat_composer.rs is using a keyboard event listener to enter for any modified keys
+     // to create a new line that require this.

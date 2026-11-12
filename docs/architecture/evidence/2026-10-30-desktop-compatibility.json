@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T16:12:01.240Z",
+  "localDate": "2026-10-30",
+  "scope": "Mac local compatibility fix; no release",
+  "applicationVersion": "26.1023.51421",
+  "archiveSha256": "1c8ef1bef66e5fc416ae66eff8e6529972aa3601e27a1c7b5f61d6a292b957d3",
+  "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  "regressionsReproduced": [
+    "new host tuple rejected",
+    "new gateway stage rejected"
+  ],
+  "targetedTests": {
+    "passed": 31,
+    "failed": 0,
+    "skipped": 0,
+    "suites": [
+      "desktop-current-host",
+      "desktop-native-session",
+      "desktop-cli-selector",
+      "desktop-shortcut",
+      "gateway-backend-stage",
+      "gateway-routed-stdio"
+    ]
+  },
+  "browserFixtures": [
+    {
+      "version": "26.1023.51421",
+      "checks": {
+        "compiledEsmGraphLoadsInOrdinaryBrowser": true,
+        "selectedVersionUsesItsOwnNativeModules": true,
+        "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+        "inlinePickerWithoutFloatingPanel": true,
+        "nativeDraftSelection": true,
+        "compactFooterControlsReplaceNativeCliControls": true,
+        "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+        "persistedThreadSelection": true,
+        "existingThreadSettingsSaved": true,
+        "nativeNewDraftResetsAndRemounts": true,
+        "catalogReusedAcrossComposerRemounts": true,
+        "genericChatGptComposerExcluded": true,
+        "disposeRemovesPicker": true,
+        "remountRestoresFromGatewayHistory": true,
+        "settingsRecoveredOnRemount": true,
+        "generatedInstallerBindingRoundTrip": true,
+        "generatedInstallerIdempotent": true,
+        "generatedInstallerDisposed": true,
+        "nativeControlRestoredOnDispose": true,
+        "nativeProviderDraftKeepsImagesAndNativePermissions": true,
+        "nativeProviderThreadKeepsNativeModelControls": true,
+        "unknownVersionDoesNotImportOrMount": true,
+        "noBrowserErrors": true
+      },
+      "passed": true
+    },
+    {
+      "version": "26.1023.50603",
+      "checks": {
+        "compiledEsmGraphLoadsInOrdinaryBrowser": true,
+        "selectedVersionUsesItsOwnNativeModules": true,
+        "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+        "inlinePickerWithoutFloatingPanel": true,
+        "nativeDraftSelection": true,
+        "compactFooterControlsReplaceNativeCliControls": true,
+        "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+        "persistedThreadSelection": true,
+        "existingThreadSettingsSaved": true,
+        "nativeNewDraftResetsAndRemounts": true,
+        "catalogReusedAcrossComposerRemounts": true,
+        "genericChatGptComposerExcluded": true,
+        "disposeRemovesPicker": true,
+        "remountRestoresFromGatewayHistory": true,
+        "settingsRecoveredOnRemount": true,
+        "generatedInstallerBindingRoundTrip": true,
+        "generatedInstallerIdempotent": true,
+        "generatedInstallerDisposed": true,
+        "nativeControlRestoredOnDispose": true,
+        "nativeProviderDraftKeepsImagesAndNativePermissions": true,
+        "nativeProviderThreadKeepsNativeModelControls": true,
+        "unknownVersionDoesNotImportOrMount": true,
+        "noBrowserErrors": true
+      },
+      "passed": true
+    }
+  ],
+  "isolatedNativeCli": {
+    "cliVersion": "codex-cli 0.165.0-alpha.1.2",
+    "checks": {
+      "nativeInitializePreserved": true,
+      "account/readUnchanged": true,
+      "config/readUnchanged": true,
+      "nativeModelsPreserved": true,
+      "syntheticModelAdded": true,
+      "nativeThreadCreatedByNative": true,
+      "syntheticTurnCompleted": true,
+      "nativeHistoryPreserved": true,
+      "syntheticThreadVisibleInMergedHistory": true,
+      "syntheticThreadAbsentFromNativeStore": true,
+      "syntheticThreadNotLoadedByNative": true
+    },
+    "passed": true,
+    "existingProfileUsed": false,
+    "nativeInferenceTurns": 0,
+    "realCliInferenceTurns": 0
+  },
+  "typeScriptBuild": {
+    "sources": 30,
+    "outputs": 60,
+    "passed": true
+  },
+  "moduleCheck": {
+    "modules": 159,
+    "relativeImportsVerified": 362,
+    "evaluatedCode": false
+  },
+  "localPreparation": {
+    "phase": "prepared",
+    "desktopLifetimePreserved": true,
+    "existingHistoryUnchanged": true,
+    "threadCount": 3,
+    "gatewayStarted": false,
+    "desktopRestarted": false,
+    "launcherCheck": "needs-quit",
+    "realWindowAcceptance": "pending coordinated reopen"
+  },
+  "sourceSha256": {
+    "bridge/desktop-current-host-contract.mjs": "d5fd6c8decb7d2c8c5578a5d7ea17334bd8a208d7da6297c27f7431ea4c7288f",
+    "bridge/desktop-current-host.mjs": "c87110dc24b631a74e4050b244b45db4b9db4f050f0c772b4c6a2b96abcdf88d",
+    "bridge/desktop-backends/app-server-gateway.mjs": "466da2fd53eadf0fd810ad64df70b7c6f39773fee08f6923d505ccc2f893ec3b",
+    "bridge/desktop-native-composer.mts": "4cf43c20b6162d26e047ba8bf9f3107df1e303f1f37c1b7e4210aeeabdb35844",
+    "bridge/desktop-cli-selector.mts": "58eb1b08d265ef2579db1657a4a2e3bfa54010490bbc9bde85635c2e69298d2a",
+    "tests/desktop-current-host-test.mjs": "62563d5fcc46966f521d2e823b41e285ca27ebcf7497f42b66991e488c03681d",
+    "tests/desktop-native-session-test.mjs": "4cdd46ca67b5774203ed70deb97a09f14df83ddf5e0f82820c014dbfecfc6b9c",
+    "tests/desktop-cli-selector-test.mjs": "fbc547b02a92f661189bb21f7753890fa10858bc799ff63b8638948e714ba6aa",
+    "tests/gateway-backend-stage-test.mjs": "f521b11430a9efca3b07a5899fc68df22aead4cec9e5847410ab2b0994fdc607",
+    "tools/probe-native-composer.mjs": "63caf88df5db22deabad7b3d51544e8d43aee1df4813df3656e0bcdedc55c285"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T10:42:58.914Z",
+  "scope": "mac-source-and-isolated-integration",
+  "desktopRestarted": false,
+  "desktopEnabled": false,
+  "configurationStaged": true,
+  "activation": {
+    "userDecision": "prepare-configuration-manual-restart-later",
+    "existingCliConfigurationPreserved": true,
+    "installedLauncherCheck": "needs-quit",
+    "launchPerformed": false,
+    "currentClientLifetimePreserved": true,
+    "apiBridgeCurrentAndAuthenticated": true
+  },
+  "originalProfileChanged": false,
+  "publishedRelease": false,
+  "targetedRegression": {
+    "tests": 88,
+    "passed": 88,
+    "failed": 0,
+    "nativeProtocolChecks": ["input_image", "xhigh", "thread-settings-update-low", "cold-resume"],
+    "packageModules": 143,
+    "relativeImportsVerified": 296
+  },
+  "catalog": {
+    "source": "authenticated-current-account",
+    "apiModelCount": 16,
+    "cliModelCount": 15,
+    "apiGeminiModels": ["gemini-4-argon", "gemini-3.8-flash"],
+    "cliGeminiModels": []
+  },
+  "nativeCodexLive": [
+    {
+      "recordedAt": "2026-10-29T10:39:53.994Z",
+      "model": "gpt-6.1-sol",
+      "effort": "xhigh",
+      "imageReply": "Red",
+      "checks": {
+        "imageUnderstood": true,
+        "nativeProvider": true,
+        "sameNativeHistoryAfterRestart": true,
+        "noCliGateway": true,
+        "workspaceUntouched": true
+      },
+      "passed": true
+    },
+    {
+      "recordedAt": "2026-10-29T10:39:59.335Z",
+      "model": "gemini-4-argon",
+      "effort": "medium",
+      "imageReply": "red",
+      "checks": {
+        "imageUnderstood": true,
+        "nativeProvider": true,
+        "sameNativeHistoryAfterRestart": true,
+        "noCliGateway": true,
+        "workspaceUntouched": true
+      },
+      "passed": true
+    },
+    {
+      "recordedAt": "2026-10-29T10:40:05.721Z",
+      "model": "gemini-3.8-flash",
+      "effort": "medium",
+      "imageReply": "Red",
+      "checks": {
+        "imageUnderstood": true,
+        "nativeProvider": true,
+        "sameNativeHistoryAfterRestart": true,
+        "noCliGateway": true,
+        "workspaceUntouched": true
+      },
+      "passed": true
+    }
+  ],
+  "copilotCliLive": {
+    "recordedAt": "2026-10-29T10:40:11.200Z",
+    "model": "gpt-6.1-sol",
+    "images": true,
+    "cliTurns": 1,
+    "nativeInferenceTurns": 0,
+    "toolEvents": 0,
+    "pendingApprovals": 0,
+    "checks": {
+      "projectSidebarEntry": true,
+      "imageReply": true,
+      "historyStored": true,
+      "noTools": true,
+      "workspaceUntouched": true,
+      "noNativeInference": true
+    },
+    "passed": true
+  },
+  "browserFixture": {
+    "recordedAt": "2026-10-29T10:42:58.914Z",
+    "environment": "owned-browser-native-contract-fixture",
+    "desktopTouched": false,
+    "checks": {
+      "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+      "inlinePickerWithoutFloatingPanel": true,
+      "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+      "existingThreadSettingsSaved": true,
+      "catalogReusedAcrossComposerRemounts": true,
+      "genericChatGptComposerExcluded": true,
+      "generatedInstallerBindingRoundTrip": true,
+      "generatedInstallerIdempotent": true,
+      "nativeControlRestoredOnDispose": true,
+      "nativeProviderDraftKeepsImagesAndNativePermissions": true,
+      "nativeProviderThreadKeepsNativeModelControls": true,
+      "noBrowserErrors": true
+    },
+    "passed": true
+  },
+  "remainingEvidence": [
+    "coordinated-current-desktop-restart-and-provider-activation",
+    "current-window-model-picker-image-paste-or-drop-and-send",
+    "current-window-native-provider-model-and-effort-controls",
+    "current-window-native-provider-restart-resume-and-existing-cli-history"
+  ]
+}

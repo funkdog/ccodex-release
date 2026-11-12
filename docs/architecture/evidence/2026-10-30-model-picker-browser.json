@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-30T02:51:22.908Z",
+  "hostVersion": "26.1023.51421",
+  "environment": "owned-browser-native-contract-fixture",
+  "desktopTouched": false,
+  "checks": {
+    "compiledEsmGraphLoadsInOrdinaryBrowser": true,
+    "selectedVersionUsesItsOwnNativeModules": true,
+    "pointerAndKeyboardSelectionKeepsComposerIdle": true,
+    "inlinePickerWithoutFloatingPanel": true,
+    "nativeDraftSelection": true,
+    "compactFooterControlsReplaceNativeCliControls": true,
+    "memoryRouterHandoffAndInertComposerKeepCliIntent": true,
+    "persistedThreadSelection": true,
+    "existingThreadSettingsSaved": true,
+    "nativeNewDraftResetsAndRemounts": true,
+    "catalogReusedAcrossComposerRemounts": true,
+    "genericChatGptComposerExcluded": true,
+    "disposeRemovesPicker": true,
+    "remountRestoresFromGatewayHistory": true,
+    "settingsRecoveredOnRemount": true,
+    "generatedInstallerBindingRoundTrip": true,
+    "generatedInstallerIdempotent": true,
+    "generatedRefreshReplacesCatalogWithoutChangingPermissions": true,
+    "generatedInstallerDisposed": true,
+    "nativeControlRestoredOnDispose": true,
+    "nativeProviderDraftKeepsImagesAndNativePermissions": true,
+    "nativeProviderThreadKeepsNativeModelControls": true,
+    "unknownVersionDoesNotImportOrMount": true,
+    "noBrowserErrors": true
+  },
+  "pointerSelection": {
+    "selection": "mycodex/copilot/account-model",
+    "value": "mycodex/copilot/account-model",
+    "mouseDowns": 0,
+    "submits": 0,
+    "focused": "SELECT"
+  },
+  "passed": true
+}

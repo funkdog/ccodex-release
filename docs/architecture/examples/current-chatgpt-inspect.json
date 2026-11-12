@@ -1,0 +1,19 @@
+{
+  "configVersion": 1,
+  "defaultInstance": "current",
+  "instances": [
+    {
+      "id": "current",
+      "mode": "app-server-gateway",
+      "host": "current",
+      "desktopApp": "/Applications/ChatGPT.app",
+      "gateway": {
+        "defaultEngine": "claude",
+        "engines": [
+          { "id": "claude", "adapter": "claude-code" },
+          { "id": "copilot", "adapter": "github-copilot" }
+        ]
+      }
+    }
+  ]
+}

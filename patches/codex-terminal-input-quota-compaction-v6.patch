@@ -1,0 +1,981 @@
+diff --git a/codex-rs/tui/src/app/tests/safety_buffering.rs b/codex-rs/tui/src/app/tests/safety_buffering.rs
+index 324cdc2..cdcd3dc 100644
+--- a/codex-rs/tui/src/app/tests/safety_buffering.rs
++++ b/codex-rs/tui/src/app/tests/safety_buffering.rs
+@@ -615,10 +615,11 @@ goals = true
+     let expected_source_tokens = if committed_steer.is_some() { 150 } else { 50 };
+     assert_eq!(source_goal.objective, RETRY_GOAL);
+     assert_eq!(source_goal.tokens_used, expected_source_tokens);
+-    assert_eq!(source_goal.time_used_seconds, 12);
++    // Interrupting the active turn also records its elapsed wall-clock time.
++    assert!(source_goal.time_used_seconds >= 12);
+     assert_eq!(retry_goal.objective, RETRY_GOAL);
+     assert!(retry_goal.tokens_used >= expected_source_tokens);
+-    assert!(retry_goal.time_used_seconds >= 12);
++    assert!(retry_goal.time_used_seconds >= source_goal.time_used_seconds);
+ 
+     let request_bodies = server
+         .requests()
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_setup.rs b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+index be11087..d9eb36a 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_setup.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_setup.rs
+@@ -156,6 +156,8 @@ pub(crate) enum StatusLineItem {
+     TaskProgress,
+     /// Active GitHub account reported by the Copilot bridge.
+     CopilotAccount,
++    /// Remaining quota of the exact authenticated GitHub Copilot account.
++    CopilotQuota,
+     /// Verification state of the most recent request in this thread.
+     RequestState,
+     /// Input and output token counts from the latest native usage report.
+@@ -167,6 +169,9 @@ impl StatusLineItem {
+     pub(crate) fn description(self) -> &'static str {
+         match self {
+             StatusLineItem::CopilotAccount => "GitHub Copilot account (omitted when unavailable)",
++            StatusLineItem::CopilotQuota => {
++                "Current Copilot quota, including unavailable/stale state"
++            }
+             StatusLineItem::RequestState => {
+                 "Current thread's request versus selected model, context and effort"
+             }
+@@ -235,6 +240,7 @@ impl StatusLineItem {
+     pub(crate) fn preview_item(self) -> StatusSurfacePreviewItem {
+         match self {
+             StatusLineItem::CopilotAccount => StatusSurfacePreviewItem::CopilotAccount,
++            StatusLineItem::CopilotQuota => StatusSurfacePreviewItem::CopilotQuota,
+             StatusLineItem::RequestState => StatusSurfacePreviewItem::RequestState,
+             StatusLineItem::LastRequestUsage => StatusSurfacePreviewItem::LastRequestUsage,
+             StatusLineItem::ModelName => StatusSurfacePreviewItem::Model,
+diff --git a/codex-rs/tui/src/bottom_pane/status_line_style.rs b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+index 09742d6..0254380 100644
+--- a/codex-rs/tui/src/bottom_pane/status_line_style.rs
++++ b/codex-rs/tui/src/bottom_pane/status_line_style.rs
+@@ -31,6 +31,7 @@ impl StatusLineAccent {
+     fn for_item(item: StatusLineItem) -> Self {
+         match item {
+             StatusLineItem::CopilotAccount => Self::Metadata,
++            StatusLineItem::CopilotQuota => Self::Limit,
+             StatusLineItem::RequestState => Self::State,
+             StatusLineItem::LastRequestUsage => Self::Usage,
+             StatusLineItem::ModelName
+diff --git a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+index 3440a8b..81ce92a 100644
+--- a/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
++++ b/codex-rs/tui/src/bottom_pane/status_surface_preview.rs
+@@ -8,6 +8,7 @@ use super::status_line_setup::StatusLineItem;
+ #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+ pub(crate) enum StatusSurfacePreviewItem {
+     CopilotAccount,
++    CopilotQuota,
+     RequestState,
+     LastRequestUsage,
+     AppName,
+@@ -48,6 +49,7 @@ impl StatusSurfacePreviewItem {
+     fn placeholder(self) -> &'static str {
+         match self {
+             StatusSurfacePreviewItem::CopilotAccount => "GitHub @account",
++            StatusSurfacePreviewItem::CopilotQuota => "Copilot 240/300 left",
+             StatusSurfacePreviewItem::RequestState => "Pending first request",
+             StatusSurfacePreviewItem::LastRequestUsage => "Last -- in / -- out",
+             StatusSurfacePreviewItem::AppName => "codex",
+@@ -88,6 +90,7 @@ impl StatusSurfacePreviewItem {
+     pub(crate) fn iter() -> impl Iterator<Item = Self> {
+         [
+             Self::CopilotAccount,
++            Self::CopilotQuota,
+             Self::RequestState,
+             Self::LastRequestUsage,
+             Self::AppName,
+diff --git a/codex-rs/tui/src/chatwidget.rs b/codex-rs/tui/src/chatwidget.rs
+index a88e619..27ba874 100644
+--- a/codex-rs/tui/src/chatwidget.rs
++++ b/codex-rs/tui/src/chatwidget.rs
+@@ -561,6 +561,7 @@ pub(crate) struct ChatWidget {
+     pub(crate) remote_connection: Option<RemoteConnectionStatus>,
+     token_info: Option<TokenUsageInfo>,
+     successful_compaction_count: u64,
++    completed_compaction_ids: std::collections::HashSet<String>,
+     awaiting_post_compaction_usage: bool,
+     last_post_compaction_tokens: Option<i64>,
+     rate_limit_snapshots_by_limit_id: BTreeMap<String, RateLimitSnapshotDisplay>,
+@@ -1166,6 +1167,12 @@ impl ChatWidget {
+         self.refresh_status_line();
+     }
+ 
++    fn record_successful_compaction_item(&mut self, id: &str) {
++        if !id.is_empty() && self.completed_compaction_ids.insert(id.to_string()) {
++            self.record_successful_compaction();
++        }
++    }
++
+     fn context_remaining_percent(&self, info: &TokenUsageInfo) -> Option<i64> {
+         info.model_context_window.map(|window| {
+             info.last_token_usage
+diff --git a/codex-rs/tui/src/chatwidget/constructor.rs b/codex-rs/tui/src/chatwidget/constructor.rs
+index 82a6a2f..83f79a5 100644
+--- a/codex-rs/tui/src/chatwidget/constructor.rs
++++ b/codex-rs/tui/src/chatwidget/constructor.rs
+@@ -124,6 +124,7 @@ impl ChatWidget {
+             remote_connection: None,
+             token_info: None,
+             successful_compaction_count: 0,
++            completed_compaction_ids: Default::default(),
+             awaiting_post_compaction_usage: false,
+             last_post_compaction_tokens: None,
+             rate_limit_snapshots_by_limit_id: BTreeMap::new(),
+diff --git a/codex-rs/tui/src/chatwidget/context_usage.rs b/codex-rs/tui/src/chatwidget/context_usage.rs
+index 5c30df2..5462ef1 100644
+--- a/codex-rs/tui/src/chatwidget/context_usage.rs
++++ b/codex-rs/tui/src/chatwidget/context_usage.rs
+@@ -28,7 +28,9 @@ impl ChatWidget {
+     pub(super) fn add_context_usage_output(&mut self) {
+         let mut lines: Vec<Line<'static>> =
+             vec!["/context".magenta().into(), " Context Usage".bold().into()];
++        let compactions = format!("   Compactions: ×{}", self.successful_compaction_count);
+         let Some(token_info) = self.token_info.as_ref() else {
++            lines.push(compactions.dim().into());
+             lines.push(
+                 format!(
+                     "   {} · usage is available after the first provider response",
+@@ -130,13 +132,7 @@ impl ChatWidget {
+                 .into(),
+             );
+         }
+-        if self.successful_compaction_count > 0 {
+-            lines.push(
+-                format!("   Compactions: ×{}", self.successful_compaction_count)
+-                    .dim()
+-                    .into(),
+-            );
+-        }
++        lines.push(compactions.dim().into());
+         if let Some(post_compaction_tokens) = self.last_post_compaction_tokens
+             && context_window > 0
+         {
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status.rs b/codex-rs/tui/src/chatwidget/copilot_status.rs
+index e659d65..b9a4039 100644
+--- a/codex-rs/tui/src/chatwidget/copilot_status.rs
++++ b/codex-rs/tui/src/chatwidget/copilot_status.rs
+@@ -20,12 +20,37 @@ pub(super) struct CopilotStatus {
+     request: Option<Request>,
+     thread: Option<ThreadId>,
+     checked_at: Option<Instant>,
++    last_quota_text: Option<String>,
+ }
+ 
+ #[derive(Debug, Deserialize, PartialEq)]
+ struct Account {
+     generation: String,
+     login: Option<String>,
++    #[serde(default)]
++    quota: Option<Quota>,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++#[serde(rename_all = "camelCase")]
++struct Quota {
++    status: String,
++    updated_at: String,
++    #[serde(default)]
++    snapshots: Vec<QuotaSnapshot>,
++}
++
++#[derive(Debug, Deserialize, PartialEq)]
++#[serde(rename_all = "camelCase")]
++struct QuotaSnapshot {
++    id: String,
++    #[serde(default)]
++    updated_at: Option<String>,
++    #[serde(default)]
++    unlimited: bool,
++    entitlement: Option<f64>,
++    remaining: Option<f64>,
++    percent_remaining: Option<f64>,
+ }
+ 
+ #[derive(Debug, Deserialize, PartialEq)]
+@@ -86,9 +111,12 @@ impl CopilotStatus {
+             (request.schema_version == 1 && request.thread_id == thread.to_string())
+                 .then_some(request)
+         });
+-        let changed = self.account != account || self.request != request;
++        let mut changed = self.account != account || self.request != request;
+         self.account = account;
+         self.request = request;
++        let quota_text = self.quota_text();
++        changed |= self.last_quota_text != quota_text;
++        self.last_quota_text = quota_text;
+         changed
+     }
+ 
+@@ -97,6 +125,62 @@ impl CopilotStatus {
+         (!login.is_empty()).then(|| format!("GitHub @{login}"))
+     }
+ 
++    pub(super) fn quota_text(&self) -> Option<String> {
++        let unavailable = || Some("Copilot quota unavailable".to_string());
++        let Some(quota) = self
++            .account
++            .as_ref()
++            .and_then(|account| account.quota.as_ref())
++        else {
++            return unavailable();
++        };
++        if !matches!(quota.status.as_str(), "available" | "stale") {
++            return unavailable();
++        }
++        let snapshot = [
++            "premium_interactions",
++            "premium_models",
++            "chat",
++            "completions",
++        ]
++        .into_iter()
++        .find_map(|id| quota.snapshots.iter().find(|snapshot| snapshot.id == id));
++        let Some(snapshot) = snapshot else {
++            return unavailable();
++        };
++        // Response headers may update just one bucket while retaining older buckets.
++        let timestamp = snapshot.updated_at.as_deref().unwrap_or(&quota.updated_at);
++        let Some(updated_at) = chrono::DateTime::parse_from_rfc3339(timestamp).ok() else {
++            return unavailable();
++        };
++        let age = chrono::Utc::now().signed_duration_since(updated_at);
++        if age.num_seconds() < -300 || age.num_seconds() > 15 * 60 {
++            return unavailable();
++        }
++        let valid = |value: Option<f64>| value.filter(|value| value.is_finite() && *value >= 0.0);
++        let value = if snapshot.unlimited {
++            "unlimited".to_string()
++        } else if let Some(remaining) = valid(snapshot.remaining) {
++            if let Some(entitlement) = valid(snapshot.entitlement) {
++                format!("{remaining}/{entitlement} left")
++            } else {
++                format!("{remaining} left")
++            }
++        } else if let Some(percent) =
++            valid(snapshot.percent_remaining).filter(|value| *value <= 100.0)
++        {
++            format!("{percent:.1}% left")
++        } else {
++            return unavailable();
++        };
++        let stale = if quota.status == "stale" || age.num_seconds() > 120 {
++            " (stale)"
++        } else {
++            ""
++        };
++        Some(format!("Copilot {value}{stale}"))
++    }
++
+     pub(super) fn request_text(
+         &self,
+         model: &str,
+diff --git a/codex-rs/tui/src/chatwidget/copilot_status_tests.rs b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+index 3a3d8da..825b9fa 100644
+--- a/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
++++ b/codex-rs/tui/src/chatwidget/copilot_status_tests.rs
+@@ -2,6 +2,128 @@ use super::*;
+ use pretty_assertions::assert_eq;
+ use serde_json::json;
+ 
++#[test]
++fn quota_is_current_account_remaining_and_marks_unknown_stale_and_unlimited() {
++    let root = tempfile::tempdir().unwrap();
++    let file = root.path().join("account-generation.json");
++    let mut account = json!({
++        "generation": "one", "login": "test-user",
++        "quota": {
++            "status": "available", "updatedAt": chrono::Utc::now().to_rfc3339(),
++            "snapshots": [{ "id": "premium_interactions", "unlimited": false,
++                "remaining": 0, "entitlement": 300, "percentRemaining": 0 }]
++        }
++    });
++    let mut status = CopilotStatus::default();
++    let now = Instant::now();
++    std::fs::write(&file, account.to_string()).unwrap();
++    status.refresh(root.path(), None, now);
++    assert_eq!(status.quota_text().as_deref(), Some("Copilot 0/300 left"));
++    account["quota"]["snapshots"][0]["remaining"] = json!(240);
++    account["quota"]["snapshots"][0]["percentRemaining"] = json!(80);
++    account["quota"]["status"] = json!("stale");
++    std::fs::write(&file, account.to_string()).unwrap();
++    status.refresh(root.path(), None, now + REFRESH_INTERVAL);
++    assert_eq!(
++        status.quota_text().as_deref(),
++        Some("Copilot 240/300 left (stale)")
++    );
++    account["quota"]["snapshots"][0]["unlimited"] = json!(true);
++    account["quota"]["status"] = json!("available");
++    std::fs::write(&file, account.to_string()).unwrap();
++    status.refresh(root.path(), None, now + REFRESH_INTERVAL * 2);
++    assert_eq!(status.quota_text().as_deref(), Some("Copilot unlimited"));
++    account["generation"] = json!("two");
++    account["login"] = json!("other-user");
++    account["quota"] = serde_json::Value::Null;
++    std::fs::write(&file, account.to_string()).unwrap();
++    status.refresh(root.path(), None, now + REFRESH_INTERVAL * 3);
++    assert_eq!(status.account_text().as_deref(), Some("GitHub @other-user"));
++    assert_eq!(
++        status.quota_text().as_deref(),
++        Some("Copilot quota unavailable")
++    );
++}
++
++#[test]
++fn expired_or_invalid_quota_never_claims_zero_or_current_remaining() {
++    let root = tempfile::tempdir().unwrap();
++    let file = root.path().join("account-generation.json");
++    let now = Instant::now();
++    let mut status = CopilotStatus::default();
++    for (index, updated_at) in [
++        "invalid".to_string(),
++        (chrono::Utc::now() - chrono::Duration::minutes(16)).to_rfc3339(),
++        (chrono::Utc::now() + chrono::Duration::minutes(6)).to_rfc3339(),
++    ]
++    .into_iter()
++    .enumerate()
++    {
++        std::fs::write(
++            &file,
++            json!({
++                "generation": "one", "login": "test-user",
++                "quota": { "status": "available", "updatedAt": updated_at,
++                    "snapshots": [{ "id": "chat", "unlimited": true }] }
++            })
++            .to_string(),
++        )
++        .unwrap();
++        status.refresh(root.path(), None, now + REFRESH_INTERVAL * index as u32);
++        assert_eq!(
++            status.quota_text().as_deref(),
++            Some("Copilot quota unavailable")
++        );
++    }
++}
++
++#[test]
++fn another_bucket_refresh_does_not_make_old_premium_quota_current() {
++    let root = tempfile::tempdir().unwrap();
++    let file = root.path().join("account-generation.json");
++    let now = Instant::now();
++    let mut status = CopilotStatus::default();
++    for (index, (updated_at, expected)) in [
++        (
++            (chrono::Utc::now() - chrono::Duration::minutes(3)).to_rfc3339(),
++            "Copilot 240/300 left (stale)",
++        ),
++        (
++            (chrono::Utc::now() - chrono::Duration::minutes(16)).to_rfc3339(),
++            "Copilot quota unavailable",
++        ),
++        ("invalid".to_string(), "Copilot quota unavailable"),
++        (
++            (chrono::Utc::now() + chrono::Duration::minutes(6)).to_rfc3339(),
++            "Copilot quota unavailable",
++        ),
++        (chrono::Utc::now().to_rfc3339(), "Copilot 240/300 left"),
++    ]
++    .into_iter()
++    .enumerate()
++    {
++        std::fs::write(
++            &file,
++            json!({
++                "generation": "one", "login": "test-user",
++                "quota": {
++                    "status": "available", "updatedAt": chrono::Utc::now().to_rfc3339(),
++                    "snapshots": [
++                        { "id": "premium_interactions", "updatedAt": updated_at,
++                            "remaining": 240, "entitlement": 300 },
++                        { "id": "chat", "updatedAt": chrono::Utc::now().to_rfc3339(),
++                            "unlimited": true }
++                    ]
++                }
++            })
++            .to_string(),
++        )
++        .unwrap();
++        status.refresh(root.path(), None, now + REFRESH_INTERVAL * index as u32);
++        assert_eq!(status.quota_text().as_deref(), Some(expected));
++    }
++}
++
+ #[test]
+ fn status_never_uses_another_thread_or_account_request_as_proof() {
+     let root = tempfile::tempdir().unwrap();
+diff --git a/codex-rs/tui/src/chatwidget/protocol.rs b/codex-rs/tui/src/chatwidget/protocol.rs
+index 9586f5f..e0cabf3 100644
+--- a/codex-rs/tui/src/chatwidget/protocol.rs
++++ b/codex-rs/tui/src/chatwidget/protocol.rs
+@@ -333,6 +333,13 @@ impl ChatWidget {
+         notification: ItemCompletedNotification,
+         replay_kind: Option<ReplayKind>,
+     ) {
++        if matches!(&notification.item, ThreadItem::ContextCompaction { .. })
++            && self
++                .thread_id
++                .is_none_or(|thread| thread.to_string() != notification.thread_id)
++        {
++            return;
++        }
+         self.handle_thread_item(
+             notification.item,
+             notification.turn_id,
+diff --git a/codex-rs/tui/src/chatwidget/replay.rs b/codex-rs/tui/src/chatwidget/replay.rs
+index 3fba24d..899d1f3 100644
+--- a/codex-rs/tui/src/chatwidget/replay.rs
++++ b/codex-rs/tui/src/chatwidget/replay.rs
+@@ -185,8 +185,8 @@ impl ChatWidget {
+             ThreadItem::ExitedReviewMode { .. } => {
+                 self.exit_review_mode_after_item();
+             }
+-            ThreadItem::ContextCompaction { .. } => {
+-                self.record_successful_compaction();
++            ThreadItem::ContextCompaction { id } => {
++                self.record_successful_compaction_item(&id);
+                 self.add_info_message("Context compacted".to_string(), /*hint*/ None);
+             }
+             ThreadItem::HookPrompt { .. } => {}
+diff --git a/codex-rs/tui/src/chatwidget/session_flow.rs b/codex-rs/tui/src/chatwidget/session_flow.rs
+index 52218e0..0ff176e 100644
+--- a/codex-rs/tui/src/chatwidget/session_flow.rs
++++ b/codex-rs/tui/src/chatwidget/session_flow.rs
+@@ -24,6 +24,10 @@ impl ChatWidget {
+             .set_queue_submissions(/*queue_submissions*/ false);
+         if previous_thread_id != self.thread_id {
+             self.review.recent_auto_review_denials = RecentAutoReviewDenials::default();
++            self.successful_compaction_count = 0;
++            self.completed_compaction_ids.clear();
++            self.awaiting_post_compaction_usage = false;
++            self.last_post_compaction_tokens = None;
+         }
+         self.refresh_plan_mode_nudge();
+         self.turn_lifecycle.reset_thread();
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 3d624cd..1417591 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -655,6 +655,7 @@ impl ChatWidget {
+     pub(super) fn status_line_value_for_item(&mut self, item: StatusLineItem) -> Option<String> {
+         match item {
+             StatusLineItem::CopilotAccount => self.copilot_status.account_text(),
++            StatusLineItem::CopilotQuota => self.copilot_status.quota_text(),
+             StatusLineItem::RequestState => {
+                 let effort = self
+                     .current_reasoning_effort()
+@@ -776,8 +777,9 @@ impl ChatWidget {
+                     ))
+                 }
+             }
+-            StatusLineItem::CompactionCount => (self.successful_compaction_count > 0)
+-                .then(|| format!("Compact ×{}", self.successful_compaction_count)),
++            StatusLineItem::CompactionCount => {
++                Some(format!("Compact ×{}", self.successful_compaction_count))
++            }
+             StatusLineItem::PostCompactionUsage => {
+                 let tokens = self.last_post_compaction_tokens?;
+                 let window = self.status_line_context_window_size()?;
+@@ -830,6 +832,7 @@ impl ChatWidget {
+     ) -> Option<String> {
+         let status_line_item = match item {
+             StatusSurfacePreviewItem::CopilotAccount => StatusLineItem::CopilotAccount,
++            StatusSurfacePreviewItem::CopilotQuota => StatusLineItem::CopilotQuota,
+             StatusSurfacePreviewItem::RequestState => StatusLineItem::RequestState,
+             StatusSurfacePreviewItem::LastRequestUsage => StatusLineItem::LastRequestUsage,
+             StatusSurfacePreviewItem::AppName => return Some("codex".to_string()),
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index 61bfaca..c76902e 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -2841,6 +2841,61 @@ async fn status_line_compaction_reports_success_count_and_post_usage() {
+     assert!(drain_insert_history(&mut rx).is_empty());
+ }
+ 
++#[tokio::test]
++async fn compaction_status_includes_zero_and_deduplicates_successful_item_replay() {
++    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
++    chat.thread_id = Some(ThreadId::new());
++    chat.config.tui_status_line = Some(vec!["compaction-count".to_string()]);
++    chat.refresh_status_line();
++    assert_eq!(status_line_text(&chat), Some("Compact ×0".to_string()));
++
++    let started = ItemStartedNotification {
++        thread_id: chat.thread_id.unwrap().to_string(),
++        turn_id: "turn-one".to_string(),
++        started_at_ms: 1,
++        item: ThreadItem::ContextCompaction {
++            id: "compaction-one".to_string(),
++        },
++    };
++    chat.handle_server_notification(ServerNotification::ItemStarted(started), None);
++    assert_eq!(chat.successful_compaction_count, 0);
++    chat.handle_server_notification(
++        ServerNotification::ItemCompleted(ItemCompletedNotification {
++            thread_id: ThreadId::new().to_string(),
++            turn_id: "other-turn".to_string(),
++            completed_at_ms: 2,
++            item: ThreadItem::ContextCompaction {
++                id: "other-thread-compaction".to_string(),
++            },
++        }),
++        None,
++    );
++    assert_eq!(chat.successful_compaction_count, 0);
++    for replay_kind in [None, Some(ReplayKind::ThreadSnapshot), None] {
++        chat.handle_server_notification(
++            ServerNotification::ItemCompleted(ItemCompletedNotification {
++                thread_id: chat.thread_id.unwrap().to_string(),
++                turn_id: "turn-one".to_string(),
++                completed_at_ms: 3,
++                item: ThreadItem::ContextCompaction {
++                    id: "compaction-one".to_string(),
++                },
++            }),
++            replay_kind,
++        );
++    }
++    assert_eq!(chat.successful_compaction_count, 1);
++    chat.handle_thread_item(
++        ThreadItem::ContextCompaction {
++            id: "compaction-two".to_string(),
++        },
++        "turn-two".to_string(),
++        ThreadItemRenderSource::Replay(ReplayKind::ResumeInitialMessages),
++    );
++    assert_eq!(chat.successful_compaction_count, 2);
++    assert_eq!(status_line_text(&chat), Some("Compact ×2".to_string()));
++}
++
+ #[tokio::test]
+ async fn status_line_context_remaining_renders_labeled_percent() {
+     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index 7e193c1..6542263 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -69,6 +69,8 @@ mod terminal_stderr;
+ pub(crate) mod test_support;
+ #[cfg(any(windows, test))]
+ mod windows_console;
++#[cfg(any(windows, test))]
++mod windows_key_sequence;
+ 
+ /// Target frame interval for UI redraw scheduling.
+ pub(crate) const TARGET_FRAME_INTERVAL: Duration = frame_rate_limiter::MIN_FRAME_INTERVAL;
+diff --git a/codex-rs/tui/src/tui/event_stream.rs b/codex-rs/tui/src/tui/event_stream.rs
+index 065194c..6984867 100644
+--- a/codex-rs/tui/src/tui/event_stream.rs
++++ b/codex-rs/tui/src/tui/event_stream.rs
+@@ -115,11 +115,27 @@ impl<S: EventSource + Default> EventBroker<S> {
+ }
+ 
+ /// Real crossterm-backed event source.
+-pub struct CrosstermEventSource(pub crossterm::event::EventStream);
++pub struct CrosstermEventSource {
++    stream: crossterm::event::EventStream,
++    #[cfg(windows)]
++    sequence: super::windows_key_sequence::WindowsKeySequence,
++    #[cfg(windows)]
++    ready: std::collections::VecDeque<EventResult>,
++    #[cfg(windows)]
++    prefix_deadline: Option<Pin<Box<tokio::time::Sleep>>>,
++}
+ 
+ impl Default for CrosstermEventSource {
+     fn default() -> Self {
+-        Self(crossterm::event::EventStream::new())
++        Self {
++            stream: crossterm::event::EventStream::new(),
++            #[cfg(windows)]
++            sequence: Default::default(),
++            #[cfg(windows)]
++            ready: Default::default(),
++            #[cfg(windows)]
++            prefix_deadline: None,
++        }
+     }
+ }
+ 
+@@ -130,16 +146,58 @@ impl EventSource for CrosstermEventSource {
+         #[cfg(windows)]
+         let _ = super::windows_console::ensure_input_record_mode();
+ 
+-        let result = Pin::new(&mut self.get_mut().0).poll_next(cx);
+-
+-        // EventStream starts its blocking reader before returning Pending, so reassert the mode
+-        // after that transition as well.
++        let source = self.get_mut();
++        #[cfg(not(windows))]
++        {
++            Pin::new(&mut source.stream).poll_next(cx)
++        }
+         #[cfg(windows)]
+-        if result.is_pending() {
+-            let _ = super::windows_console::ensure_input_record_mode();
++        {
++            use std::future::Future;
++            use std::time::Duration;
++            loop {
++                if let Some(event) = source.ready.pop_front() {
++                    return Poll::Ready(Some(event));
++                }
++                match Pin::new(&mut source.stream).poll_next(cx) {
++                    Poll::Ready(Some(Ok(event))) => {
++                        source
++                            .ready
++                            .extend(source.sequence.push(event).into_iter().map(Ok));
++                        if !source.sequence.is_pending() {
++                            source.prefix_deadline = None;
++                        }
++                    }
++                    Poll::Ready(result) => {
++                        source
++                            .ready
++                            .extend(source.sequence.flush().into_iter().map(Ok));
++                        source.prefix_deadline = None;
++                        if let Some(result) = result {
++                            source.ready.push_back(result);
++                        } else if source.ready.is_empty() {
++                            return Poll::Ready(None);
++                        }
++                    }
++                    Poll::Pending => {
++                        let _ = super::windows_console::ensure_input_record_mode();
++                        if source.sequence.is_pending() {
++                            let deadline = source.prefix_deadline.get_or_insert_with(|| {
++                                Box::pin(tokio::time::sleep(Duration::from_millis(40)))
++                            });
++                            if deadline.as_mut().poll(cx).is_ready() {
++                                source
++                                    .ready
++                                    .extend(source.sequence.flush().into_iter().map(Ok));
++                                source.prefix_deadline = None;
++                                continue;
++                            }
++                        }
++                        return Poll::Pending;
++                    }
++                }
++            }
+         }
+-
+-        result
+     }
+ }
+ 
+diff --git a/codex-rs/tui/src/tui/keyboard_modes.rs b/codex-rs/tui/src/tui/keyboard_modes.rs
+index ca4ae3b..51b369d 100644
+--- a/codex-rs/tui/src/tui/keyboard_modes.rs
++++ b/codex-rs/tui/src/tui/keyboard_modes.rs
+@@ -119,6 +119,14 @@ fn read_windows_term_program() -> Option<String> {
+ }
+ 
+ pub(super) fn enable_keyboard_enhancement() {
++    #[cfg(windows)]
++    super::windows_console::request_key_records();
++    #[cfg(not(windows))]
++    enable_vt_keyboard_enhancement();
++}
++
++#[cfg(not(windows))]
++fn enable_vt_keyboard_enhancement() {
+     if keyboard_enhancement_disabled() {
+         return;
+     }
+diff --git a/codex-rs/tui/src/tui/windows_console.rs b/codex-rs/tui/src/tui/windows_console.rs
+index 1dbf4d0..570dee7 100644
+--- a/codex-rs/tui/src/tui/windows_console.rs
++++ b/codex-rs/tui/src/tui/windows_console.rs
+@@ -41,6 +41,32 @@ fn current_input_mode() -> Option<(windows_sys::Win32::Foundation::HANDLE, u32)>
+     Some((handle, mode))
+ }
+ 
++#[cfg(windows)]
++fn write_keyboard_mode(sequence: &[u8]) {
++    use std::io::Write;
++    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
++    use windows_sys::Win32::System::Console::GetConsoleMode;
++    use windows_sys::Win32::System::Console::GetStdHandle;
++    use windows_sys::Win32::System::Console::STD_OUTPUT_HANDLE;
++
++    let handle = unsafe { GetStdHandle(STD_OUTPUT_HANDLE) };
++    let mut mode = 0;
++    if handle != INVALID_HANDLE_VALUE
++        && handle != 0
++        && unsafe { GetConsoleMode(handle, &mut mode) } != 0
++        && mode & 0x0004 != 0
++    {
++        let _ = std::io::stdout().write_all(sequence);
++        let _ = std::io::stdout().flush();
++    }
++}
++
++#[cfg(windows)]
++pub(super) fn request_key_records() {
++    // The Windows backend consumes INPUT_RECORDs, not Kitty keyboard packets.
++    write_keyboard_mode(b"\x1b[?9001h");
++}
++
+ #[cfg(windows)]
+ pub(super) fn set_input_record_mode() -> std::io::Result<()> {
+     use windows_sys::Win32::System::Console::SetConsoleMode;
+@@ -92,6 +118,9 @@ pub(super) fn restore_input_mode() -> std::io::Result<()> {
+     };
+     let Some((handle, mode)) = current_input_mode() else {
+         original_modes.pop();
++        if original_modes.is_empty() {
++            write_keyboard_mode(b"\x1b[?9001l");
++        }
+         return Ok(());
+     };
+     let requested_mode = restored_input_mode(mode, original);
+@@ -100,6 +129,9 @@ pub(super) fn restore_input_mode() -> std::io::Result<()> {
+     }
+ 
+     original_modes.pop();
++    if original_modes.is_empty() {
++        write_keyboard_mode(b"\x1b[?9001l");
++    }
+     Ok(())
+ }
+ 
+diff --git a/codex-rs/tui/src/tui/windows_key_sequence.rs b/codex-rs/tui/src/tui/windows_key_sequence.rs
+new file mode 100644
+index 0000000..41c0c8a
+--- /dev/null
++++ b/codex-rs/tui/src/tui/windows_key_sequence.rs
+@@ -0,0 +1,232 @@
++//! Recover CSI-u keys delivered as individual Win32 console records.
++
++use crossterm::event::Event;
++use crossterm::event::KeyCode;
++use crossterm::event::KeyEvent;
++use crossterm::event::KeyEventKind;
++use crossterm::event::KeyModifiers;
++
++#[derive(Default)]
++pub(super) struct WindowsKeySequence {
++    pending: Vec<Event>,
++    text: String,
++    raw_paste: bool,
++}
++
++fn packets() -> impl Iterator<Item = (String, Option<KeyEvent>)> {
++    (1_u8..=8)
++        .flat_map(|modifier| {
++            let bits = modifier - 1;
++            let mut modifiers = KeyModifiers::NONE;
++            if bits & 1 != 0 {
++                modifiers |= KeyModifiers::SHIFT;
++            }
++            if bits & 2 != 0 {
++                modifiers |= KeyModifiers::ALT;
++            }
++            if bits & 4 != 0 {
++                modifiers |= KeyModifiers::CONTROL;
++            }
++            [
++                ("u", KeyEventKind::Press),
++                (":1u", KeyEventKind::Press),
++                (":2u", KeyEventKind::Repeat),
++                (":3u", KeyEventKind::Release),
++            ]
++            .into_iter()
++            .map(move |(suffix, kind)| {
++                (
++                    format!("\u{1b}[13;{modifier}{suffix}"),
++                    Some(KeyEvent::new_with_kind(KeyCode::Enter, modifiers, kind)),
++                )
++            })
++            .chain(std::iter::once((
++                format!("\u{1b}[27;{modifier};13~"),
++                Some(KeyEvent::new(KeyCode::Enter, modifiers)),
++            )))
++        })
++        .chain([
++            ("\u{1b}[200~".to_string(), None),
++            ("\u{1b}[201~".to_string(), None),
++        ])
++}
++
++impl WindowsKeySequence {
++    pub(super) fn is_pending(&self) -> bool {
++        !self.pending.is_empty()
++    }
++
++    pub(super) fn flush(&mut self) -> Vec<Event> {
++        self.text.clear();
++        std::mem::take(&mut self.pending)
++    }
++
++    pub(super) fn push(&mut self, event: Event) -> Vec<Event> {
++        let character = match &event {
++            Event::Key(key)
++                if key.kind != KeyEventKind::Release
++                    && !key
++                        .modifiers
++                        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
++            {
++                match key.code {
++                    KeyCode::Esc => Some('\u{1b}'),
++                    KeyCode::Char(character) if character.is_ascii() => Some(character),
++                    _ => None,
++                }
++            }
++            _ => None,
++        };
++        if !self.is_pending() {
++            if character != Some('\u{1b}') {
++                return vec![event];
++            }
++        } else if matches!(&event, Event::Key(key) if key.kind == KeyEventKind::Release) {
++            if self.pending.len() >= 64 {
++                let mut ready = self.flush();
++                ready.push(event);
++                return ready;
++            }
++            self.pending.push(event);
++            return Vec::new();
++        }
++        let Some(character) = character else {
++            let mut ready = self.flush();
++            ready.push(event);
++            return ready;
++        };
++        self.pending.push(event);
++        self.text.push(character);
++        let mut possible = false;
++        for (packet, key) in packets() {
++            if self.raw_paste && packet != "\u{1b}[201~" {
++                continue;
++            }
++            if packet == self.text {
++                if packet == "\u{1b}[200~" {
++                    self.raw_paste = true;
++                    return self.flush();
++                }
++                if packet == "\u{1b}[201~" {
++                    self.raw_paste = false;
++                    return self.flush();
++                }
++                self.pending.clear();
++                self.text.clear();
++                return key.map(Event::Key).into_iter().collect();
++            }
++            possible |= packet.starts_with(&self.text);
++        }
++        if possible { Vec::new() } else { self.flush() }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use pretty_assertions::assert_eq;
++
++    fn events(text: &str) -> Vec<Event> {
++        text.chars()
++            .map(|character| {
++                Event::Key(KeyEvent::new(
++                    if character == '\u{1b}' {
++                        KeyCode::Esc
++                    } else {
++                        KeyCode::Char(character)
++                    },
++                    KeyModifiers::NONE,
++                ))
++            })
++            .collect()
++    }
++
++    fn decode(decoder: &mut WindowsKeySequence, text: &str) -> Vec<Event> {
++        events(text)
++            .into_iter()
++            .flat_map(|event| decoder.push(event))
++            .collect()
++    }
++
++    #[test]
++    fn csi_u_and_modify_other_keys_preserve_shift_enter() {
++        for packet in ["\u{1b}[13;2u", "\u{1b}[13;2:1u", "\u{1b}[27;2;13~"] {
++            let mut decoder = WindowsKeySequence::default();
++            assert_eq!(
++                decode(&mut decoder, packet),
++                vec![Event::Key(KeyEvent::new(
++                    KeyCode::Enter,
++                    KeyModifiers::SHIFT,
++                ))]
++            );
++            assert!(!decoder.is_pending());
++        }
++    }
++
++    #[test]
++    fn all_packet_splits_keep_one_logical_key_and_no_literal_suffix() {
++        let packet = "\u{1b}[13;2u";
++        for split in 0..=packet.len() {
++            let mut decoder = WindowsKeySequence::default();
++            let mut output = decode(&mut decoder, &packet[..split]);
++            output.extend(decode(&mut decoder, &packet[split..]));
++            assert_eq!(
++                output,
++                vec![Event::Key(KeyEvent::new(
++                    KeyCode::Enter,
++                    KeyModifiers::SHIFT,
++                ))]
++            );
++        }
++    }
++
++    #[test]
++    fn release_and_repeat_keep_their_kind_without_duplicating_presses() {
++        let mut decoder = WindowsKeySequence::default();
++        assert_eq!(
++            decode(&mut decoder, "\u{1b}[13;2:2u\u{1b}[13;2:3u"),
++            vec![
++                Event::Key(KeyEvent::new_with_kind(
++                    KeyCode::Enter,
++                    KeyModifiers::SHIFT,
++                    KeyEventKind::Repeat
++                )),
++                Event::Key(KeyEvent::new_with_kind(
++                    KeyCode::Enter,
++                    KeyModifiers::SHIFT,
++                    KeyEventKind::Release
++                )),
++            ]
++        );
++    }
++
++    #[test]
++    fn unknown_escape_mouse_keys_and_resize_are_not_lost_or_rewritten() {
++        let mut decoder = WindowsKeySequence::default();
++        let unknown = "\u{1b}[31m";
++        assert_eq!(decode(&mut decoder, unknown), events(unknown));
++        assert_eq!(decode(&mut decoder, "\u{1b}"), Vec::new());
++        let resize = Event::Resize(80, 24);
++        let mut expected = events("\u{1b}");
++        expected.push(resize.clone());
++        assert_eq!(decoder.push(resize), expected);
++        assert!(!decoder.is_pending());
++    }
++
++    #[test]
++    fn actual_paste_and_raw_bracketed_paste_do_not_decode_embedded_keyboard_text() {
++        let mut decoder = WindowsKeySequence::default();
++        let paste = Event::Paste("\u{1b}[13;2u".to_string());
++        assert_eq!(decoder.push(paste.clone()), vec![paste]);
++        let raw = "\u{1b}[200~literal \u{1b}[13;2u\u{1b}[201~";
++        assert_eq!(decode(&mut decoder, raw), events(raw));
++    }
++
++    #[test]
++    fn incomplete_sequence_flushes_every_original_event_exactly_once() {
++        let mut decoder = WindowsKeySequence::default();
++        assert!(decode(&mut decoder, "\u{1b}[13;").is_empty());
++        assert_eq!(decoder.flush(), events("\u{1b}[13;"));
++        assert!(decoder.flush().is_empty());
++    }
++}

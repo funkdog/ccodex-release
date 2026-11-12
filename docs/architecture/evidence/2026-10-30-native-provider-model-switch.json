@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-30T01:39:21.369Z",
+  "localDate": "2026-10-30",
+  "scope": "Mac local native-provider model switching",
+  "threadId": "01a18752-ad9d-7582-b6ea-75aad02dcfeb",
+  "observedFailure": {
+    "model": "gpt-6-astra",
+    "error": "model_not_found",
+    "availableInCurrentApiCatalog": false
+  },
+  "actualRecovery": {
+    "model": "gpt-6.1-sol",
+    "startedAt": "2026-10-30T01:29:45.016Z",
+    "completedAt": "2026-10-30T01:29:52.684Z",
+    "httpStatus": 200,
+    "attempts": 1,
+    "threadReply": "收到：MYCODEX_OK",
+    "humanConfirmed": "回复正常，底部也显示 Sol",
+    "screenshotConfirmedAdditionalReply": true,
+    "desktopRestartedByAgent": false
+  },
+  "targetedTests": {
+    "passed": 32,
+    "failed": 0,
+    "skipped": 0,
+    "suites": [
+      "copilot-provider-native",
+      "gateway-router",
+      "google-provider",
+      "gateway-routed-stdio",
+      "desktop-native-session"
+    ]
+  },
+  "typeScriptBuild": {
+    "passed": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "moduleCheck": {
+    "modules": 159,
+    "relativeImportsVerified": 362,
+    "evaluatedCode": false
+  },
+  "deployment": "compiled source; current routed frontend preserved; loads at next normal MyCodex launch",
+  "sourceSha256": {
+    "gateway/router.mts": "376329452275049abc7a8929c2e18d63f0e21544172715d9e29989088106c510",
+    "gateway/contracts.mts": "b60791fd2a9fff29a232f495d68bd1796dca79cf4bb1c4e377ecbf68a8b73b76",
+    "tests/gateway-router-test.mjs": "4d117903d27048f9c40cb8f5c04109f5ebc35784c96c624627899c4447b696ab",
+    "tests/copilot-provider-native-test.mjs": "26302b9034a9a31166ad30127cea0f7b6e744355e3c1cf074daeeec56b1759a3"
+  }
+}

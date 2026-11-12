@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-10T20:03:30.312539+08:00",
+  "scope": "Claude Code CLI with isolated personal API-key configuration",
+  "sourceHashes": {
+    "gateway/claude-api-profile.mts": "162ef84fbcd49e040f8ab7c25e7c05b926790f53fb407c579d5ac69006dca24b",
+    "gateway/engines/claude-code.mts": "00a4cccb147c34363055b59a531d580c7a9d7a1b76600ef95c3bea1cc7d92a9d",
+    "gateway/engines/index.mts": "5e95001be2027d5c8002a60efbad64abdecfdfcdbd7763e296c9eb0d757a1d47",
+    "gateway/contracts.mts": "49ae0a145f867b548464922aca70c6460c91f3f41aaf69a23251bfbe2a6478a8",
+    "gateway/sdk-contracts.mts": "90ed3e3a6abd73230128138d4a553de7428d57a7c254a92db4ef858cb34719ca",
+    "gateway/approval-preferences.mts": "ef28efa408828d15747e24b550866e9e3d5adf9a838ded78268b1cf78f1e1015",
+    "gateway/protocol.mts": "728215ad36d78de8588b2c49818b3d3ff287b7da78b683583b9b18023972bdf1",
+    "bridge/desktop-mode.mjs": "999e7902a4473a37a4288857115b1679c050d4dcc24c63ba85fe3ac66c5c3ddf",
+    "tools/configure-claude.mjs": "6b147b1ef52ed5e8673e977b1d8871bbbda4ef0354d419b53d52bddaf0af49ed",
+    "tools/claude-api-key.py": "e1e255d00a2a0a5ec7b8b2523a9a7c1d9f9747e491fe7da87e74ca72369207b8",
+    "tools/typescript-task.mjs": "2ba707fe4f95370e8a4d12dbb758819511ad9efe747eb8a207bc596810901c2a",
+    "tests/claude-api-test.mjs": "dfba0bbb4585ad18b4f4becb19390eb951bec05a22233f8c5192ed1bf4af7921",
+    "tests/claude-native-test.mjs": "eb72773ea7d01d753c4796cb5d9233c435cc4345f6a3a9f89b5347801da344d1",
+    "tests/desktop-mode-test.mjs": "f2d11d51cae079aa62fa2b67433f1e0ad288f6450736f787b0783e98e2534f19",
+    "tests/gateway-protocol-test.mjs": "2fbc20b0072fbcf1517dc6907c8e6afbb18a008bfaeca46b927168c29b696636"
+  },
+  "sdk": {
+    "package": "@anthropic-ai/claude-agent-sdk",
+    "version": "0.3.312",
+    "globalClaudeCliReplaced": false
+  },
+  "verification": {
+    "targeted": {
+      "tests": 46,
+      "passed": 46,
+      "failed": 0,
+      "durationMs": 3150.600625
+    },
+    "fullDevelopmentGate": {
+      "tests": 333,
+      "passed": 327,
+      "failed": 6,
+      "durationMs": 14465.836042,
+      "preexistingFailureGroups": {
+        "installedDesktopContractMismatch": 2,
+        "mcpCatalogMissingExistingShowWorkCard": 4
+      }
+    },
+    "packageModules": {
+      "modules": 214,
+      "relativeImportsVerified": 501
+    },
+    "nativeClaudeCli": {
+      "realCli": true,
+      "endpoint": "isolated loopback Anthropic protocol fixture",
+      "realApiKeyUsed": false,
+      "nativeCatalogAndEfforts": true,
+      "personalKeyOverridesProjectKey": true,
+      "nativeToolExecution": true,
+      "forcedProjectAskRulePreserved": true,
+      "automaticApproval": true,
+      "canonicalModelSwitch": true,
+      "effortReachedApi": true,
+      "coldResumeKeptNativeIdentityAndHistory": true,
+      "cancellation": true,
+      "secretSettingsOverlayRemoved": true
+    },
+    "hiddenInputHelper": {
+      "unattendedEntryRejected": true,
+      "fixtureCredentialDocumentAcceptedByRuntime": true
+    },
+    "sourcePublicationAudit": {
+      "passed": true,
+      "files": 16,
+      "findings": []
+    }
+  },
+  "credentialHandling": {
+    "storage": "private independent profile; plaintext credentials.json, directory 0700 and file 0600",
+    "secretInSourceOrCommandArguments": false,
+    "secretInLogsOrReport": false,
+    "configuredKeyLoadedPerRequest": true,
+    "keyRotationPreservesEndpoint": true,
+    "alternativeOAuthAndCloudProviderEnvironmentCleared": true,
+    "managedPoliciesNotBypassed": true
+  },
+  "userActivation": {
+    "setupLauncherPrepared": true,
+    "keyConfigured": false,
+    "engineAddedToCurrentInstance": false,
+    "accountInferenceVerified": false,
+    "desktopProcessesRestarted": false,
+    "initialApprovalPrepared": "auto",
+    "steps": [
+      "Run the prepared launcher in a user-owned terminal and enter the key with hidden input.",
+      "Run its check subcommand for a real minimal inference using the API account.",
+      "After current tasks finish, normally close and reopen MyCodex to load the added engine topology."
+    ]
+  },
+  "experienceGaps": [
+    "Current installed Desktop UI compatibility is not accepted against pinned hashes.",
+    "In-client credential settings page and native keychain integration are not implemented.",
+    "Image input and richer attachments are not advertised or accepted.",
+    "Native Claude fork boundaries, physical session deletion, context/usage/cost UI need dedicated adapters and acceptance.",
+    "No real provider account, quota or long-stream acceptance without a user key."
+  ],
+  "release": {
+    "published": false,
+    "version": "1.2.36",
+    "nativePatchTreeChanged": false,
+    "missingPrerequisites": [
+      "pwsh executable",
+      "previous verified dist manifests and archives",
+      "release-readiness/current.json"
+    ]
+  }
+}

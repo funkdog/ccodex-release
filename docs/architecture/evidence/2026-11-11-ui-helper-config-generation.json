@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-11T15:31:07.292967+08:00",
+  "sourceBaseline": "b5a906b858ee54e80a42a0fb7d78942ec07bbe60",
+  "trigger": "User confirmed normal restart; backend responded but UI helper exited before renderer binding",
+  "observedFailure": "UI helper requires its matching routed gateway.",
+  "rootCause": "Launch configuration generation was incorrectly compared with the retained IPC transport generation in the UI helper",
+  "sourceHashes": {
+    "bridge/desktop-gateway-ui.mts": "78df6045c0d8d17cba4c622bdaaf1718942d9b55ab8bc47c3ebb667a752f0961",
+    "tests/desktop-upgrade-continuity-test.mjs": "9e207ebfcf1195d56c7f56245f02a73997545da249ad1b8e76e8a3b47d885bed"
+  },
+  "verification": {
+    "regressionBeforeFix": {
+      "tests": 3,
+      "passed": 1,
+      "failed": 2,
+      "reason": "The extracted original production comparison rejects a retained transport with a matching new configuration"
+    },
+    "developmentGate": {
+      "tests": 342,
+      "passed": 342,
+      "failed": 0,
+      "skipped": 0,
+      "typescriptSources": 76,
+      "generatedOutputs": 152,
+      "esmModules": 214,
+      "relativeImports": 501
+    },
+    "livePreflight": {
+      "helperPreflightPassed": true,
+      "authenticatedUsingOriginalTransport": true,
+      "transportAndConfigurationDiffer": true,
+      "filesUnchanged": true,
+      "appLifetimePreserved": true,
+      "gatewayLifetimePreserved": true,
+      "cdpOrNativeUiAccessed": false
+    },
+    "preparation": {
+      "result": {
+        "phase": "deferred",
+        "launchPerformed": false,
+        "code": "GATEWAY_RUNTIME_RETIRING",
+        "reason": "运行时路径已变化，旧网关仍在运行。MyCodex 会等待它自动退出，再创建新实例；当前 socket 未被移除或复用。"
+      },
+      "preservation": {
+        "filesUnchanged": true,
+        "appLifetimePreserved": true,
+        "gatewayLifetimePreserved": true
+      }
+    }
+  },
+  "uiAcceptance": {
+    "helperLoaded": false,
+    "currentWindowAccepted": false,
+    "cdpAccessedByAssistant": false,
+    "computerUseRestriction": "com.openai.codex access remains disallowed"
+  },
+  "release": {
+    "attempted": true,
+    "exitCode": 127,
+    "missingPrerequisite": "pwsh",
+    "installerPublished": false,
+    "nativePatchChainChanged": false,
+    "versionChanged": false
+  },
+  "nextStep": "Normal quit and MyCodex reopen: existing guarded cold startup may retire the moved-runtime gateway only when idle; then verify actual model controls, continuation and workbench"
+}

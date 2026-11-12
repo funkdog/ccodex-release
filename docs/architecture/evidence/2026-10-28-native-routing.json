@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-28T14:20:17.613Z",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "cliVersion": "codex-cli 0.165.0-alpha.1.2",
+  "cliSha256": "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  "desktopRestarted": false,
+  "existingProfileUsed": false,
+  "nativeInferenceTurns": 0,
+  "realCliInferenceTurns": 0,
+  "checks": {
+    "nativeInitializePreserved": true,
+    "account/readUnchanged": true,
+    "config/readUnchanged": true,
+    "nativeModelsPreserved": true,
+    "syntheticModelAdded": true,
+    "nativeThreadCreatedByNative": true,
+    "syntheticTurnCompleted": true,
+    "nativeHistoryPreserved": true,
+    "syntheticThreadVisibleInMergedHistory": true,
+    "syntheticThreadAbsentFromNativeStore": true,
+    "syntheticThreadNotLoadedByNative": true
+  },
+  "nativeListedThreads": 0,
+  "nativeForeignRead": {
+    "error": {
+      "code": -32600,
+      "message": "thread not loaded: cc854576-5df1-4601-a2f9-9b43687485d8"
+    },
+    "returnedThreadId": null
+  },
+  "passed": true
+}

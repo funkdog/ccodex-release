@@ -1,0 +1,70 @@
+{
+  "recordedAt": "2026-10-31T05:16:40.852Z",
+  "scope": "Reported startup socket warning; recovered current launch verified; isolated startup-wait fix",
+  "reportedError": "Gateway socket ownership is uncertain; it was not removed.",
+  "priorCauseEvidence": "2026-10-31-core-session-pin-fix.json",
+  "reproduction": {
+    "isolatedProfiles": true,
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "failure": "Same PID/birth with moved executable yielded uncertain ownership instead of bounded retirement waiting."
+  },
+  "fix": {
+    "samePidBirthAndConfigWithDifferentExecutable": "GATEWAY_RUNTIME_RETIRING; existing shortcut waits at most 75 seconds",
+    "processReuseAuthorized": false,
+    "processSignalsAdded": false,
+    "liveSocketRemovalAuthorized": false,
+    "differentBirthStillRejected": true,
+    "exactDesktopAndProcessChecksRetained": true
+  },
+  "tests": {
+    "tests": 174,
+    "pass": 174,
+    "fail": 0,
+    "skipped": 0
+  },
+  "generatedBuild": {
+    "applicable": true,
+    "sources": 30,
+    "outputs": 60
+  },
+  "loadedState": {
+    "client": {
+      "pid": 42126,
+      "sameLifetime": true
+    },
+    "gateway": {
+      "pid": 42100,
+      "sameLifetime": true,
+      "loadedGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44",
+      "sourceGeneration": "e38483f9bed134ea84b52c772ced5e3831150238d69caf4d0adfb09e7d27de44"
+    },
+    "helper": {
+      "pid": 42193,
+      "sameLifetime": true
+    },
+    "launchReceiptSourceGeneration": "ce04e0884fdac2159e9e999768aa85d96b1956c678cf8e7e01c197ac35e36d2b",
+    "currentSource": "fd24fe4ee0c640cc06e45f2df9b5d81640173357364839f5e87709a1781b9ce8",
+    "version": "1.2.36",
+    "sourceGenerationMatches": true,
+    "startupSourceChangedSinceLaunch": true
+  },
+  "currentShortcut": {
+    "action": "activate-existing",
+    "launchPerformed": false
+  },
+  "currentGatewayMatchesPinFix": true,
+  "userConfirmedPinRetest": {
+    "visible": true,
+    "unpin": true,
+    "repin": true
+  },
+  "officialAppPinRetest": {
+    "testThreadId": "6d4188ba-3b58-4b8e-abb6-5a4fd0878350",
+    "inPinnedThreads": true,
+    "pinnedIndex": 3
+  },
+  "nativeCoreChanged": false,
+  "published": false
+}

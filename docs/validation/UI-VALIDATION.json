@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "passed": true,
+  "checkedAt": "2026-10-12T14:16:46.430Z",
+  "packageVersion": "1.2.35",
+  "desktopVersion": "26.928.3736.0",
+  "releaseTag": "v1.2.35-desktop26.928.3736.0-maintenance1",
+  "versionAndExistingReleaseIdentityUnchanged": true,
+  "fixedRuntimeAndPermissionSeedBytesPreserved": true,
+  "noPublisherCredentialsUsed": true,
+  "realAuthorizationOrPaidInferenceRepeated": false,
+  "host": "Windows 11 ARM64",
+  "x64Coverage": "x64 emulation, not a physical x64 host",
+  "freshResourceCopyCoverage": "unchanged installer copy path inherits baseline evidence; final EXEs reverify owned slots",
+  "workIqIntegrationAndAuthorizationDefaultsUnchanged": true,
+  "publicWorkIqDocumentationContainsOnlyGenericGuidance": true,
+  "packages": [
+    {
+      "passed": true,
+      "architecture": "arm64",
+      "name": "CCodex-1.2.35-Desktop-26.928.3736.0-Windows-ARM64-Setup.exe",
+      "size": 2034741942,
+      "sha256": "4f2f0cd2f3d6d972298e0cac53de41f1af5ff3283ff947208252c2b2104236c0",
+      "releaseId": "1.2.35-arm64-e2692f861ed4",
+      "fileCount": 42565,
+      "fileManifestSha256": "a3f4a4875f94ac5cbb1ef08562f81b38826dfd1a1a5a32dcb6bebfc072cd7755",
+      "completeExePayloadVerified": true,
+      "finalExeInstallExitCode": 0,
+      "nativeBootstrapAndCompleteExtractionExecuted": true,
+      "installationCoverage": "same-version reinstallation of an owned fully verified resource slot and private profile",
+      "sourceModules": {
+        "WORKIQ.md": "32fd9baf1410cf4196c46ede3612e406b4b02e42e23a4a16105b40db3b449542",
+        "bridge/desktop-sessions.mjs": "a469c6bd289d6358e731a34e42f3811d27e4c8dce1959bf7cac1dd1a6d3c9243",
+        "bridge/desktop-native-context.mjs": "3a774c5fe790f71a34598e5e4d4c4ddf2db5f852d9f8a9bcaeefefc9b0e518da",
+        "release/primary-overrides.mjs": "3d557f894aebde39fea477144c71a439974d6436676c590bb0741738ad4cbabf",
+        "release/document-check.mjs": "981a290a6ebc305048e6ce80ad0f07addbb0c329c0119f4aed1ba8d364b75eba",
+        "release/verify.mjs": "82816e6a561488fbe9a4400b7901760a3007031acb1dd5250314b57ec2c32131"
+      },
+      "packagedModules": {
+        "WORKIQ.md": "32fd9baf1410cf4196c46ede3612e406b4b02e42e23a4a16105b40db3b449542",
+        "bridge/desktop-sessions.mjs": "a469c6bd289d6358e731a34e42f3811d27e4c8dce1959bf7cac1dd1a6d3c9243",
+        "bridge/desktop-native-context.mjs": "3a774c5fe790f71a34598e5e4d4c4ddf2db5f852d9f8a9bcaeefefc9b0e518da",
+        "release/primary-overrides.mjs": "3d557f894aebde39fea477144c71a439974d6436676c590bb0741738ad4cbabf",
+        "release/document-check.mjs": "981a290a6ebc305048e6ce80ad0f07addbb0c329c0119f4aed1ba8d364b75eba",
+        "release/verify.mjs": "82816e6a561488fbe9a4400b7901760a3007031acb1dd5250314b57ec2c32131"
+      },
+      "architectureBindingsComparedExactly": true,
+      "regressions": {
+        "tests": 412,
+        "passed": 412,
+        "failed": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "liveUi": {
+        "passed": true,
+        "syntheticIdentity": true,
+        "originalProfilesUsed": false,
+        "results": {
+          "guiEntryConsoleHidden": true,
+          "entryVisible": true,
+          "emptyManagerBackendReadPassed": true,
+          "committedSummaryShown": true,
+          "panelLayout": {
+            "model": "GPT-6.1 Sol",
+            "modelClipped": false,
+            "controlsOverlap": false,
+            "context": {
+              "x": 1062.8148193359375,
+              "y": 705.455810546875,
+              "width": 90.90519714355469,
+              "height": 25.48006248474121,
+              "top": 705.455810546875,
+              "right": 1153.7200164794922,
+              "bottom": 730.9358730316162,
+              "left": 1062.8148193359375
+            },
+            "nativeSliderCount": 1
+          },
+          "nativeContextSelectionCommitted": true,
+          "beforeNativeEffortChange": {
+            "revision": 6,
+            "mode": "native-context-only",
+            "bound": true,
+            "placement": "native-model-effort-panel",
+            "contextControlAttached": true,
+            "nativeTriggerPreserved": true,
+            "model": "gpt-6.1-sol",
+            "effort": "max",
+            "context": "long_context"
+          },
+          "nativeEffortInput": "native slider keyboard",
+          "nativeEffortSelectionCommittedWithContextPreserved": true,
+          "afterNativeEffortChange": {
+            "revision": 6,
+            "mode": "native-context-only",
+            "bound": true,
+            "placement": "native-model-effort-panel",
+            "contextControlAttached": true,
+            "nativeTriggerPreserved": true,
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "context": "long_context"
+          },
+          "inferenceRequestsSent": 0
+        }
+      }
+    },
+    {
+      "passed": true,
+      "architecture": "x64",
+      "name": "CCodex-1.2.35-Desktop-26.928.3736.0-Windows-X64-Setup.exe",
+      "size": 2097446464,
+      "sha256": "37d2fdbb8bb8d60c5af9df7bca187758983f148c7c3369eb80753a3a03ecba5e",
+      "releaseId": "1.2.35-x64-21afa0f664b3",
+      "fileCount": 44228,
+      "fileManifestSha256": "9c37dc532e6e49ad3c16ca394968c9a8e9866ac3bb8e8e12fb7b6a88cbb2ec34",
+      "completeExePayloadVerified": true,
+      "finalExeInstallExitCode": 0,
+      "nativeBootstrapAndCompleteExtractionExecuted": true,
+      "installationCoverage": "same-version reinstallation of an owned fully verified resource slot and private profile",
+      "sourceModules": {
+        "WORKIQ.md": "32fd9baf1410cf4196c46ede3612e406b4b02e42e23a4a16105b40db3b449542",
+        "bridge/desktop-sessions.mjs": "a469c6bd289d6358e731a34e42f3811d27e4c8dce1959bf7cac1dd1a6d3c9243",
+        "bridge/desktop-native-context.mjs": "3a774c5fe790f71a34598e5e4d4c4ddf2db5f852d9f8a9bcaeefefc9b0e518da",
+        "release/primary-overrides.mjs": "3d557f894aebde39fea477144c71a439974d6436676c590bb0741738ad4cbabf",
+        "release/document-check.mjs": "981a290a6ebc305048e6ce80ad0f07addbb0c329c0119f4aed1ba8d364b75eba",
+        "release/verify.mjs": "82816e6a561488fbe9a4400b7901760a3007031acb1dd5250314b57ec2c32131"
+      },
+      "packagedModules": {
+        "WORKIQ.md": "32fd9baf1410cf4196c46ede3612e406b4b02e42e23a4a16105b40db3b449542",
+        "bridge/desktop-sessions.mjs": "a469c6bd289d6358e731a34e42f3811d27e4c8dce1959bf7cac1dd1a6d3c9243",
+        "bridge/desktop-native-context.mjs": "3a774c5fe790f71a34598e5e4d4c4ddf2db5f852d9f8a9bcaeefefc9b0e518da",
+        "release/primary-overrides.mjs": "3d557f894aebde39fea477144c71a439974d6436676c590bb0741738ad4cbabf",
+        "release/document-check.mjs": "981a290a6ebc305048e6ce80ad0f07addbb0c329c0119f4aed1ba8d364b75eba",
+        "release/verify.mjs": "cdc9da45743142dcaf1af6a2d23bce7b51ea6c06955e1d03569579d1d10654f8"
+      },
+      "architectureBindingsComparedExactly": true,
+      "regressions": {
+        "tests": 412,
+        "passed": 412,
+        "failed": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "liveUi": {
+        "passed": true,
+        "syntheticIdentity": true,
+        "originalProfilesUsed": false,
+        "results": {
+          "guiEntryConsoleHidden": true,
+          "entryVisible": true,
+          "emptyManagerBackendReadPassed": true,
+          "committedSummaryShown": true,
+          "panelLayout": {
+            "model": "GPT-6.1 Sol",
+            "modelClipped": false,
+            "controlsOverlap": false,
+            "context": {
+              "x": 1062.8148193359375,
+              "y": 705.455810546875,
+              "width": 90.90519714355469,
+              "height": 25.48006248474121,
+              "top": 705.455810546875,
+              "right": 1153.7200164794922,
+              "bottom": 730.9358730316162,
+              "left": 1062.8148193359375
+            },
+            "nativeSliderCount": 1
+          },
+          "nativeContextSelectionCommitted": true,
+          "beforeNativeEffortChange": {
+            "revision": 6,
+            "mode": "native-context-only",
+            "bound": true,
+            "placement": "native-model-effort-panel",
+            "contextControlAttached": true,
+            "nativeTriggerPreserved": true,
+            "model": "gpt-6.1-sol",
+            "effort": "max",
+            "context": "long_context"
+          },
+          "nativeEffortInput": "native slider keyboard",
+          "nativeEffortSelectionCommittedWithContextPreserved": true,
+          "afterNativeEffortChange": {
+            "revision": 6,
+            "mode": "native-context-only",
+            "bound": true,
+            "placement": "native-model-effort-panel",
+            "contextControlAttached": true,
+            "nativeTriggerPreserved": true,
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "context": "long_context"
+          },
+          "inferenceRequestsSent": 0
+        }
+      }
+    }
+  ]
+}

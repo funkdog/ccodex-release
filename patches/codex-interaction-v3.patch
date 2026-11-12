@@ -1,0 +1,554 @@
+diff --git a/codex-rs/tui/src/app.rs b/codex-rs/tui/src/app.rs
+index c3738b5..044f3d7 100644
+--- a/codex-rs/tui/src/app.rs
++++ b/codex-rs/tui/src/app.rs
+@@ -1308,7 +1308,14 @@ See the Codex keymap documentation for supported actions and examples."
+                     self.chat_widget.handle_paste(pasted);
+                 }
+                 TuiEvent::Mouse(mouse) => {
+-                    self.chat_widget.handle_mouse_event(mouse);
++                    if matches!(mouse.kind, crossterm::event::MouseEventKind::ScrollUp) {
++                        self.open_transcript_overlay(tui);
++                        let _ = self
++                            .handle_backtrack_overlay_event(tui, TuiEvent::Mouse(mouse))
++                            .await?;
++                    } else {
++                        self.chat_widget.handle_mouse_event(mouse);
++                    }
+                 }
+                 TuiEvent::Draw | TuiEvent::Resize => {
+                     if self.backtrack_render_pending {
+diff --git a/codex-rs/tui/src/app/snapshots/codex_tui__app__thread_goal_actions__tests__thread_goal_ephemeral_error_message_renders_snapshot.snap b/codex-rs/tui/src/app/snapshots/codex_tui__app__thread_goal_actions__tests__thread_goal_ephemeral_error_message_renders_snapshot.snap
+index d2faad2..d63a857 100644
+--- a/codex-rs/tui/src/app/snapshots/codex_tui__app__thread_goal_actions__tests__thread_goal_ephemeral_error_message_renders_snapshot.snap
++++ b/codex-rs/tui/src/app/snapshots/codex_tui__app__thread_goal_actions__tests__thread_goal_ephemeral_error_message_renders_snapshot.snap
+@@ -5,5 +5,5 @@ expression: terminal.backend()
+ 
+ 
+ ■ Goals need a saved session. This session is temporary.
+-Run `codex` to start a saved session, or `codex resume` / `/resume` to
++Run `ccodex` to start a saved session, or `ccodex resume` / `/resume` to
+ reopen one.
+diff --git a/codex-rs/tui/src/app/tests.rs b/codex-rs/tui/src/app/tests.rs
+index c505d4b..2b4bf89 100644
+--- a/codex-rs/tui/src/app/tests.rs
++++ b/codex-rs/tui/src/app/tests.rs
+@@ -1318,7 +1318,10 @@ async fn token_usage_update_refreshes_status_line_with_runtime_context_window()
+         /*use_theme_colors*/ true,
+     );
+ 
+-    assert_eq!(app.chat_widget.status_line_text(), None);
++    assert_eq!(
++        app.chat_widget.status_line_text(),
++        Some("258K window".into())
++    );
+ 
+     app.handle_thread_event_now(ThreadBufferedEvent::Notification(token_usage_notification(
+         ThreadId::new(),
+diff --git a/codex-rs/tui/src/app/tests/session_summary.rs b/codex-rs/tui/src/app/tests/session_summary.rs
+index 63ff92a..b70bd9c 100644
+--- a/codex-rs/tui/src/app/tests/session_summary.rs
++++ b/codex-rs/tui/src/app/tests/session_summary.rs
+@@ -58,7 +58,7 @@ async fn session_summary_includes_resume_hint_for_persisted_rollout() {
+     );
+     assert_eq!(
+         summary.resume_hint,
+-        Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
++        Some("ccodex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+     );
+ }
+ 
+@@ -85,7 +85,7 @@ async fn session_summary_names_picker_item_when_thread_has_name() {
+     assert_eq!(
+         summary.resume_hint,
+         Some(
+-            "codex resume, then select my-session (123e4567-e89b-12d3-a456-426614174000)"
++            "ccodex resume, then select my-session (123e4567-e89b-12d3-a456-426614174000)"
+                 .to_string()
+         )
+     );
+diff --git a/codex-rs/tui/src/app/thread_goal_actions.rs b/codex-rs/tui/src/app/thread_goal_actions.rs
+index a6f1ed5..149612b 100644
+--- a/codex-rs/tui/src/app/thread_goal_actions.rs
++++ b/codex-rs/tui/src/app/thread_goal_actions.rs
+@@ -17,7 +17,7 @@ use codex_protocol::ThreadId;
+ 
+ const EPHEMERAL_THREAD_GOAL_ERROR_MESSAGE: &str = concat!(
+     "Goals need a saved session. This session is temporary.\n",
+-    "Run `codex` to start a saved session, or `codex resume` / `/resume` to reopen one.",
++    "Run `ccodex` to start a saved session, or `ccodex resume` / `/resume` to reopen one.",
+ );
+ 
+ impl App {
+diff --git a/codex-rs/tui/src/bottom_pane/chat_composer.rs b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+index b299e08..5f4b073 100644
+--- a/codex-rs/tui/src/bottom_pane/chat_composer.rs
++++ b/codex-rs/tui/src/bottom_pane/chat_composer.rs
+@@ -9705,7 +9705,7 @@ mod tests {
+         let (_result, _needs_redraw) =
+             composer.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+ 
+-        assert_eq!(composer.draft.textarea.text(), "/compact ");
++        assert_eq!(composer.draft.textarea.text(), "/context ");
+         assert_eq!(
+             composer.draft.textarea.cursor(),
+             composer.draft.textarea.text().len()
+diff --git a/codex-rs/tui/src/bottom_pane/slash_commands.rs b/codex-rs/tui/src/bottom_pane/slash_commands.rs
+index 6ca1ba9..751b410 100644
+--- a/codex-rs/tui/src/bottom_pane/slash_commands.rs
++++ b/codex-rs/tui/src/bottom_pane/slash_commands.rs
+@@ -302,6 +302,7 @@ mod tests {
+         assert_eq!(
+             commands,
+             vec![
++                SlashCommand::Context,
+                 SlashCommand::Ide,
+                 SlashCommand::Copy,
+                 SlashCommand::Raw,
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_context_tokens_used.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_context_tokens_used.snap
+index b7ee607..5a9fc49 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_context_tokens_used.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__footer__tests__footer_context_tokens_used.snap
+@@ -2,4 +2,4 @@
+ source: tui/src/bottom_pane/footer.rs
+ expression: terminal.backend()
+ ---
+-"  ? for shortcuts                                                    123K used  "
++"  ? for shortcuts                                                 123K current  "
+diff --git a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__status_line_setup__tests__setup_view_snapshot_uses_runtime_preview_values.snap b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__status_line_setup__tests__setup_view_snapshot_uses_runtime_preview_values.snap
+index 132ce3d..5c05bf4 100644
+--- a/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__status_line_setup__tests__setup_view_snapshot_uses_runtime_preview_values.snap
++++ b/codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__status_line_setup__tests__setup_view_snapshot_uses_runtime_preview_values.snap
+@@ -15,7 +15,7 @@ expression: "render_lines(&view, 72)"
+   [x] git-branch            Current Git branch (omitted when unavaila…  
+   [ ] model-with-reasoning  Current model name with reasoning level     
+   [ ] reasoning             Current reasoning level                     
+-  [ ] project-name          Project name (omitted when unavailable)     
++  [ ] context-tier          Current context tier or explicit context …  
+                                                                         
+   gpt-5-codex · ~/codex-rs · jif/statusline-preview                     
+   Press space to toggle; ←/→ to move; enter to confirm and close; esc to
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+index 42bda2d..5d902fd 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__model_selection_popup.snap
+@@ -1,6 +1,5 @@
+ ---
+ source: tui/src/chatwidget/tests/popups_and_settings.rs
+-assertion_line: 3088
+ expression: popup
+ ---
+   Select Model and Effort
+@@ -9,11 +8,8 @@ expression: popup
+   1. gpt-5.6-sol (default)  Latest frontier agentic coding model.
+   2. gpt-5.6-terra          Balanced agentic coding model for everyday work.
+   3. gpt-5.6-luna           Fast and affordable agentic coding model.
+-  4. gpt-5.5                Frontier model for complex coding, research, and
+-                            real-world work.
+-› 5. gpt-5.2 (current)      Optimized for professional work and long-running
+-                            agents.
+-  6. Context window         Choose a session-only context size (current: 272K
+-                            raw, 258K usable)
++  4. gpt-5.5                Frontier model for complex coding, research, and …
++› 5. gpt-5.2 (current)      Optimized for professional work and long-running …
++  6. Context window         Choose a session-only context size (current: 272K…
+ 
+   Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__plan_implementation_popup_context_usage.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__plan_implementation_popup_context_usage.snap
+index 4b8ae00..7a8362a 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__plan_implementation_popup_context_usage.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__plan_implementation_popup_context_usage.snap
+@@ -5,7 +5,8 @@ expression: popup
+   Implement this plan?
+ 
+ › 1. Yes, implement this plan          Switch to Default and start coding.
+-  2. Yes, clear context and implement  Fresh thread. Context: 89% used.
++  2. Yes, clear context and implement  Fresh thread. Context: 90K / 100K
++                                       (90.0%) used.
+   3. No, stay in Plan mode             Continue planning with the model.
+ 
+   Press enter to confirm or esc to go back
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_fast_footer.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_fast_footer.snap
+index 2ac794d..48b2b52 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_fast_footer.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_model_with_reasoning_fast_footer.snap
+@@ -6,4 +6,4 @@ expression: normalized_backend_snapshot(terminal.backend())
+ "                                                                                "
+ "› Ask Codex to do anything                                                      "
+ "                                                                                "
+-"  gpt-5.4 xhigh fast · Context 0% used · /tmp/project                           "
++"  gpt-5.4 xhigh fast · Context 0/258K (0.0%) · /tmp/project                     "
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
+index 7dca3c1..37bc080 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_rate_limits.snap
+@@ -14,7 +14,7 @@ expression: status_line_popup_snapshot(&mut chat)
+   [ ] model                 Current model name
+   [ ] model-with-reasoning  Current model name with reasoning level
+   [ ] reasoning             Current reasoning level
+-  [ ] current-dir           Current working directory
++  [ ] context-tier          Current context tier or explicit context window
+ 
+   monthly 65% left · weekly 50% left
+   Press space to toggle; ←/→ to move; enter to confirm and close; esc to close
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_workspace_headline.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_workspace_headline.snap
+index 32ad18e..07c17f6 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_workspace_headline.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__status_line_setup_popup_workspace_headline.snap
+@@ -13,8 +13,8 @@ expression: status_line_popup_snapshot(&mut chat)
+   [ ] model                 Current model name
+   [ ] model-with-reasoning  Current model name with reasoning level
+   [ ] reasoning             Current reasoning level
++  [ ] context-tier          Current context tier or explicit context window
+   [ ] current-dir           Current working directory
+-  [ ] project-name          Project name (omitted when unavailable)
+ 
+   Workspace maintenance starts at 5pm
+   Press space to toggle; ←/→ to move; enter to confirm and close; esc to close
+diff --git a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__thread_name_update_resume_hint.snap b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__thread_name_update_resume_hint.snap
+index f6f827f..5ddfdb4 100644
+--- a/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__thread_name_update_resume_hint.snap
++++ b/codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__thread_name_update_resume_hint.snap
+@@ -2,4 +2,4 @@
+ source: tui/src/chatwidget/tests/app_server.rs
+ expression: rendered
+ ---
+-• Session renamed to review-fix. To resume this session run codex resume, then select review-fix (123e4567-e89b-12d3-a456-426614174000)
++• Session renamed to review-fix. To resume this session run ccodex resume, then select review-fix (123e4567-e89b-12d3-a456-426614174000)
+diff --git a/codex-rs/tui/src/chatwidget/status_controls.rs b/codex-rs/tui/src/chatwidget/status_controls.rs
+index 54a93dc..714c85d 100644
+--- a/codex-rs/tui/src/chatwidget/status_controls.rs
++++ b/codex-rs/tui/src/chatwidget/status_controls.rs
+@@ -364,10 +364,12 @@ impl ChatWidget {
+                     .into_iter()
+                     .find(|preset| preset.model == current_model)?;
+                 let raw = preset.context_window.or(preset.max_context_window)?;
+-                Some(crate::chatwidget::context_window_popup::effective_context_window(
+-                    raw,
+-                    preset.effective_context_window_percent,
+-                ))
++                Some(
++                    crate::chatwidget::context_window_popup::effective_context_window(
++                        raw,
++                        preset.effective_context_window_percent,
++                    ),
++                )
+             })
+     }
+ 
+@@ -390,8 +392,8 @@ impl ChatWidget {
+ 
+     pub(super) fn status_line_context_used_percent(&self) -> Option<f64> {
+         let context_window = self.status_line_context_window_size()?;
+-        let usage = &self.token_info.as_ref()?.last_token_usage;
+-        Some(usage.percent_of_context_window_used(context_window))
++        let tokens = self.status_line_current_context_tokens().unwrap_or(0);
++        Some(tokens.max(0) as f64 / context_window.max(1) as f64 * 100.0)
+     }
+ 
+     pub(super) fn status_line_current_context_tokens(&self) -> Option<i64> {
+diff --git a/codex-rs/tui/src/chatwidget/status_surfaces.rs b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+index 6fee670..1020b03 100644
+--- a/codex-rs/tui/src/chatwidget/status_surfaces.rs
++++ b/codex-rs/tui/src/chatwidget/status_surfaces.rs
+@@ -709,7 +709,7 @@ impl ChatWidget {
+             StatusLineItem::ContextUsed => {
+                 let window = self.status_line_context_window_size()?;
+                 let tokens = self.status_line_current_context_tokens().unwrap_or(0);
+-                let percent = tokens.max(0) as f64 / window.max(1) as f64 * 100.0;
++                let percent = self.status_line_context_used_percent()?;
+                 Some(format!(
+                     "Context {}/{} ({percent:.1}%)",
+                     format_tokens_compact(tokens),
+diff --git a/codex-rs/tui/src/chatwidget/tests/review_mode.rs b/codex-rs/tui/src/chatwidget/tests/review_mode.rs
+index b1f3360..7723e29 100644
+--- a/codex-rs/tui/src/chatwidget/tests/review_mode.rs
++++ b/codex-rs/tui/src/chatwidget/tests/review_mode.rs
+@@ -333,14 +333,14 @@ async fn review_restores_context_window_indicator() {
+     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
+ 
+     let context_window = 13_000;
+-    let pre_review_tokens = 12_700; // ~30% remaining after subtracting baseline.
+-    let review_tokens = 12_030; // ~97% remaining after subtracting baseline.
++    let pre_review_tokens = 12_700; // ~2% of the raw window remains.
++    let review_tokens = 12_030; // ~7% of the raw window remains.
+ 
+     handle_token_count(
+         &mut chat,
+         Some(make_token_info(pre_review_tokens, context_window)),
+     );
+-    assert_eq!(chat.bottom_pane.context_window_percent(), Some(30));
++    assert_eq!(chat.bottom_pane.context_window_percent(), Some(2));
+ 
+     handle_entered_review_mode(&mut chat, "feature branch");
+ 
+@@ -348,12 +348,12 @@ async fn review_restores_context_window_indicator() {
+         &mut chat,
+         Some(make_token_info(review_tokens, context_window)),
+     );
+-    assert_eq!(chat.bottom_pane.context_window_percent(), Some(97));
++    assert_eq!(chat.bottom_pane.context_window_percent(), Some(7));
+ 
+     handle_exited_review_mode(&mut chat);
+     let _ = drain_insert_history(&mut rx);
+ 
+-    assert_eq!(chat.bottom_pane.context_window_percent(), Some(30));
++    assert_eq!(chat.bottom_pane.context_window_percent(), Some(2));
+     assert!(!chat.review.is_review_mode);
+ }
+ 
+diff --git a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+index a6e5bb5..26182a9 100644
+--- a/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
++++ b/codex-rs/tui/src/chatwidget/tests/status_and_layout.rs
+@@ -35,7 +35,7 @@ async fn token_count_none_resets_context_indicator() {
+         &mut chat,
+         Some(make_token_info(pre_compact_tokens, context_window)),
+     );
+-    assert_eq!(chat.bottom_pane.context_window_percent(), Some(30));
++    assert_eq!(chat.bottom_pane.context_window_percent(), Some(2));
+ 
+     handle_token_count(&mut chat, /*info*/ None);
+     assert_eq!(chat.bottom_pane.context_window_percent(), None);
+@@ -90,10 +90,7 @@ async fn status_line_shows_zero_context_and_unknown_cache_before_first_request()
+     let window = chat
+         .status_line_context_window_size()
+         .expect("catalog context window");
+-    chat.config.tui_status_line = Some(vec![
+-        "context-used".to_string(),
+-        "cache-hit".to_string(),
+-    ]);
++    chat.config.tui_status_line = Some(vec!["context-used".to_string(), "cache-hit".to_string()]);
+     chat.refresh_status_line();
+     assert_eq!(
+         status_line_text(&chat),
+@@ -2875,7 +2872,10 @@ async fn status_line_legacy_context_usage_renders_context_used_percent() {
+ 
+     assert_eq!(
+         status_line_text(&chat),
+-        Some(format!("Context 0/{} (0.0%)", format_tokens_compact(window)))
++        Some(format!(
++            "Context 0/{} (0.0%)",
++            format_tokens_compact(window)
++        ))
+     );
+     assert!(
+         drain_insert_history(&mut rx).is_empty(),
+@@ -3250,7 +3250,9 @@ async fn status_line_model_with_reasoning_includes_fast_for_fast_capable_models(
+ 
+     assert_eq!(
+         status_line_text(&chat),
+-        Some(format!("gpt-5.4 xhigh fast · Context 0% used · {test_cwd}"))
++        Some(format!(
++            "gpt-5.4 xhigh fast · Context 0/258K (0.0%) · {test_cwd}"
++        ))
+     );
+ 
+     chat.set_model("gpt-5.2");
+@@ -3258,7 +3260,9 @@ async fn status_line_model_with_reasoning_includes_fast_for_fast_capable_models(
+ 
+     assert_eq!(
+         status_line_text(&chat),
+-        Some(format!("gpt-5.2 xhigh · Context 0% used · {test_cwd}"))
++        Some(format!(
++            "gpt-5.2 xhigh · Context 0/258K (0.0%) · {test_cwd}"
++        ))
+     );
+ }
+ 
+diff --git a/codex-rs/tui/src/pager_overlay.rs b/codex-rs/tui/src/pager_overlay.rs
+index 23e470c..e1de573 100644
+--- a/codex-rs/tui/src/pager_overlay.rs
++++ b/codex-rs/tui/src/pager_overlay.rs
+@@ -36,6 +36,8 @@ use crate::tui;
+ use crate::tui::TuiEvent;
+ use crossterm::event::KeyCode;
+ use crossterm::event::KeyEvent;
++use crossterm::event::MouseEvent;
++use crossterm::event::MouseEventKind;
+ use ratatui::buffer::Buffer;
+ use ratatui::buffer::Cell;
+ use ratatui::layout::Rect;
+@@ -128,6 +130,8 @@ struct PagerView {
+     pending_scroll_chunk: Option<usize>,
+ }
+ 
++const MOUSE_SCROLL_ROWS: usize = 3;
++
+ impl PagerView {
+     fn new(
+         renderables: Vec<Box<dyn Renderable>>,
+@@ -291,6 +295,24 @@ impl PagerView {
+         Ok(())
+     }
+ 
++    fn handle_mouse_event(&mut self, viewport_area: Rect, event: MouseEvent) -> bool {
++        let content_area = self.content_area(viewport_area);
++        let max_scroll = self
++            .content_height(content_area.width)
++            .saturating_sub(content_area.height as usize);
++        self.scroll_offset = self.scroll_offset.min(max_scroll);
++        match event.kind {
++            MouseEventKind::ScrollUp => {
++                self.scroll_offset = self.scroll_offset.saturating_sub(MOUSE_SCROLL_ROWS);
++            }
++            MouseEventKind::ScrollDown => {
++                self.scroll_offset = self.scroll_offset.saturating_add(MOUSE_SCROLL_ROWS);
++            }
++            _ => return false,
++        }
++        true
++    }
++
+     /// Returns the height of one page in content rows.
+     ///
+     /// Prefers the last rendered content height (excluding header/footer chrome);
+@@ -800,6 +822,16 @@ impl TranscriptOverlay {
+                 }
+                 other => self.view.handle_key_event(tui, other),
+             },
++            TuiEvent::Mouse(mouse) => {
++                if self
++                    .view
++                    .handle_mouse_event(tui.terminal.viewport_area, mouse)
++                {
++                    tui.frame_requester()
++                        .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL);
++                }
++                Ok(())
++            }
+             TuiEvent::Draw | TuiEvent::Resize => {
+                 tui.draw(u16::MAX, |frame| {
+                     self.render(frame.area(), frame.buffer);
+@@ -898,6 +930,16 @@ impl StaticOverlay {
+                 }
+                 other => self.view.handle_key_event(tui, other),
+             },
++            TuiEvent::Mouse(mouse) => {
++                if self
++                    .view
++                    .handle_mouse_event(tui.terminal.viewport_area, mouse)
++                {
++                    tui.frame_requester()
++                        .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL);
++                }
++                Ok(())
++            }
+             TuiEvent::Draw | TuiEvent::Resize => {
+                 tui.draw(u16::MAX, |frame| {
+                     self.render(frame.area(), frame.buffer);
+@@ -1609,4 +1651,29 @@ mod tests {
+             "expected view to report at bottom after scrolling to end"
+         );
+     }
++
++    #[test]
++    fn pager_view_mouse_wheel_scrolls_from_bottom_and_round_trips() {
++        let mut pv = pager_view(vec![paragraph_block("a", /*lines*/ 20)], "T", usize::MAX);
++        let area = Rect::new(0, 0, 20, 8);
++        let scroll_up = MouseEvent {
++            kind: MouseEventKind::ScrollUp,
++            column: 4,
++            row: 4,
++            modifiers: crossterm::event::KeyModifiers::NONE,
++        };
++        let scroll_down = MouseEvent {
++            kind: MouseEventKind::ScrollDown,
++            ..scroll_up
++        };
++
++        assert!(pv.handle_mouse_event(area, scroll_up));
++        let max_scroll = pv
++            .content_height(pv.content_area(area).width)
++            .saturating_sub(pv.content_area(area).height as usize);
++        assert_eq!(pv.scroll_offset, max_scroll - MOUSE_SCROLL_ROWS);
++
++        assert!(pv.handle_mouse_event(area, scroll_down));
++        assert_eq!(pv.scroll_offset, max_scroll);
++    }
+ }
+diff --git a/codex-rs/utils/cli/src/resume_command.rs b/codex-rs/utils/cli/src/resume_command.rs
+index d3c6839..d835b70 100644
+--- a/codex-rs/utils/cli/src/resume_command.rs
++++ b/codex-rs/utils/cli/src/resume_command.rs
+@@ -1,4 +1,4 @@
+-//! Shared formatting for user-facing `codex resume` command hints.
++//! Shared formatting for user-facing `ccodex resume` command hints.
+ 
+ use codex_protocol::ThreadId;
+ use codex_shell_command::parse_command::shlex_join;
+@@ -12,9 +12,9 @@ pub fn resume_command(thread_name: Option<&str>, thread_id: Option<ThreadId>) ->
+         let needs_double_dash = target.starts_with('-');
+         let escaped = shlex_join(&[target]);
+         if needs_double_dash {
+-            format!("codex resume -- {escaped}")
++            format!("ccodex resume -- {escaped}")
+         } else {
+-            format!("codex resume {escaped}")
++            format!("ccodex resume {escaped}")
+         }
+     })
+ }
+@@ -23,7 +23,7 @@ pub fn resume_hint(thread_name: Option<&str>, thread_id: Option<ThreadId>) -> Op
+     let thread_id = thread_id?;
+     match thread_name.filter(|name| !name.is_empty()) {
+         Some(thread_name) => Some(format!(
+-            "codex resume, then select {thread_name} ({thread_id})"
++            "ccodex resume, then select {thread_name} ({thread_id})"
+         )),
+         None => resume_command(/*thread_name*/ None, Some(thread_id)),
+     }
+@@ -38,7 +38,7 @@ mod tests {
+     fn prefers_name_over_id() {
+         let thread_id = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
+         let command = resume_command(Some("my-thread"), Some(thread_id));
+-        assert_eq!(command, Some("codex resume my-thread".to_string()));
++        assert_eq!(command, Some("ccodex resume my-thread".to_string()));
+     }
+ 
+     #[test]
+@@ -47,7 +47,7 @@ mod tests {
+         let command = resume_command(/*thread_name*/ None, Some(thread_id));
+         assert_eq!(
+             command,
+-            Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
++            Some("ccodex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+         );
+     }
+ 
+@@ -62,14 +62,14 @@ mod tests {
+         let command = resume_command(Some("-starts-with-dash"), /*thread_id*/ None);
+         assert_eq!(
+             command,
+-            Some("codex resume -- -starts-with-dash".to_string())
++            Some("ccodex resume -- -starts-with-dash".to_string())
+         );
+ 
+         let command = resume_command(Some("two words"), /*thread_id*/ None);
+-        assert_eq!(command, Some("codex resume 'two words'".to_string()));
++        assert_eq!(command, Some("ccodex resume 'two words'".to_string()));
+ 
+         let command = resume_command(Some("quote'case"), /*thread_id*/ None);
+-        assert_eq!(command, Some("codex resume \"quote'case\"".to_string()));
++        assert_eq!(command, Some("ccodex resume \"quote'case\"".to_string()));
+     }
+ 
+     #[test]
+@@ -79,7 +79,7 @@ mod tests {
+         assert_eq!(
+             hint,
+             Some(
+-                "codex resume, then select my-thread (123e4567-e89b-12d3-a456-426614174000)"
++                "ccodex resume, then select my-thread (123e4567-e89b-12d3-a456-426614174000)"
+                     .to_string()
+             )
+         );
+@@ -91,7 +91,7 @@ mod tests {
+         let hint = resume_hint(/*thread_name*/ None, Some(thread_id));
+         assert_eq!(
+             hint,
+-            Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
++            Some("ccodex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+         );
+     }
+ 

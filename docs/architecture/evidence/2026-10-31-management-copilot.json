@@ -1,0 +1,28 @@
+{
+  "recordedAt": "2026-10-31T03:40:45.892Z",
+  "temporaryProfiles": true,
+  "productionTouched": false,
+  "desktopRestarted": false,
+  "nativeInferenceTurns": 0,
+  "cliTurns": 5,
+  "checks": {
+    "runtimeCloneHasIndependentIdentity": true,
+    "clonedPrefixEventIdsRetained": true,
+    "selectedTurnContext": true,
+    "futureBranchesIsolated": true,
+    "parentDeletionDoesNotDeleteFork": true,
+    "coldResume": true,
+    "renameDuringRun": true,
+    "projectClear": true,
+    "pinUnpin": true,
+    "titleSearch": true,
+    "archiveRestore": true,
+    "permanentDeletion": true,
+    "projectFilesPreserved": true,
+    "policiesRetained": true
+  },
+  "passed": true,
+  "model": "copilot/gpt-6.1-sol",
+  "reasoningEffort": "low",
+  "privateStateRemoved": true
+}

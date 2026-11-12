@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-04",
+  "canonicalSources": [
+    "bridge/diy/work-card.mts",
+    "gateway/spine/mcp-server.mts"
+  ],
+  "plugin": {
+    "id": "plugin_asdk_app_6aea8f8239048191a409b90d896878d3",
+    "existingConnectionReused": true,
+    "tool": "mycodex.show_work_card",
+    "toolAvailableInConnectedCloudNamespace": true,
+    "actualCloudCallSucceeded": true,
+    "resourceUri": "ui://mycodex/work-card-v2.html",
+    "resourceMimeType": "text/html;profile=mcp-app",
+    "serverCapabilitiesObserved": [
+      "resources",
+      "tools"
+    ],
+    "toolCount": 7,
+    "visiblePluginDetailsConfirmed": true,
+    "toolsReceiptScreenshot": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/inline-card-plugin-tools.png"
+  },
+  "work": {
+    "id": "work-dot-workbench-collaboration",
+    "revision": 14,
+    "goalId": "goal-dot-workbench-collaboration",
+    "source": "Actual cloud plugin work_context and version-checked work_record, followed by context readback and show_work_card.",
+    "cardReadAt": "2026-11-04T09:40:59.810Z",
+    "syntheticWorkCreated": false
+  },
+  "runtime": {
+    "appPidPreserved": 1254,
+    "gatewayPidPreserved": 1213,
+    "tunnelDaemonPidPreserved": 95142,
+    "ownedMcpChildReloadedWhileIdle": true,
+    "credentialsRead": false,
+    "gatewayFingerprintOverridden": false,
+    "nativeProfileOverridden": false
+  },
+  "verification": {
+    "typescriptSourceCount": 74,
+    "typescriptRuntimeOutputCount": 148,
+    "conversionUsedRepositoryWrapper": true,
+    "testSuiteRun": false,
+    "fullPlatformBuildRun": false,
+    "formalInstallerPublished": false,
+    "versionChanged": false,
+    "nativePatchChainChanged": false
+  },
+  "acceptance": {
+    "rootAssistantCloudDataCallSucceeded": true,
+    "realDotInitiatedCardCallConfirmed": false,
+    "realDotInlineCardVisibleConfirmed": false,
+    "cardInteractionsConfirmed": false,
+    "standalonePreviewUsedAsAcceptance": false,
+    "pending": "Explicit show-then-send(include_widget:true) still failed according to the new Dot send receipt; local show/data phases independently confirmed. Dot widget association/compatibility is the leading hypothesis, not a confirmed root cause. Real Dot card visibility and interaction remain unaccepted; ordinary ChatGPT initial-load reliability also remains unresolved.",
+    "cardToolCalledInCurrentCodexChat": true,
+    "inlineOnlyAppsNotInspectableBySidePanelBackend": true,
+    "realDotInlineCardFailureReported": true,
+    "userRelayedDotReport": "工作记录已读取，但交互卡片在当前对话中未能展示；卡片数据准备成功不代表界面渲染成功。",
+    "userScreenshotConfirmsCardAbsent": true,
+    "cardVisible": false,
+    "screenshot": {
+      "path": "/var/folders/km/r2w9vt4540162kvlcjx23g0h0000gn/T/codex-clipboard-b43313d1-9a58-4164-acf6-104dc44605b4.png",
+      "sha256": "2cfafdc48298486bc2990035c419d4c12c1a2a7b778c2098063c514017cc4d31",
+      "observed": "Dot floating conversation shows prose replies only, no visible work card or app launcher in the supplied crop."
+    },
+    "ordinaryChatGPTInlineCardVisibleConfirmed": true,
+    "ordinaryChatGPTBasisTabInteractionConfirmed": true
+  },
+  "followup": {
+    "at": "2026-11-04T10:43:07.144505+00:00",
+    "hostVersion": "26.1027.51404",
+    "inspection": "Read-only installed archive inspection; no private host UI automation.",
+    "resourceDisplayModes": [
+      "inline"
+    ],
+    "preferredDisplayMode": "inline",
+    "pinnedDesktopShowInlineHint": true,
+    "rootCauseConfirmed": false,
+    "resourceVersionBumpedToAvoidStaleCache": true,
+    "boundedLocalPhaseEvents": 32,
+    "diagnosticBusinessContentRecorded": false,
+    "additionalToolsOrPermissions": false,
+    "sourceHashes": {
+      "bridge/diy/work-card.mts": "8f44a6a0ced4551f15f6ab1e53e89b812f6a22c53cfdcaec4d8804207d5309a9",
+      "gateway/spine/mcp-server.mts": "b8f5e93702c5b057e9074b4ce19a1bbcc57aa26d3bfc9d1ad8ed69e033ec20c1"
+    },
+    "v2CompiledThroughWrapper": true,
+    "v2McpChildGeneration": "4082c9bbf098314058d70e2d363cae60",
+    "v2CloudResourceResponseWrittenAt": "2026-11-04T10:42:10.874Z",
+    "currentCodexChatV2ShowCall": {
+      "succeeded": true,
+      "revision": 8,
+      "events": [
+        {
+          "event": "resource_returned",
+          "at": "2026-11-04T10:42:10.874Z"
+        },
+        {
+          "event": "show_requested",
+          "at": "2026-11-04T10:43:28.043Z"
+        },
+        {
+          "event": "data_returned",
+          "at": "2026-11-04T10:43:28.048Z"
+        }
+      ],
+      "actualDot": false
+    },
+    "v2PluginRefreshCompleted": true,
+    "latestWorkRevisionReadback": 14,
+    "v2PluginToolScreenshot": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/inline-card-v2-plugin-tools.png",
+    "latestDotAttempt": {
+      "showRequestedAt": "2026-11-04T10:47:20.317Z",
+      "dataReturnedAt": "2026-11-04T10:47:20.321Z",
+      "bridgeReadyReadObserved": false,
+      "specificRequestCorrelation": "Timing and user report; no conversation identifiers recorded.",
+      "widgetUnavailableOrigin": "dot assistant prose, confirmed by user",
+      "widgetUnavailableHostErrorConfirmed": false,
+      "userAskedToRetryAgain": false
+    },
+    "nativeDotRendererInspection": {
+      "hostVersion": "26.1027.51404",
+      "readOnly": true,
+      "modules": [
+        "avatar-overlay-native-page-cbadaea7767e.js",
+        "native-room-226b11b56470.js",
+        "native-api-7580c12d06e8.js",
+        "message-widget-e032462ec0a3.js"
+      ],
+      "findings": [
+        "Floating transcript uses controller.services.renderMessageFooter.",
+        "Room footer renders its widgets through lazy OrbitMessageWidgetContent.",
+        "Native message conversion extracts type widget attachments into hosted-widget records.",
+        "Hosted-widget metadata parser requires non-empty html_asset_pointer and resolved_pineapple_uri.",
+        "Renderer loads app HTML and reuses the ecosystem widget host."
+      ],
+      "unsupportedHostConclusionJustified": false,
+      "originalMessageAttachmentInspected": false,
+      "additionalShowCallMade": false,
+      "runtimeSourceModifiedThisFollowup": false
+    },
+    "directSurfaceComparison": {
+      "userAuthorizedAssistantToExecute": true,
+      "ordinaryChatGPTThreadId": "6ad760e8-b408-83ec-878e-5d72a1b7e4a2",
+      "newChatCreated": false,
+      "ordinaryPromptSendCount": 1,
+      "observedMcpShowCalls": 2,
+      "initialVisibleLoadFailure": true,
+      "componentRetryMadeCardVisible": true,
+      "basisTabInteractionObserved": true,
+      "bridgeReadReturnedAt": "2026-11-04T12:10:25.424Z",
+      "runtimeSourceChanged": false,
+      "connectionChanged": false,
+      "cspChanged": false,
+      "testSuiteRun": false,
+      "visibleScreenshot": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/ordinary-chatgpt-card-visible.png",
+      "dotDeliveryEvidence": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/dot-card-message-delivery-evidence.json",
+      "dotFailedMessageAttachmentCount": 0,
+      "recentMessagePageWidgetTypeMatches": 0,
+      "upstreamRootCauseConfirmed": false,
+      "observedAt": "2026-11-04T12:28:01.106173+00:00",
+      "finalVisibleScreenshot": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/ordinary-chatgpt-card-current.png",
+      "cardRefreshedToRevision": 12,
+      "devToolsAndDuplicateTabsClosed": true
+    },
+    "dotReceiptRetraction": {
+      "observedAt": "2026-11-04T12:36:29.065389+00:00",
+      "source": "Actual existing Dot conversation observed through Chrome CUA.",
+      "dotStatement": "Cannot access the original widget error receipt; retracts prior claims that The widget is unavailable was a verified original error.",
+      "originalSystemErrorConfirmed": false,
+      "originalDisplayCallParametersConfirmed": false,
+      "currentDisplayToolContractQuerySent": true,
+      "additionalShowCallRequested": false
+    },
+    "explicitDotSendAttempt": {
+      "showTool": "mcp__codex_apps__mycodex_mycodex_show_work_card",
+      "showRequestedAt": "2026-11-04T12:38:35.315Z",
+      "dataReturnedAt": "2026-11-04T12:38:35.323Z",
+      "showPhaseSource": "Independent local MCP phase log; request correlation additionally uses timing and Dot report.",
+      "sendTool": "mcp__codex_apps__user_message_send_message",
+      "sendParameters": {
+        "channel": "chatgpt",
+        "text": "这项工作的交互卡片在这里，我们可以接着讨论。",
+        "metadata": {
+          "include_widget": true
+        }
+      },
+      "immediateSendWithoutInterveningToolReported": true,
+      "sendReceiptSource": "Dot reply observed directly in the existing Chrome conversation, not direct access to internal service JSON.",
+      "sendError": "The widget is unavailable. Do not send the same caption as text-only or claim the card was delivered. A new text-only message can explain the problem or share a verified setup link if available. Delivery from an earlier attempt may be uncertain; do not automatically retry this send.",
+      "errorCodeProvided": false,
+      "retried": false,
+      "rootCauseConfirmed": false,
+      "currentHypothesis": "Dot sender does not recognize or associate this custom MCP widget, or has a compatibility/support restriction; exact mechanism remains unknown.",
+      "screenshot": "/Users/<user>/.codex/visualizations/2026/11/03/01a1a07c-bb44-7933-80e1-4712b24d7b01/dot-widget-send-explicit-failure.png",
+      "screenshotSha256": "4b0a666a2a5e8b30635599383f04fa3333e592163e337ecfb6448d575ed4c9d0",
+      "runtimeSourceChanged": false,
+      "testSuiteRun": false,
+      "connectionChanged": false
+    }
+  },
+  "publicationRedactions": [
+    "Local user home and workspace paths are anonymized; executable roles and relative paths are preserved."
+  ]
+}

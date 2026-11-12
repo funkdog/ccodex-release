@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-11-10T11:28:21.651070+08:00",
+  "scope": "CLI tool approval ownership; Antigravity and GitHub Copilot CLI",
+  "sourceHashes": {
+    "gateway/protocol.mts": "dc8ba8f84ecd70a201827e6846760c2ea27a79e5025030a9a33e8af717e1c84a",
+    "tests/gateway-engines-test.mjs": "d1871ed57365a3707775347d36a4ca0fa1dd1cb626fb3725bc8d486b8aa7b639",
+    "tests/gateway-protocol-test.mjs": "67288d903f54b79acfe68852d01c4194ad6e9c28af77c2296b189101e071abde"
+  },
+  "regressions": {
+    "reproducedBeforeFix": 3,
+    "targeted": {
+      "tests": 63,
+      "passed": 63,
+      "failed": 0,
+      "durationMs": 1842.835417
+    },
+    "developmentGate": {
+      "tests": 320,
+      "passed": 314,
+      "failed": 6,
+      "durationMs": 13634.967042,
+      "preexistingFailuresReproducedWithOriginalProtocol": 6,
+      "failureGroups": {
+        "installedHostContractMismatch": 2,
+        "mcpCatalogMissingExistingShowWorkCard": 4
+      }
+    },
+    "packageModules": {
+      "modules": 211,
+      "relativeImportsVerified": 493
+    }
+  },
+  "liveIsolatedChecks": [
+    {
+      "adapter": "github-copilot",
+      "model": "copilot/gpt-6.1-sol",
+      "approvalPolicy": "never",
+      "cliApprovalMode": "ask",
+      "passed": true,
+      "terminal": {
+        "command": "pwd",
+        "success": true
+      },
+      "search": {
+        "query": "OpenAI Codex app-server approvals documentation",
+        "success": true
+      },
+      "oneTimePermissionsApproved": 1,
+      "unexpectedPermissionsDenied": 0,
+      "temporaryProfileRemoved": true
+    },
+    {
+      "adapter": "antigravity-acp",
+      "model": "antigravity/gemini-4-argon",
+      "approvalPolicy": "never",
+      "cliApprovalMode": "ask",
+      "passed": true,
+      "terminal": {
+        "command": "pwd",
+        "success": true
+      },
+      "search": {
+        "query": "OpenAI Codex app-server approvals documentation",
+        "success": true
+      },
+      "oneTimePermissionsApproved": 2,
+      "unexpectedPermissionsDenied": 0,
+      "temporaryProfileRemoved": true
+    }
+  ],
+  "localActivation": {
+    "method": "appServerGatewayBackend.retireIdle/prepare(preserveConnectionToken=true)/check",
+    "runtimeGeneration": "03e98e80679788038f6d27c3e972e4870bc830c1ca167af60ff8bc7f4801a443",
+    "runtimeModuleHash": "a7e617e02311645f397c750dcf2075d40ef27e893d457638118ce561be65d389",
+    "nativeCliSha256": "a636331ed87605efc4cf84028ac2884a75363f9d10ead63cffb57ea0016d486e",
+    "nativeCliMatchesPrepared": true,
+    "desktopVersion": "26.1103.60933",
+    "uiContractAvailable": false,
+    "desktopRestarted": false,
+    "originalSession": {
+      "id": "89d39958-f150-4fa0-8c8a-bd03b7456820",
+      "cliApprovalMode": "ask",
+      "approvalPolicy": "never",
+      "status": {
+        "type": "idle"
+      },
+      "turnCount": 4
+    }
+  },
+  "originalWindowLiveCheck": {
+    "conversationVerified": true,
+    "desktopUiAutomationVerified": false,
+    "verifiedAt": "2026-11-10T11:54:15.110005+08:00",
+    "method": "Existing authenticated gateway IPC; explicitly requested original-conversation acceptance",
+    "priorAttemptRestrictions": {
+      "verified": false,
+      "sendMessageError": "Provide bounded text or image input.",
+      "computerUseError": "Computer Use is not allowed to use the app 'com.openai.codex' for safety reasons."
+    },
+    "observedFailure": {
+      "turnId": "0cb5b07b-c153-4f4f-be9c-b823d0f5a0e9",
+      "message": "Internal error",
+      "rootCauseEstablished": false
+    },
+    "isolatedOriginalConversationSnapshot": {
+      "coldResume": true,
+      "modelAndEffortSettings": true,
+      "replyCompleted": true,
+      "temporaryProfilesRemoved": true
+    },
+    "originalConversationRetry": {
+      "threadId": "89d39958-f150-4fa0-8c8a-bd03b7456820",
+      "turnId": "d6a3b335-9200-42e7-b12c-2bf0e91952ed",
+      "status": "completed",
+      "error": null,
+      "cliApprovalMode": "ask",
+      "approvalPolicy": "never",
+      "nativeSessionIdentityPreserved": true,
+      "historyPreserved": true,
+      "terminal": {
+        "command": "pwd",
+        "success": true
+      },
+      "search": {
+        "query": "OpenAI Codex app-server approvals documentation",
+        "success": true
+      },
+      "oneTimePermissionsApproved": 2,
+      "unexpectedPermissionsDenied": 0,
+      "desktopRestarted": false
+    }
+  },
+  "release": {
+    "published": false,
+    "version": "1.2.36",
+    "nativePatchTreeChanged": false,
+    "attemptedCommand": "pwsh -NoProfile -File tools/Invoke-HeavyTask.ps1 '& ./tools/Publish-Release.ps1'",
+    "missingPrerequisites": [
+      "pwsh executable",
+      "dist previous verified release manifests and archives",
+      "release-readiness/current.json"
+    ]
+  }
+}

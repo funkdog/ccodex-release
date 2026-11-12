@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T11:49:12.355Z",
+  "scope": "mac-antigravity-subscription-source-and-live-cli",
+  "sourceVersion": "1.2.36",
+  "publishedRelease": false,
+  "userDecision": "no-independent-api-key-use-antigravity-subscription-agent",
+  "runtime": {
+    "source": "official-acp-registry",
+    "version": "1.4.4",
+    "platform": "darwin-arm64",
+    "archiveSha256": "a3cf324046396380fcd8c055a4a4c83ac4ea74a38ea883ccbfce5ca1e9927ae9",
+    "matchingHarness": true,
+    "authentication": "oauth-personal",
+    "privateProfile": true
+  },
+  "liveProbe": {
+    "recordedAt": "2026-10-29T11:43:22.757Z",
+    "runtime": "official-antigravity-acp",
+    "desktopRestarted": false,
+    "temporaryProfiles": true,
+    "nativeInferenceTurns": 0,
+    "agentTurns": 5,
+    "approvalsAllowed": 1,
+    "approvalsDenied": 0,
+    "checks": {
+      "firstReply": true,
+      "coldResumeRemembersWithoutHint": true,
+      "sessionIdentityPreserved": true,
+      "imageUnderstood": true,
+      "argonExecuted": true,
+      "approvalAndExactFileWrite": true,
+      "noNativeInference": true,
+      "gatewayHistory": true
+    },
+    "modelIds": [
+      "gemini-4-argon",
+      "gemini-3.8-flash"
+    ],
+    "efforts": {
+      "mycodex/antigravity/gemini-4-argon": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "mycodex/antigravity/gemini-3.8-flash": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "firstReply": "AGY_CONNECTED",
+    "imageReply": "red",
+    "argonReply": "AGY_ARGON_OK",
+    "passed": true,
+    "temporaryCredentialRemoved": true
+  },
+  "isolatedRegression": {
+    "tests": 84,
+    "passed": 84,
+    "failed": 0,
+    "skipped": 0,
+    "fullRepositoryRun": false,
+    "modulesParsed": 149,
+    "relativeImportsVerified": 321
+  },
+  "activation": {
+    "configurationStaged": true,
+    "existingEnginesPreserved": true,
+    "defaultEnginePreserved": "copilot",
+    "configuredEngines": [
+      "copilot",
+      "codex-copilot",
+      "antigravity"
+    ],
+    "installedLauncherCheck": "needs-quit",
+    "launchPerformed": false,
+    "currentClientLifetimePreserved": true,
+    "currentGatewayConnectionReconfigured": false,
+    "originalWindowAcceptance": "pending-coordinated-reopen",
+    "ownedAcpAndHarnessProcessesRemaining": 0,
+    "userCoordination": {
+      "decision": "user-will-reopen-manually-later",
+      "source": "direct-user-reply",
+      "answer": "稍后我再重开",
+      "recordedAt": "2026-10-29T11:51:41.101Z",
+      "automaticRestartAuthorized": false
+    }
+  },
+  "remainingEvidence": [
+    "current-window-antigravity-picker-and-controls",
+    "current-window-send-and-sidebar",
+    "coordinated-current-window-restart-resume"
+  ]
+}
