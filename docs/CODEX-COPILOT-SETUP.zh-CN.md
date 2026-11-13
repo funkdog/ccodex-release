@@ -2,7 +2,7 @@
 
 本文面向 macOS Apple Silicon 使用者：登录自己的 GitHub Copilot 账号，让官方 Codex 执行任务，通过 Copilot 提供模型。原有 Codex 账号、Provider 和聊天继续保留。
 
-适用于 MyCodex Adapters `0.1.0-rc.3` 的**手动配置路径**。此版本的 `Configure.command` 尚未提供 `codex-copilot`，`Diagnose.command` / `Start.command` 封装也未覆盖这类连接；请使用本文的检查和启动命令。无需修改源码、安装 Copilot CLI 或填写 API Key。
+适用于 MyCodex Adapters `0.1.0-rc.4` 的**手动配置路径**。此版本的 `Configure.command` 尚未提供 `codex-copilot`，`Diagnose.command` / `Start.command` 封装也未覆盖这类连接；请使用本文的检查和启动命令。无需修改源码、安装 Copilot CLI 或填写 API Key。
 
 ## 1. 准备自己的安装目录
 
@@ -11,7 +11,7 @@
 解压平台候选包到长期保留的位置，在 macOS 终端进入该目录。下列第一行换成自己的路径；官方应用名称不同，也要调整应用路径：
 
 ```bash
-cd "/你解压后的/mycodex-adapters-macos-arm64-0.1.0-rc.3"
+cd "/你解压后的/mycodex-adapters-macos-arm64-0.1.0-rc.4"
 export MYCODEX_PACKAGE="$PWD"
 export MYCODEX_DESKTOP_APP="/Applications/ChatGPT.app"
 export MYCODEX_SETTINGS_DIR="$HOME/.mycodex/copilot-personal"
@@ -113,7 +113,7 @@ JS
 | `enabledModels` | 自己从目录中选择的模型 ID，不放 API Key |
 | `workbench` | 保持 `false`，使用精简能力 |
 
-`enabledModels` 控制网关提供的模型列表。RC.3 的原生 Provider 仍读取账号的模型目录，不承诺所有原生模型菜单都只显示这一项；这条手动路径也没有自动完成逐模型推理验证。下一步必须用自己的账号实际发送一次，才能确认所选模型能用。
+`enabledModels` 控制网关提供的模型列表。RC.4 的原生 Provider 仍读取账号的模型目录，不承诺所有原生模型菜单都只显示这一项；这条手动路径也没有自动完成逐模型推理验证。下一步必须用自己的账号实际发送一次，才能确认所选模型能用。
 
 ## 5. 启动并确认接入
 
@@ -140,7 +140,7 @@ node "$MYCODEX_PACKAGE/bridge/desktop-shortcut.mjs" --config "$MYCODEX_CONFIG"
 | 现象 | 处理方式 |
 | --- | --- |
 | 提示配置已存在（`EEXIST`） | 不覆盖原文件。使用原配置启动；确实需要另一套配置时换一个目录名重新接入 |
-| `Configure.command` 找不到 Codex + Copilot，或诊断提示 CLI 路径缺失 | RC.3 的简化封装未覆盖这条连接；使用本文的 `bridge/cli.mjs` 和 `desktop-shortcut.mjs` 命令 |
+| `Configure.command` 找不到 Codex + Copilot，或诊断提示 CLI 路径缺失 | RC.4 的简化封装未覆盖这条连接；使用本文的 `bridge/cli.mjs` 和 `desktop-shortcut.mjs` 命令 |
 | 登录的不是预期账号 | 核对环境变量指向自己的目录，再运行本文的 `login --force`，在浏览器选择正确账号 |
 | 模型可见但发送报 401、403 或额度错误 | 核对账号、Copilot 权限、模型策略和额度；看到模型名不能证明账号可以调用它 |
 | 新模型未出现，或仍显示旧配置 | 确认从本文入口完整重开了客户端；不要仅重新打开一个聊天 |

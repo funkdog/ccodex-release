@@ -1,6 +1,6 @@
 # MyCodex Adapters：macOS 配置指南
 
-版本 `0.1.0-rc.3`，当前是待真实桌面验收的预发布候选包，不应标为稳定版。下载与附件见 [RC.3 发布页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.3)。
+版本 `0.1.0-rc.4`，当前是待真实桌面验收的预发布候选包，不应标为稳定版。下载与附件见 [RC.4 发布页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)。
 
 在现有官方 ChatGPT/Codex 窗口使用自己的 CLI 和模型。默认仅使用原生 Codex，沿用官方已有的账号、Provider 与模型设置。无需配置外部 CLI，也无需向 MyCodex 填 API 地址或 Key。
 
@@ -19,6 +19,8 @@
 若 macOS 拦截下载内容，请在系统提供的安全界面核对来源后处理。本包不自动关闭系统保护。
 
 ## 接入自己的 CLI 与模型
+
+**GitHub Copilot**：使用自己的 Copilot 账号，按 [专用接入指南](https://github.com/funkdog/ccodex-release/releases/download/mycodex-adapters-v0.1.0-rc.4/CODEX-COPILOT-SETUP.zh-CN.md) 完成独立登录、模型选择和启动。此路径暂未加入简化向导。
 
 **原生 Codex**：在官方客户端已有的账号、Provider 和模型设置中配置即可。本向导不重写这些设置、不复制 Codex 凭据、不替换官方执行器。
 
@@ -65,4 +67,4 @@
 
 维护者运行 `npm run test:adapters`，复用项目 TypeScript、协议、审批、恢复、浏览器和源码门禁。打包通过 `bash tools/Invoke-HeavyTask.sh node tools/package-adapters.mjs /完整路径/候选包.tar.gz`，包内包含已编译模块、文件摘要与候选状态，不含 Node、CLI、账号或依赖缓存。完整开发门禁仍为 `npm run test:diy`。
 
-在真实验收完成之前，保留 `rc`、`published: false` 与 `liveDesktopAcceptance: pending`。本渠道不覆盖旧 `v1.2.36` 的完整平台发行包。
+候选包内的冻结清单保留 `rc`、`published: false` 与 `liveDesktopAcceptance: pending`；`published: false` 表示打包时的状态，实际公开状态以 GitHub Release 为准，不能将公开发布当作桌面验收通过。本渠道不覆盖旧 `v1.2.36` 的完整平台发行包。

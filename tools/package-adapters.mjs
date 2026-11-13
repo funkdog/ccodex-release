@@ -8,7 +8,7 @@ import { assertTypeScriptBuild, typescriptInputs, typescriptManifest } from "./t
 import { auditSourceFiles } from "./check-source-publication.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-export const adaptersVersion = "0.1.0-rc.3";
+export const adaptersVersion = "0.1.0-rc.4";
 const checksum = bytes => createHash("sha256").update(bytes).digest("hex");
 const additions = new Set(["release/adapters-command.sh", "release/adapters-sdk/package.json", "release/adapters-sdk/package-lock.json",
   "tools/configure-adapters.mjs", "tools/adapter-connection.mjs", "tools/package-adapters.mjs", "bridge/desktop-execution-model.mts", "bridge/diy/execution-picker.mts"]);
@@ -18,7 +18,8 @@ const ownedChanges = new Set([...additions, "package.json", "tools/install-macos
   "bridge/desktop-native-composer.mts", "bridge/desktop-native-session.mts", "bridge/desktop-diy-contracts.mts",
   "bridge/catalog.mjs", "bridge/server.mjs", "bridge/translate.mjs", "bridge/request-sanitize.mjs",
   "gateway/google-contracts.mts", "gateway/google-provider.mts"]);
-const inScope = file => /^(?:bridge|gateway|tools|release)\//.test(file) || ["assets/catalog-templates.json", "package.json", "package-lock.json", "tsconfig.json", "VERSION"].includes(file);
+const inScope = file => !/^release\/RC\d+-SOURCE\.json$/.test(file) &&
+  (/^(?:bridge|gateway|tools|release)\//.test(file) || ["assets/catalog-templates.json", "package.json", "package-lock.json", "tsconfig.json", "VERSION"].includes(file));
 export function adaptersPackageFiles(base = root) {
   const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: base, encoding: "utf8" }).split("\0").filter(Boolean)
     .filter(inScope);

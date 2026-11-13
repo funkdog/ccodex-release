@@ -72,14 +72,5 @@
     "Never upload private profiles, credentials, raw personal logs or unrelated chats as release evidence.",
     "A failed or pending case prevents stable publication."
   ],
-  "candidateVersion": "0.1.0-rc.3",
-  "publication": {
-    "repository": "funkdog/ccodex-release",
-    "tag": "mycodex-adapters-v0.1.0-rc.3",
-    "url": "https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.3",
-    "publishedAt": "2026-11-12T12:48:23Z",
-    "channel": "prerelease",
-    "releaseId": 442938408,
-    "manualAcceptance": "pending"
-  }
+  "candidateVersion": "0.1.0-rc.4"
 }
