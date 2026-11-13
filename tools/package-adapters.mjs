@@ -15,7 +15,9 @@ const additions = new Set(["release/adapters-command.sh", "release/adapters-sdk/
 const ownedChanges = new Set([...additions, "package.json", "tools/install-macos-launcher.mjs", "bridge/desktop-mode.mjs", "bridge/desktop-shortcut.mjs", "bridge/desktop-current-host-contract.mjs",
   "bridge/desktop-backends/app-server-gateway.mjs", "gateway/contracts.mts", "gateway/routed-stdio.mts", "gateway/server.mts", "tools/typescript-task.mjs",
   "gateway/engines/index.mts", "gateway/engines/claude-code.mts", "gateway/protocol.mts", "gateway/sdk-contracts.mts",
-  "bridge/desktop-native-composer.mts", "bridge/desktop-native-session.mts", "bridge/desktop-diy-contracts.mts"]);
+  "bridge/desktop-native-composer.mts", "bridge/desktop-native-session.mts", "bridge/desktop-diy-contracts.mts",
+  "bridge/catalog.mjs", "bridge/server.mjs", "bridge/translate.mjs", "bridge/request-sanitize.mjs",
+  "gateway/google-contracts.mts", "gateway/google-provider.mts"]);
 const inScope = file => /^(?:bridge|gateway|tools|release)\//.test(file) || ["assets/catalog-templates.json", "package.json", "package-lock.json", "tsconfig.json", "VERSION"].includes(file);
 export function adaptersPackageFiles(base = root) {
   const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { cwd: base, encoding: "utf8" }).split("\0").filter(Boolean)

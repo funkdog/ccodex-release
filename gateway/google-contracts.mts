@@ -11,8 +11,9 @@ export interface SignatureStore { get(id: string): Signature | null; put(id: str
 export interface GoogleOperationResult { data: Model[]; completed?: boolean }
 export interface GoogleWorkerParams extends GoogleRequest { requestId?: string; chunk?: GoogleChunk }
 export interface ChatTranslation {
-  toolKinds: Map<string, string>;
+  toolKinds: Map<string, string | { kind: string; name: string; namespace?: string; encoding?: string }>;
   body: { messages: { role: string; tool_call_id: string; content: string | ({ type: string; text: string; image_url: { url: string } })[];
     tool_calls?: { id: string; function: { name: string; arguments: string } }[] }[];
-    tools?: { function: { name: string; description?: string; parameters: unknown } }[] };
+    tools?: { function: { name: string; description?: string; parameters: unknown } }[];
+    tool_choice?: string | { type: string; function?: { name: string } } };
 }

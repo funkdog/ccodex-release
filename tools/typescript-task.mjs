@@ -16,11 +16,13 @@ tests.push("tests/claude-api-test.mjs");
 tests.push("tests/claude-native-test.mjs");
 tests.push("tests/desktop-host-cache-test.mjs");
 tests.push("tests/adapters-only-test.mjs", "tests/configure-adapters-test.mjs", "tests/adapter-connection-test.mjs", "tests/package-adapters-test.mjs", "tests/execution-picker-browser-test.mjs");
+tests.push("tests/chat-translation-test.mjs", "tests/tool-translation-test.mjs", "tests/tool-translation-native-test.mjs");
 const adapterTests = ["adapters-only", "configure-adapters", "adapter-connection", "package-adapters", "typescript-build", "source-publication",
   "desktop-mode", "desktop-native-session", "execution-picker-browser", "desktop-cli-selector", "desktop-host-cache", "desktop-host-draft", "desktop-current-host",
   "desktop-shortcut", "desktop-process", "desktop-protected-start", "desktop-status", "desktop-upgrade-continuity", "desktop-extension-files", "desktop-launch",
   "gateway-media", "gateway-session-management", "session-contract", "gateway-engines", "gateway-router", "gateway-protocol", "gateway-routed-stdio", "gateway-backend-stage",
-  "antigravity", "gemini-cli", "claude-api", "claude-native", "copilot-provider", "copilot-provider-native"].map(name => `tests/${name}-test.mjs`);
+  "antigravity", "gemini-cli", "claude-api", "claude-native", "copilot-provider", "copilot-provider-native",
+  "chat-translation", "tool-translation", "tool-translation-native", "google-provider"].map(name => `tests/${name}-test.mjs`);
 function heavy(args) {
   let program, command;
   if (process.platform === "win32") {

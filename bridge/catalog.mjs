@@ -119,13 +119,45 @@ function compareVersionDescending(left, right) {
   return 0;
 }
 
-function rebrandInstructions(text, model) {
+const CHAT_SINGLE_STREAM_INTRO =
+  "You communicate with the user through a single assistant text stream. Include a brief 1-2 sentence progress note only in turns that also invoke tools; emit a standalone text response without tool calls only when yielding back to the user with your final answer or a blocking question.";
+
+const CHAT_PROGRESS_UPDATES_SECTION = `## Progress updates
+
+- Include brief 1-2 sentence progress updates only alongside tool calls in the same assistant turn.
+- Never send a standalone progress message without tool calls, because a turn without tool calls ends your work and yields back to the user.
+- Do not prefix messages with channel labels.
+- Ensure your final answer is self-contained and summarizes the key outcomes and verification.`;
+
+function rebrandInstructions(text, model, { route } = {}) {
   if (!text) return text;
-  if ((model.vendor || "OpenAI") === "OpenAI") return text;
-  return text.replace(
-    /^You are Codex, an? ([a-z ]*)agent based on GPT-5\./,
-    (_m, kind) => `You are Codex, a ${kind}agent based on ${model.name}.`
-  );
+  let updated = text;
+  if ((model.vendor || "OpenAI") !== "OpenAI") {
+    updated = updated.replace(
+      /^You are Codex, an? ([a-z ]*)agent based on GPT-[0-9.]+\./,
+      (_m, kind) => `You are Codex, a ${kind}agent based on ${model.name}.`,
+    );
+  }
+  if (route === "chat") {
+    updated = updated.replace(
+      /(?:Use `multi_tool_use\.parallel` to parallelize tool calls and only this\.|You use `multi_tool_use\.parallel` for that parallelism, and only that\.)/g,
+      "Emit independent tool calls in parallel within the same assistant turn when supported.",
+    );
+    updated = updated.replace(
+      /You have (?:2 ways of communicating|two channels for staying in conversation) with the users?:\r?\n- (?:Share intermediary updates|You share updates) in (?:the )?`commentary` channel\.[ \t]*\r?\n- (?:After you have completed all(?: of)? your work, (?:you )?send a message|You yield back to the user and end your turn by sending a final message) to the `final` channel\./g,
+      CHAT_SINGLE_STREAM_INTRO,
+    );
+    updated = updated.replace(
+      /## (?:Intermediary updates|Intermediate commentary)[ \t]*\r?\n[\s\S]*?(?=\r?\n#{1,2} |\s*$)/g,
+      CHAT_PROGRESS_UPDATES_SECTION,
+    );
+    updated = updated.replaceAll("in the `commentary` channel", "in a brief progress note alongside your tool call");
+    updated = updated.replaceAll("in the commentary channel", "in a brief progress note alongside your tool call");
+    updated = updated.replaceAll("in `commentary` channel", "in a brief progress note alongside your tool call");
+    updated = updated.replaceAll("to the `final` channel", "in your final response");
+    updated = updated.replaceAll("in the final channel", "in your final response");
+  }
+  return updated;
 }
 
 function reasoningLevels(model) {
@@ -351,7 +383,13 @@ export function buildCatalog(copilotModels, { includeHidden = false } = {}) {
     entry.input_modalities = model.capabilities?.supports?.vision ? ["text", "image"] : ["text"];
     entry.supports_parallel_tool_calls = Boolean(model.capabilities?.supports?.parallel_tool_calls);
     entry.supports_image_detail_original = Boolean(model.capabilities?.supports?.vision);
-    entry.base_instructions = rebrandInstructions(entry.base_instructions, model);
+    entry.base_instructions = rebrandInstructions(entry.base_instructions, model, { route });
+    if (entry.model_messages && typeof entry.model_messages.instructions_template === "string") {
+      entry.model_messages = {
+        ...entry.model_messages,
+        instructions_template: rebrandInstructions(entry.model_messages.instructions_template, model, { route }),
+      };
+    }
     entry.availability_nux = undefined;
     entry.upgrade = null;
     entry.additional_speed_tiers = [];
@@ -377,10 +415,14 @@ export function buildCatalog(copilotModels, { includeHidden = false } = {}) {
       // The Chat Completions wire format has no server-side reasoning items and no
       // native web search. Freeform (custom) tools stay enabled because the bridge
       // re-encodes them as a single-string JSON function call and unwraps the result.
+      entry.prefer_websockets = false;
       entry.use_responses_lite = false;
       entry.support_verbosity = false;
       entry.default_reasoning_summary = "none";
+      entry.supports_reasoning_summaries = false;
+      entry.supports_reasoning_summary_parameter = false;
       entry.supports_search_tool = false;
+      delete entry.web_search_tool_type;
       delete entry.tool_mode;
       delete entry.multi_agent_version;
     }

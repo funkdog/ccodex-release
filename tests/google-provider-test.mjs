@@ -29,6 +29,15 @@ test("Google maps native images, developer instructions, custom tools and signed
   assert.throws(() => buildGoogleRequest({ ...request, model: "another-account-model" }, signatures), /signature/);
   assert.throws(() => buildGoogleRequest({ ...request, previous_response_id: "opaque" }, signatures), /materialized/);
   assert.throws(() => buildGoogleRequest({ ...request, reasoning: { effort: "xhigh" } }, signatures), /thinking/);
+
+  const namespaced = buildGoogleRequest({
+    model: "gemini-account-model",
+    input: "Run UI tool",
+    tools: [{ type: "namespace", name: "mcp__cua_repl", tools: [{ type: "function", name: "js", parameters: { type: "object", properties: { code: { type: "string" } } } }] }],
+    tool_choice: { type: "function", namespace: "mcp__cua_repl", name: "js" },
+  }, signatures);
+  const declaredName = namespaced.request.config.tools[0].functionDeclarations[0].name;
+  assert.deepEqual(namespaced.request.config.toolConfig.functionCallingConfig.allowedFunctionNames, [declaredName]);
 });
 
 test("Google drafts retain Codex permissions and resumed native threads retain native controls", () => {

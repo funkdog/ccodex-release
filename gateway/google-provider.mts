@@ -107,8 +107,8 @@ export function buildGoogleRequest(request: NativeModelRequest, signatures: Sign
     ...(request.max_output_tokens ? { maxOutputTokens: request.max_output_tokens } : {}) };
   if (request.tool_choice === "none") config.toolConfig = { functionCallingConfig: { mode: "NONE" } };
   else if (request.tool_choice === "required") config.toolConfig = { functionCallingConfig: { mode: "ANY" } };
-  else if (request.tool_choice && typeof request.tool_choice === "object" && request.tool_choice.name)
-    config.toolConfig = { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [toolName(request.tool_choice.name)] } };
+  else if (body.tool_choice && typeof body.tool_choice === "object" && body.tool_choice.function?.name)
+    config.toolConfig = { functionCallingConfig: { mode: "ANY", allowedFunctionNames: [toolName(body.tool_choice.function.name)] } };
   return { request: { model: request.model, contents, config }, names, toolKinds };
 }
 

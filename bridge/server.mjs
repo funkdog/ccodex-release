@@ -82,6 +82,7 @@ const RUNTIME = Object.freeze({
   responsesTimeoutCompaction: 0,
   responsesAbortableRetries: 1,
   responsesCapabilityDowngrade: 0,
+  responsesNamedToolContext: 1,
   responsesAccountEndpoint: 1,
   responsesUpstreamWebSocket: 1,
   releaseUpdateHotNotification: 1,
@@ -891,7 +892,21 @@ async function proxyChatRequest(req, res, request, model, signal) {
   let token = await ensureAuth();
   const streaming = request.stream !== false;
   const { _audit, ...wireRequest } = request;
-  const { body, toolKinds } = buildChatRequest(wireRequest, model);
+  let body;
+  let toolKinds;
+  try {
+    ({ body, toolKinds } = buildChatRequest(wireRequest, model));
+  } catch (error) {
+    const status = Number.isInteger(error?.status) ? error.status : 400;
+    const code = error?.code || "invalid_request_error";
+    request._audit?.complete({
+      status: "error",
+      httpStatus: status,
+      error: { kind: "request", code, message: error.message },
+    });
+    apiError(res, status, error.message, code);
+    return;
+  }
   const writer = createResponsesWriter(res, wireRequest, toolKinds, { streaming, onLog: (m) => log(`chat ${request.model} ${m}`) });
   const payload = JSON.stringify(body);
   const payloadBytes = Buffer.byteLength(payload);
@@ -999,21 +1014,38 @@ async function proxyChatRequest(req, res, request, model, signal) {
     );
     if (!body.stream) {
       const completion = await upstream.json();
-      writer.pushChunk(completion);
-      writer.finish();
+      let outcome;
+      try {
+        writer.pushChunk(completion);
+        outcome = writer.finish();
+      } catch (error) {
+        request._audit?.complete({
+          status: "error",
+          providerRequestId: upstream.headers.get("x-github-request-id"),
+          serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
+          usage: writer.currentUsage(),
+          httpStatus: upstream.status,
+          attempts: attempt + 1,
+          error: { kind: "stream", message: error.message },
+        });
+        writer.fail(`GitHub Copilot response error: ${error.message}`);
+        return;
+      }
       request._audit?.complete({
-        status: "complete",
+        status: outcome?.status === "incomplete" ? "incomplete" : "complete",
         providerRequestId: upstream.headers.get("x-github-request-id"),
         serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
         usage: writer.currentUsage(),
         httpStatus: upstream.status,
         attempts: attempt + 1,
+        ...(outcome?.incompleteDetails ? { error: outcome.incompleteDetails } : {}),
       });
       return;
     }
 
     let done = false;
     let streamError = null;
+    let streamOutcome = null;
     try {
       await readSse(
         upstream.body,
@@ -1034,7 +1066,7 @@ async function proxyChatRequest(req, res, request, model, signal) {
         () => {
           if (!done) {
             done = true;
-            writer.finish();
+            streamOutcome = writer.finish();
           }
         }
       );
@@ -1066,12 +1098,13 @@ async function proxyChatRequest(req, res, request, model, signal) {
       return;
     }
     request._audit?.complete({
-      status: "complete",
+      status: streamOutcome?.status === "incomplete" ? "incomplete" : "complete",
       providerRequestId: upstream.headers.get("x-github-request-id"),
       serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
       usage: writer.currentUsage(),
       httpStatus: upstream.status,
       attempts: attempt + 1,
+      ...(streamOutcome?.incompleteDetails ? { error: streamOutcome.incompleteDetails } : {}),
     });
     return;
   }

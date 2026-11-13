@@ -69,7 +69,7 @@ function memoryIdentityStore(packageRoot) {
 
 // Execute the real request handlers without a disk-backed profile or paid inference.
 export async function memoryResponsesBridge(responder, {
-  route = "/responses", packageRoot = root, heartbeatMs = 10,
+  route = "/responses", packageRoot = root, heartbeatMs = 10, model: modelOverride,
 } = {}) {
   const requests = [];
   const audits = [];
@@ -108,7 +108,7 @@ export async function memoryResponsesBridge(responder, {
   const handlers = functionsFromSource(path.join(packageRoot, "bridge/server.mjs"), [
     "apiError", "proxyResponses", "proxyResponsesRequest", "proxyChat", "proxyChatRequest",
   ], bindings);
-  const model = {
+  const model = modelOverride ?? {
     id: "synthetic-model", vendor: "OpenAI", capabilities: {
       supports: { reasoning_effort: ["max"], parallel_tool_calls: true },
       limits: { max_prompt_tokens: 922000, max_output_tokens: 128000 },
@@ -124,7 +124,7 @@ export async function memoryResponsesBridge(responder, {
       request._audit = { complete(changes) {
         if (audit.status === "running") Object.assign(audit, changes);
       } };
-      if (route === "/responses") await handlers.proxyResponses(req, res, request);
+      if (route === "/responses") await handlers.proxyResponses(req, res, request, model);
       else await handlers.proxyChat(req, res, request, model);
     })().catch(error => {
       errors.push(error);
@@ -140,7 +140,7 @@ export async function memoryResponsesBridge(responder, {
     throw error;
   }
   return {
-    url: `http://127.0.0.1:${proxyPort}`, requests, audits, logs,
+    url: `http://127.0.0.1:${proxyPort}`, upstream: `http://127.0.0.1:${upstreamPort}`, requests, audits, logs,
     forgetIdentities: identities.clear,
     diagnostics: () => ({ errors: errors.map(error => error.message), activeHandlers: jobs.size,
       filesystemProfiles: 0, cloudInferenceRequests: 0 }),

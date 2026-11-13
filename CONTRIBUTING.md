@@ -1,6 +1,6 @@
 # 修改 MyCodex Adapters 和反馈问题
 
-RC.3 的可维护源码、测试和构建工具位于本仓库。日常修改以 `main` 为基础；`codex/macos-adapters-rc3` 分支和 `mycodex-adapters-source-v0.1.0-rc.3` 标签保留本次源码快照。
+RC.3 的可维护源码、测试和构建工具位于本仓库。日常修改以 `main` 为基础；`main` 已包含 [RC.3 之后的桥接修复](docs/architecture/0033-chat-compat-sync.zh-CN.md)，尚未打入现有下载包；`codex/macos-adapters-rc3` 分支和 `mycodex-adapters-source-v0.1.0-rc.3` 标签保留本次源码快照。
 
 ## 从源码开始
 
