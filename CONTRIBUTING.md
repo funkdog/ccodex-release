@@ -1,6 +1,6 @@
 # 修改 MyCodex Adapters 和反馈问题
 
-RC.3 的可维护源码、测试和构建工具位于本仓库。日常修改以 `main` 为基础；`main` 已包含 [RC.3 之后的桥接修复](docs/architecture/0033-chat-compat-sync.zh-CN.md)，尚未打入现有下载包；`codex/macos-adapters-rc3` 分支和 `mycodex-adapters-source-v0.1.0-rc.3` 标签保留本次源码快照。
+本仓库提供 RC.4 的可维护源码、测试和构建工具，包含 [Chat Completions 桥接修复](docs/architecture/0033-chat-compat-sync.zh-CN.md)。日常修改以 `main` 为基础；`codex/macos-adapters-rc4` 分支与 RC.4 源码标签保留本次快照，历史 RC.3 的分支、标签和安装包继续保留。
 
 ## 从源码开始
 
@@ -28,7 +28,7 @@ npm run build
 | 会话持久化、协议与恢复 | `gateway/protocol.mts`、`gateway/state.mts` |
 | 回归用例 | `tests/` |
 
-源码克隆不含账号、聊天、第三方 CLI 或离线运行时；包里关闭的历史工作台、Squad 等源码也不代表 RC.3 已启用这些功能。旧完整发行渠道的维护说明见 `docs/DEVELOPMENT.zh-CN.md`，RC.3 优先按本指南操作。
+源码克隆不含账号、聊天、第三方 CLI 或离线运行时；包里关闭的历史工作台、Squad 等源码也不代表 RC.4 已启用这些功能。旧完整发行渠道的维护说明见 `docs/DEVELOPMENT.zh-CN.md`，RC.4 优先按本指南操作。
 
 ## 验证修改
 
@@ -59,7 +59,11 @@ npm run test:adapters
 
 Issue 建议提供：RC 版本、macOS 架构、官方应用版本、执行引擎和模型 ID、最短复现步骤、期望与实际结果、脱敏报错。不要上传 token、Key、账号目录、私人聊天或原始日志。
 
-## RC.3 源码与发布包的对应关系
+## RC.4 源码与发布包的对应关系
+
+`release/RC4-SOURCE.json` 记录 RC.4 平台包摘要、冻结运行源码提交及 313 个运行源码摘要。`codex/macos-adapters-rc4` 分支和 `mycodex-adapters-source-v0.1.0-rc.4` 标签保留完整源码，RC.4 Release 的自动 Source code 归档也来自完整源码提交；它们不包含生成模块，使用者安装请下载平台包。
+
+## 历史 RC.3 对应关系
 
 `release/RC3-SOURCE.json` 记录已发布原包的 SHA-256、载荷摘要及 313 个运行源码文件的逐文件摘要。它们与 RC.3 平台包一致；测试、开发文档及其他维护源码另行提供。
 

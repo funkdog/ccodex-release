@@ -28,3 +28,7 @@
 `main` 和 `codex/chat-compat-sync` 提供本次源码修复。既有 `codex/macos-adapters-rc3` 分支及 `mycodex-adapters-source-v0.1.0-rc.3` 标签继续保留 RC.3 原包对应的源码快照，逐文件记录仍见 `release/RC3-SOURCE.json`。
 
 本次没有重打包、替换现有安装文件或增加版本号。已发布的 RC.3 平台包和 Release 标签保持原样，因此安装现有 RC.3 不会自动获得这些源码修复；真实桌面验收继续待完成，RC.3 仍为预发布候选版。
+
+## RC.4 候选包
+
+上述源码修复已纳入 [RC.4 打包与验证记录](../releases/mycodex-adapters-0.1.0-rc.4.md)。此前仅发布源码的说明是历史状态；RC.3 原包仍保持不变，真实桌面验收继续待完成。

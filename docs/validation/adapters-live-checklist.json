@@ -72,5 +72,7 @@
     "Never upload private profiles, credentials, raw personal logs or unrelated chats as release evidence.",
     "A failed or pending case prevents stable publication."
   ],
-  "candidateVersion": "0.1.0-rc.4"
+  "candidateVersion": "0.1.0-rc.4",
+  "candidateArchiveSha256": "f297bd77912fe079cfe43077d22c72f9b63cb6ea77a0564d419c5d3d25bafd86",
+  "candidateSourceDigest": "7e0828f789f580c0ade83d6bcbbf29ef9acfa85dd6b6ddc7821cec546fef720b"
 }
