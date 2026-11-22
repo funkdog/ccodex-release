@@ -7,6 +7,8 @@ import { atomicWrite } from "./catalog-store.mjs";
 const AUDIT_FILE = path.join(CODEX_COPILOT_HOME, "request-audit.jsonl");
 const LATEST_FILE = path.join(CODEX_COPILOT_HOME, "request-audit-latest.json");
 const THREAD_STATUS_DIR = path.join(CODEX_COPILOT_HOME, "request-status");
+const STREAM_FILE = path.join(CODEX_COPILOT_HOME, "request-stream.jsonl");
+const STREAM_MAX_BYTES = 8 * 1024 * 1024;
 const MAX_BYTES = Number(process.env.CODEX_COPILOT_REQUEST_AUDIT_MAX_BYTES || 2 * 1024 * 1024);
 const REDACTED_KEYS = /(authorization|token|secret|prompt|input|instructions|messages|tools|content|body)/i;
 
@@ -82,6 +84,20 @@ function threadStatusPath(threadId) {
     : null;
 }
 
+function appendStreamRecords(records) {
+  try {
+    fs.mkdirSync(CODEX_COPILOT_HOME, { recursive: true });
+    const text = records.map(record => JSON.stringify(record)).join("\n") + "\n";
+    if (fs.existsSync(STREAM_FILE) && fs.statSync(STREAM_FILE).size + Buffer.byteLength(text) > STREAM_MAX_BYTES) {
+      fs.rmSync(STREAM_FILE + ".1", { force: true });
+      fs.renameSync(STREAM_FILE, STREAM_FILE + ".1");
+    }
+    fs.appendFileSync(STREAM_FILE, text, { encoding: "utf8", mode: 0o600 });
+  } catch {
+    // Optional transport diagnostics must never fail the request.
+  }
+}
+
 export function startRequestAudit({
   surface = "codex",
   account = null,
@@ -125,12 +141,33 @@ export function startRequestAudit({
   };
   append(base);
   let completed = false;
+  let sequence = 0;
+  let timer;
+  const pending = [];
+  const flush = () => {
+    clearTimeout(timer);
+    timer = null;
+    if (pending.length) appendStreamRecords(pending.splice(0));
+  };
+  const trace = (event, fields = {}) => {
+    const now = Date.now();
+    pending.push({ ...safeValue(fields), id, threadId: base.threadId, event,
+      sequence: sequence++, at: new Date(now).toISOString(), elapsedMs: now - startedAtMs });
+    if (completed || pending.length >= 256) flush();
+    else if (!timer) {
+      timer = setTimeout(flush, 1000);
+      timer.unref?.();
+    }
+  };
   return {
     id,
+    trace,
     complete(changes = {}) {
       if (completed) return;
       completed = true;
       const completedAtMs = Date.now();
+      trace("request.complete", { status: changes.status || "complete", errorCode: changes.error?.code ?? null,
+        usage: changes.usage ?? null });
       append({
         ...base,
         ...safeValue(changes),
@@ -151,4 +188,4 @@ export function readLatestRequestAudit() {
   }
 }
 
-export { AUDIT_FILE, LATEST_FILE, THREAD_STATUS_DIR };
+export { AUDIT_FILE, LATEST_FILE, THREAD_STATUS_DIR, STREAM_FILE };

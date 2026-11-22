@@ -53,6 +53,15 @@ async function auditAt(bridge, status) {
 test("context normalization recognizes the actual generic error without treating every HTTP 400 as context overflow", () => {
   assert.equal(isContextWindowError(contextError), true);
   assert.deepEqual(normalizeResponsesError(contextError), { ...contextError, code: "context_length_exceeded" });
+  for (const payloadError of [
+    { code: "payload_too_large", message: "GitHub Copilot: Request Entity Too Large" },
+    { code: "request_too_large", message: "Payload Too Large" },
+    { code: "upstream_error", message: "GitHub Copilot: Request Entity Too Large" },
+    { code: "invalid_request_body", message: "too many images: maximum allowed for model gemini-4-carbon is 10, got 17" },
+  ]) {
+    assert.equal(isContextWindowError(payloadError), true);
+    assert.equal(normalizeResponsesError(payloadError).code, "context_length_exceeded");
+  }
   for (const error of [
     { code: "invalid_request_body", message: "Invalid tool description: empty string." },
     { code: "invalid_request_body", message: "The requested context window is supported." },
@@ -389,5 +398,142 @@ test("Chat Completions real completion retains actual usage and handles an unter
     assert.equal(events.at(-1).response.usage.total_tokens, 15);
     assert.equal((await auditAt(bridge, "complete")).usage.total_tokens, 15);
     assert.equal(bridge.requests.length, 1);
+  } finally { await bridge.close(); }
+});
+
+for (const route of ["/responses", "/chat/completions"]) {
+  for (const stream of [true, false]) {
+    test(`HTTP 413 plain-text payload rejection on ${route} activates native context recovery for stream=${stream}`, async t => {
+      const bridge = await responsesBridge(profile(t), t, async (_req, res) => {
+        res.writeHead(413, { "content-type": "text/plain" }).end("Request Entity Too Large");
+      }, { route });
+      try {
+        const response = await post(bridge, { stream });
+        assert.equal(response.status, stream ? 200 : 413);
+        const text = await response.text();
+        const error = stream ? parse(text).at(-1).response.error : JSON.parse(text).error;
+        assert.equal(error.code, "context_length_exceeded");
+        assert.match(error.message, /Request Entity Too Large/);
+        assert.equal(bridge.requests.length, 1, "413 payload errors without droppable images must not retry");
+        const audit = await auditAt(bridge, "error");
+        assert.equal(audit.httpStatus, 413);
+        assert.equal(audit.error.upstreamCode, "payload_too_large");
+        assert.equal(audit.error.code, "context_length_exceeded");
+      } finally { await bridge.close(); }
+    });
+  }
+}
+
+test("Chat Completions 413 sheds historical inline base64 images while keeping all text and latest images", async t => {
+  const oldImage = `data:image/png;base64,${"A".repeat(40000)}`;
+  const latestImage = `data:image/png;base64,${"B".repeat(20000)}`;
+  const bridge = await responsesBridge(profile(t), t, async (_req, res, body) => {
+    if (Buffer.byteLength(JSON.stringify(body)) > 45000) {
+      res.writeHead(413, { "content-type": "text/plain" }).end("Request Entity Too Large");
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/event-stream" }).end(
+      'data: {"choices":[{"delta":{"content":"RECOVERED_WITH_LATEST_IMAGE"}}]}\n\n'
+      + 'data: {"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":4,"total_tokens":24}}\n\n'
+      + "data: [DONE]\n\n",
+    );
+  }, { route: "/chat/completions", vision: true });
+  try {
+    const response = await post(bridge, {
+      stream: true,
+      input: [
+        { type: "message", role: "user", content: [
+          { type: "input_text", text: "PRESERVED_EARLY_TEXT" },
+          { type: "input_image", image_url: oldImage },
+        ] },
+        { type: "message", role: "assistant", content: [{ type: "output_text", text: "PRESERVED_ASSISTANT_TEXT" }] },
+        { type: "function_call", call_id: "call_img", name: "view_image", arguments: '{"path":"/tmp/latest.png"}' },
+        { type: "function_call_output", call_id: "call_img", output: [{ type: "input_image", image_url: latestImage }] },
+      ],
+    });
+    assert.equal(response.status, 200);
+    const events = parse(await response.text());
+    assert.equal(events.at(-1).type, "response.completed");
+    assert.equal(bridge.requests.length, 2);
+    const retried = JSON.stringify(bridge.requests[1].messages);
+    assert.equal(retried.includes(oldImage), false, "historical inline image must be omitted after 413");
+    assert.equal(retried.includes("PRESERVED_EARLY_TEXT"), true, "historical text must be preserved");
+    assert.equal(retried.includes("PRESERVED_ASSISTANT_TEXT"), true, "assistant text must be preserved");
+    assert.equal(retried.includes(latestImage), true, "latest inline image must remain intact");
+    assert.equal((await auditAt(bridge, "complete")).attempts, 2);
+  } finally { await bridge.close(); }
+});
+
+test("Chat Completions 400 too-many-images keeps the newest N images and all text in the same turn", async t => {
+  const imageUrl = index => `data:image/png;base64,IMG_${String(index).padStart(2, "0")}_DATA`;
+  const countImages = messages => messages.reduce((sum, msg) => sum + (
+    Array.isArray(msg.content) ? msg.content.filter(part => part?.type === "image_url").length : 0
+  ), 0);
+  const bridge = await responsesBridge(profile(t), t, async (_req, res, body) => {
+    const count = countImages(body.messages || []);
+    if (count > 10) {
+      res.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({
+        error: {
+          code: "invalid_request_body",
+          message: `too many images: maximum allowed for model gemini-4-carbon is 10, got ${count}`,
+        },
+      }));
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/event-stream" }).end(
+      'data: {"choices":[{"delta":{"content":"RECOVERED_WITH_10_IMAGES"}}]}\n\n'
+      + 'data: {"choices":[],"usage":{"prompt_tokens":30,"completion_tokens":5,"total_tokens":35}}\n\n'
+      + "data: [DONE]\n\n",
+    );
+  }, { route: "/chat/completions", vision: true });
+  try {
+    const input = [];
+    for (let i = 1; i <= 15; i += 1) {
+      input.push({
+        type: "message",
+        role: "user",
+        content: [
+          { type: "input_text", text: `TURN_TEXT_${i}` },
+          { type: "input_image", image_url: imageUrl(i) },
+        ],
+      });
+      input.push({
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: `ASSISTANT_REPLY_${i}` }],
+      });
+    }
+    input.push({ type: "function_call", call_id: "call_ui", name: "view_image", arguments: '{"path":"/tmp/ui.png"}' });
+    input.push({
+      type: "function_call_output",
+      call_id: "call_ui",
+      output: [
+        { type: "input_image", image_url: imageUrl(16) },
+        { type: "input_image", image_url: imageUrl(17) },
+      ],
+    });
+    input.push({
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text: "LATEST_USER_APPROVAL_TEXT" }],
+    });
+
+    const response = await post(bridge, { stream: true, input });
+    assert.equal(response.status, 200);
+    const events = parse(await response.text());
+    assert.equal(events.at(-1).type, "response.completed");
+    assert.equal(bridge.requests.length, 2);
+    assert.equal(countImages(bridge.requests[0].messages), 17);
+    assert.equal(countImages(bridge.requests[1].messages), 10);
+    const retried = JSON.stringify(bridge.requests[1].messages);
+    for (let i = 1; i <= 7; i += 1) {
+      assert.equal(retried.includes(imageUrl(i)), false, `oldest image ${i} should be omitted`);
+      assert.equal(retried.includes(`TURN_TEXT_${i}`), true, `text for turn ${i} must be preserved`);
+    }
+    for (let i = 8; i <= 17; i += 1) {
+      assert.equal(retried.includes(imageUrl(i)), true, `recent image ${i} must be retained`);
+    }
+    assert.equal(retried.includes("LATEST_USER_APPROVAL_TEXT"), true);
+    assert.equal((await auditAt(bridge, "complete")).attempts, 2);
   } finally { await bridge.close(); }
 });

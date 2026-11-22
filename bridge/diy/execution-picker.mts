@@ -6,7 +6,7 @@ import { modelExecutionIdentity } from "../desktop-execution-model.mjs";
  * popover; browsing engines/sources never changes a running conversation. */
 export function mountNativeEnginePicker({ document, container, before = null, controller, services, currentThread }: {
   document: Document; container: HTMLElement; before?: HTMLElement | null; controller: SessionController;
-  services: Pick<UiServices, "listModels" | "refreshModels" | "updateSettings" | "selectDraftModel" | "selectThreadModel" | "setApprovalDefault" | "openModelSources" | "readNativeSpeed" | "selectNativeSpeed">;
+  services: Pick<UiServices, "listModels" | "refreshModels" | "updateSettings" | "selectDraftModel" | "selectThreadModel" | "setApprovalDefault" | "switchExecution" | "openModelSources" | "readNativeSpeed" | "selectNativeSpeed">;
   currentThread: () => UiThread | null;
 }): MountedComponent & { render(): void } {
   const host = document.createElement("span"); host.dataset.mycodexNativeEngine = "1";

@@ -3,17 +3,6 @@
 import type { ApprovalMode, UserInput, Collaboration, RpcMessage, GatewayModel, Page } from "../gateway/contracts.mjs";
 export interface Disposable { dispose(): void }
 export interface MountedComponent extends Disposable { host: HTMLElement }
-export interface HostActions {
-  openThread(threadId: string): Promise<void>;
-  prefillDraft(text: string): Promise<void>;
-  injectText(text: string): Promise<void>;
-  copyText?(text: string): Promise<void>;
-}
-export interface DiyServices { request(method: string, params: Record<string, unknown>): Promise<unknown>; subscribe?(receive: (event: unknown) => void): () => void }
-export interface DrawerSlot {
-  id: string; label: string; badge?: number | string; tone?: "neutral" | "positive" | "warning"; disabled?: boolean;
-  mount(options: { document: Document; container: HTMLElement; services: DiyServices; hostActions: HostActions; signal: AbortSignal; setStatus?(message: string): void; setBadge?(badge: number | string, tone?: "neutral" | "positive" | "warning"): void }): MountedComponent | Promise<MountedComponent>;
-}
 export interface SessionPreferences { reasoningEffort?: string | null; cliApprovalMode?: ApprovalMode }
 export type CliSettingsUpdate = SessionPreferences & { threadId: string; model?: string };
 export interface UiThread extends SessionPreferences {
@@ -22,7 +11,9 @@ export interface UiThread extends SessionPreferences {
   nativeProvider?: string; nativeCopilot?: boolean; nativeRuntime?: boolean;
 }
 export interface UiModel {
-  nativeDefault?: boolean; preferredSource?: boolean; sourceLabel?: string;
+  nativeDefault?: boolean;
+  preferredSource?: boolean;
+  sourceLabel?: string;
   id: string; label: string; engine?: string; inputModalities?: string[]; nativeCopilot?: boolean; nativeProvider?: string;
   catalogWarning?: string; efforts?: string[]; defaultEffort?: string; approvalModes?: ApprovalMode[]; canSwitchModel?: boolean;
   defaultCliApprovalMode?: ApprovalMode;
@@ -32,6 +23,7 @@ export interface UiServices {
   selectNativeSpeed?(value: string | null): Promise<void>;
   selectThreadModel?(params: CliSettingsUpdate & { model: string }): Promise<UiThread | null>;
   openModelSources?(): Promise<void>;
+  switchExecution?(params: { threadId: string; model: string; expectedModel?: string }): Promise<UiThread>;
   listModels(): Promise<UiModel[]>; refreshModels?(): Promise<UiModel[]>;
   listThreads(params?: { cursor?: string | null }): Promise<Page<UiThread>>;
   updateSettings(params: CliSettingsUpdate): Promise<UiThread>;
@@ -40,6 +32,7 @@ export interface UiServices {
   selectDraftModel?(model: string | null, effort: string | null): Promise<SessionPreferences & { model: string | null }>;
 }
 export interface UiRpcResults {
+  "gateway/conversation/switch": { thread: UiThread };
   "thread/list": Page<UiThread & { name?: string; preview?: string }>;
   "gateway/models/refresh": { warnings?: string[] };
   "model/list": Page<GatewayModel> & { warnings?: string[] };

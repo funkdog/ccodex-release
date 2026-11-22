@@ -4,6 +4,7 @@ import { codexBackend } from "../tools/history/backends.mjs";
 import { protectCliBackend } from "./cli-session-ownership.mjs";
 import { desktopSnapshot, desktopStateRoot } from "./desktop-runtime.mjs";
 import { createSessionApi } from "./session-management-api.mjs";
+import { loadDesktopSquads } from "./desktop-sessions.mjs";
 
 const MAX_SELECTION = 500;
 
@@ -103,8 +104,17 @@ export class DesktopSessionReader {
 
 export function createDesktopSessionApi({ home, port, core, reader = new DesktopSessionReader({ home, core }),
   api = createSessionApi({ home, port }) } = {}) {
+  const squads = () => loadDesktopSquads(home, async () => ({
+    data: (await reader.readSnapshot(false)).filter(row => !row.archived), nextCursor: null,
+  }));
   const request = async (operation, args = {}) => {
-    if (operation === "list") return reader.list(args);
+    if (operation === "squads") return squads();
+    if (operation === "list") {
+      const result = await reader.list(args);
+      // Sidecar failure must not disable bulk history management.
+      try { return { ...result, squads: await squads() }; }
+      catch { return result; }
+    }
     const result = await api(operation, args);
     if (operation === "apply" || (operation === "progress" && result.done)) reader.invalidate();
     return result;

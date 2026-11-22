@@ -3,12 +3,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { appServerGatewayBackend, isAdditiveCliConfiguration } from "../bridge/desktop-backends/app-server-gateway.mjs";
 import { readProcessIdentity, sameProcessLifetime } from "../bridge/desktop-process.mjs";
 import { connectGateway, writeMessage } from "../gateway/ipc.mjs";
 import { RpcPeer } from "../gateway/rpc-peer.mjs";
 import { nativeEnvironment } from "../gateway/native-peer.mjs";
+import { desktopExtensionFiles } from "../bridge/desktop-extension-files.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -18,7 +20,6 @@ test("live capability retention accepts only additive CLI engines with every exi
   const added = { ...original, engines: [...original.engines, { id: "second", adapter: "claude-code", sdkPath: "/new/sdk.mjs" }] };
   assert.equal(isAdditiveCliConfiguration(original, added), true);
   for (const changed of [original, { ...added, defaultEngine: "second" }, { ...added, spine: { mcp: false } },
-    { ...added, workbench: false },
     { ...added, engines: [{ ...original.engines[0], sdkPath: "/replaced/sdk.mjs" }, added.engines[1]] },
     { ...added, engines: [added.engines[1]] }, { ...added, engines: [...original.engines, original.engines[0]] },
     { ...added, engines: [...original.engines, { id: "codex-gemini", adapter: "codex-gemini" }] }])
@@ -31,21 +32,18 @@ test("unknown page version preserves configured providers when installed native 
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "ccodex-backend-only-"));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const provider = { id: "codex-copilot", adapter: "codex-copilot", bridgeHome: home, bridgePort: 12345 };
-  const selection = { generation: "isolated-future-page", gateway: { defaultEngine: provider.id, engines: [provider], workbench: false } };
+  const selection = { generation: "isolated-future-page", gateway: { defaultEngine: provider.id, engines: [provider] } };
   const backend = appServerGatewayBackend({ root, home, selection, nativeCli });
   const staged = await backend.stage({ runtime: { manifest: { applicationVersion: "future-page-with-compatible-cli" } }, inherited: process.env });
   const config = JSON.parse(fs.readFileSync(staged.connectionFile));
   assert.deepEqual(config.engines, [provider]); assert.equal(config.nativeCli, nativeCli);
-  assert.equal(config.workbench, false);
   assert.equal(config.identity, undefined); assert.equal(fs.existsSync(config.endpoint), false);
   fs.rmSync(path.dirname(config.endpoint), { recursive: true, force: true });
 });
 
 for (const applicationVersion of ["26.1023.50603", "26.1023.51421"]) {
 test(`Mac backend ${applicationVersion} stages without a process, delegates native probes and starts one reusable private gateway`, {
-  // Three cold gateway lifetimes plus authenticated reconnects and macOS
-  // process probes exceed 20 seconds on a loaded host; each RPC stays bounded.
-  skip: process.platform !== "darwin", timeout: 60000,
+  skip: process.platform !== "darwin", timeout: 20000,
 }, async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "ccodex-backend-stage-"));
   const sdkPath = path.join(home, "synthetic-sdk.mjs");
@@ -112,7 +110,13 @@ test(`Mac backend ${applicationVersion} stages without a process, delegates nati
   const reused = JSON.parse(fs.readFileSync(file, "utf8"));
   assert.deepEqual(reused.identity, config.identity);
   assert.equal(reused.token, config.token);
-  assert.match(reused.runtimeGeneration, /^[a-f0-9]{64}$/);
+  const runtimeFiles = desktopExtensionFiles(root);
+  assert.ok(runtimeFiles.includes("bridge/diy/squad-studio.mjs"));
+  const runtime = createHash("sha256").update(process.execPath);
+  for (const file of runtimeFiles.filter(name => name.startsWith("gateway/") || name.startsWith("bridge/diy/"))) {
+    runtime.update(file + "\0").update(fs.readFileSync(path.join(root, file))).update("\0");
+  }
+  assert.equal(reused.runtimeGeneration, runtime.digest("hex"));
   // Older receipts recorded ps birth time in the system timezone, while the
   // shared identity probe now consistently uses UTC. A healthy authenticated
   // listener must be reconciled without replacing it or dropping its engines.

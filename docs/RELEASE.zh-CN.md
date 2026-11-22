@@ -1,18 +1,10 @@
 # Ccodex Release 安装与升级指南 (v1.2.36)
 
-## 下载入口（四平台全量维护）
+## 历史发行范围
 
-[打开企业仓库 Release 页面 (v1.2.36)](https://github.com/nifan_microsoft/ccodex-release/releases/tag/v1.2.36)
+本文保留 v1.2.36 已有安装的维护资料。该发行包含隔离的 Codex Desktop 26.1007.9446.0（应用 26.1007.71326 / CLI 0.162.x）和 GitHub Copilot CLI 1.0.97。
 
-- **Windows 11 X64（Intel / AMD）**：[CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe)
-- **Windows 11 ARM64（骁龙 / ARM）**：[CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe)
-- **macOS Apple Silicon (ARM64)**：[codex-copilot-macos-arm64-1.2.36.tar.gz](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/codex-copilot-macos-arm64-1.2.36.tar.gz)
-- **macOS Intel (X64)**：[codex-copilot-macos-x64-1.2.36.tar.gz](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/codex-copilot-macos-x64-1.2.36.tar.gz)
-- **Linux X64**：[codex-copilot-linux-x64-1.2.36.tar.gz](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/codex-copilot-linux-x64-1.2.36.tar.gz)
-- **Linux ARM64**：[codex-copilot-linux-arm64-1.2.36.tar.gz](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/codex-copilot-linux-arm64-1.2.36.tar.gz)
-- **SHA256 校验清单**：[SHA256SUMS.txt](https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/SHA256SUMS.txt)
-
-当前版本为 **1.2.36**，内置隔离的 **Codex Desktop 26.1007.9446.0**（应用版本 `26.1007.71326` / `codex-cli 0.162.x`）与 **GitHub Copilot CLI 1.0.97**。
+公开下载请使用 [MyCodex Adapters RC.4](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)（macOS ARM64），安装步骤见 [macOS 配置指南](ADAPTERS-MACOS.zh-CN.md)。公开仓库没有 v1.2.36 平台包。
 
 ## 校验与安装
 
@@ -34,8 +26,8 @@ Get-FileHash -Algorithm SHA256 .\CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X6
 
 ## 新版本热更新提醒（CLI & Desktop）
 
-从 1.2.36 起，CLI 与 Desktop 均内置了针对本仓库 Release 的热更新检测与一键升级能力：
-- **CLI 热提醒**：启动 `ccodex` 时自动检测 `nifan_microsoft/ccodex-release` 是否有新版本，并在终端显示新版本提示框。
+v1.2.36 完整安装内置了热更新检测与一键升级。历史安装使用其发行渠道，当前源码的默认仓库为 `funkdog/ccodex-release`。
+- **CLI 热提醒**：启动 `ccodex` 时检测已配置的发行渠道是否有新版本，并在终端显示新版本提示框。
 - **Desktop 热提醒**：当检测到新版本时，Desktop 右下角自动弹出更新提醒卡片，支持点击 **立即下载并安装更新** 或复制命令。
 - **一键升级命令**：
   ```powershell

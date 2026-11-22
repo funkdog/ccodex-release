@@ -1,0 +1,3577 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyCodex Squad V2 — 原生分屏工作台与内嵌里程碑卡交互原型</title>
+  <style>
+    /* ==========================================================================
+       1. 设计系统 Tokens（高信噪比 · 冷静石墨暗色 / 暖石膏亮色 · 零紫光俗套）
+       ========================================================================== */
+    :root,
+    [data-theme="light"] {
+      color-scheme: light;
+      --bg-app: #ECEAE5;
+      --bg-sidebar: #F6F5F2;
+      --bg-stage: #FFFFFF;
+      --bg-studio: #F9F9F8;
+      --bg-elevated: #FFFFFF;
+      --bg-subtle: #F2F1ED;
+      --bg-hover: #EAE8E2;
+      --bg-active: #E2DFD7;
+      --bg-code: #F4F5F7;
+
+      --border-hairline: #E4E2DC;
+      --border-default: #D5D2CA;
+      --border-strong: #B8B4AA;
+
+      --text-primary: #17191C;
+      --text-secondary: #4A4F57;
+      --text-muted: #6E747E;
+      --text-on-accent: #FFFFFF;
+
+      /* 精密工程钢蓝主色（克制、专业、高对比度） */
+      --accent-solid: #1B5488;
+      --accent-hover: #14426C;
+      --accent-text: #184D7D;
+      --accent-soft: #EBF2F9;
+      --accent-border: #B7D1EA;
+      --focus-ring: rgba(27, 84, 136, 0.38);
+
+      /* 语义状态三层 Token */
+      --status-running-dot: #1D74B8;
+      --status-running-text: #165B91;
+      --status-running-bg: #E9F3FB;
+      --status-running-border: #BBD8F2;
+
+      --status-settled-dot: #1E7E4E;
+      --status-settled-text: #16653E;
+      --status-settled-bg: #EAF6F0;
+      --status-settled-border: #B7E1CA;
+
+      --status-attention-dot: #C06C14;
+      --status-attention-text: #8D4D08;
+      --status-attention-bg: #FDF4E7;
+      --status-attention-border: #ECC996;
+
+      --status-danger-dot: #C43B31;
+      --status-danger-text: #9C2B23;
+      --status-danger-bg: #FCEEEB;
+      --status-danger-border: #EEBDB8;
+
+      --status-idle-dot: #8A9099;
+      --status-idle-text: #5B616B;
+      --status-idle-bg: #EFECE6;
+
+      /* Diff 专用色 */
+      --diff-add-bg: #E8F6EE;
+      --diff-add-ln: #D2EEDE;
+      --diff-add-text: #145936;
+      --diff-del-bg: #FCECE9;
+      --diff-del-ln: #F7D7D2;
+      --diff-del-text: #94261E;
+
+      --shadow-card: 0 1px 3px rgba(20, 24, 30, 0.05), 0 1px 2px rgba(20, 24, 30, 0.03);
+      --shadow-float: 0 8px 24px rgba(20, 24, 30, 0.10);
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg-app: #0D0F12;
+      --bg-sidebar: #12151A;
+      --bg-stage: #161920;
+      --bg-studio: #14171D;
+      --bg-elevated: #1B1F27;
+      --bg-subtle: #20252F;
+      --bg-hover: #262C37;
+      --bg-active: #2D3442;
+      --bg-code: #111419;
+
+      --border-hairline: #252A34;
+      --border-default: #303744;
+      --border-strong: #434C5E;
+
+      --text-primary: #ECEFF4;
+      --text-secondary: #ABB3C2;
+      --text-muted: #7E8796;
+      --text-on-accent: #0C1117;
+
+      --accent-solid: #63A9E5;
+      --accent-hover: #7DB9EC;
+      --accent-text: #7CB8EC;
+      --accent-soft: rgba(99, 169, 229, 0.13);
+      --accent-border: rgba(99, 169, 229, 0.34);
+      --focus-ring: rgba(99, 169, 229, 0.45);
+
+      --status-running-dot: #54A6EB;
+      --status-running-text: #7EC0F5;
+      --status-running-bg: rgba(84, 166, 235, 0.14);
+      --status-running-border: rgba(84, 166, 235, 0.34);
+
+      --status-settled-dot: #47B881;
+      --status-settled-text: #73D1A1;
+      --status-settled-bg: rgba(71, 184, 129, 0.14);
+      --status-settled-border: rgba(71, 184, 129, 0.34);
+
+      --status-attention-dot: #E5993E;
+      --status-attention-text: #F2B56B;
+      --status-attention-bg: rgba(229, 153, 62, 0.15);
+      --status-attention-border: rgba(229, 153, 62, 0.38);
+
+      --status-danger-dot: #E5645A;
+      --status-danger-text: #F28B82;
+      --status-danger-bg: rgba(229, 100, 90, 0.15);
+      --status-danger-border: rgba(229, 100, 90, 0.36);
+
+      --status-idle-dot: #6C7584;
+      --status-idle-text: #949DAB;
+      --status-idle-bg: rgba(108, 117, 132, 0.16);
+
+      --diff-add-bg: rgba(56, 168, 109, 0.15);
+      --diff-add-ln: rgba(56, 168, 109, 0.24);
+      --diff-add-text: #85DCA9;
+      --diff-del-bg: rgba(224, 93, 83, 0.15);
+      --diff-del-ln: rgba(224, 93, 83, 0.24);
+      --diff-del-text: #F49B94;
+
+      --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+      --shadow-float: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    :root {
+      --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", "Menlo", "Monaco", "Consolas", monospace;
+      --studio-width: 480px;
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-app);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================================================
+       2. 顶部原型演练控制台（Scenario & Viewport Harness）
+       ========================================================================== */
+    .proto-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+    }
+
+    .proto-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-hairline);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .proto-toolbar-left,
+    .proto-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .proto-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text-secondary);
+      padding-right: 6px;
+      border-right: 1px solid var(--border-hairline);
+      white-space: nowrap;
+    }
+
+    .proto-brand-mark {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--accent-solid);
+      display: inline-block;
+    }
+
+    .scenario-strip {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .scenario-btn {
+      height: 24px;
+      padding: 0 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+    }
+
+    .scenario-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .scenario-btn.is-active {
+      background: var(--accent-soft);
+      color: var(--accent-text);
+      border-color: var(--accent-border);
+      font-weight: 600;
+    }
+
+    .ctrl-pill-group {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-xs);
+      padding: 1px;
+      gap: 1px;
+    }
+
+    .ctrl-pill {
+      height: 21px;
+      padding: 0 7px;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .ctrl-pill:hover {
+      color: var(--text-primary);
+    }
+
+    .ctrl-pill.is-active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .icon-btn {
+      height: 24px;
+      padding: 0 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--border-default);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    /* 窄屏/单栏模式下切换三大面板的紧凑导航条 */
+    .compact-pane-switcher {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--bg-studio);
+      border-bottom: 1px solid var(--border-hairline);
+      flex-shrink: 0;
+    }
+
+    .compact-pane-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .compact-pane-tab {
+      flex: 1;
+      min-width: 0;
+      height: 25px;
+      padding: 0 6px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compact-pane-tab.is-active {
+      background: var(--bg-elevated);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       3. Codex 原生三栏桌面容器（Sidebar + Main Stage + Resizable Split Studio）
+       ========================================================================== */
+    .codex-workspace {
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      width: 100%;
+      overflow: hidden;
+      background: var(--bg-stage);
+    }
+
+    /* 左侧原生会话栏 */
+    .native-sidebar {
+      width: 218px;
+      min-width: 218px;
+      max-width: 218px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-hairline);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      user-select: none;
+    }
+
+    .sidebar-top {
+      padding: 10px 10px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
+
+    .sidebar-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sidebar-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding: 8px 6px 4px;
+    }
+
+    .thread-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 28px;
+      padding: 4px 7px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-align: left;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .thread-row:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .thread-row.is-selected {
+      background: var(--bg-active);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .thread-row-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .thread-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .sidebar-micro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 10px;
+      line-height: 14px;
+      flex-shrink: 0;
+    }
+
+    .hidden-slots-toggle {
+      margin-top: 2px;
+      padding: 3px 7px 3px 18px;
+      border: none;
+      border-radius: var(--radius-xs);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+    }
+
+    .hidden-slots-toggle:hover {
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+    }
+
+    .slot-subrow {
+      margin-left: 12px;
+      padding: 3px 6px;
+      border-left: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    }
+
+    .slot-subrow:hover {
+      background: var(--bg-hover);
+    }
+
+    .slot-subrow.is-selected {
+      background: var(--accent-soft);
+      color: var(--accent-text);
+      border-left-color: var(--accent-solid);
+    }
+
+    .mini-promote-btn {
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      border-radius: 3px;
+      padding: 0 4px;
+      height: 18px;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .mini-promote-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-default);
+    }
+
+    /* ==========================================================================
+       4. 中间主对话舞台（Main Conversation Stage & Inline Milestone Cards）
+       ========================================================================== */
+    .main-stage {
+      flex: 1;
+      min-width: 300px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-stage);
+      position: relative;
+    }
+
+    /* 切入子会话深聊时的置顶轻量返回锚点 */
+    .return-anchor-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 14px;
+      background: var(--accent-soft);
+      border-bottom: 1px solid var(--accent-border);
+      color: var(--accent-text);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .return-anchor-btn {
+      height: 24px;
+      padding: 0 10px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--accent-border);
+      background: var(--bg-elevated);
+      color: var(--accent-text);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .return-anchor-btn:hover {
+      background: var(--accent-solid);
+      color: var(--text-on-accent);
+      border-color: var(--accent-solid);
+    }
+
+    .stage-header {
+      height: 40px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    .stage-header-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stage-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stage-stream {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      max-width: 85%;
+      padding: 9px 13px;
+      border-radius: 12px 12px 3px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .msg-assistant {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .msg-speaker {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 单行异步 Squad Notice（防注意力涣散，绝不刷过程日志） */
+    .squad-notice-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      border-left: 3px solid var(--accent-solid);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .squad-notice-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent-text);
+      flex-shrink: 0;
+    }
+
+    /* 主对话内嵌里程碑卡（Blueprint Card & Convergence Card） */
+    .milestone-card {
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    .milestone-card-head {
+      padding: 11px 14px;
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .milestone-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-text);
+    }
+
+    .milestone-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .milestone-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .milestone-intent {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+    }
+
+    .mc-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mc-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mc-criteria-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .mc-criterion {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-size: 12px;
+      padding: 4px 7px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-studio);
+      border: 1px solid var(--border-hairline);
+    }
+
+    .mc-role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+      gap: 8px;
+    }
+
+    .mc-role-chip {
+      padding: 7px 9px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-studio);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .mc-option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mc-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-studio);
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+
+    .mc-option:hover {
+      border-color: var(--border-strong);
+    }
+
+    .mc-option.is-selected {
+      border-color: var(--accent-solid);
+      background: var(--accent-soft);
+    }
+
+    .assumptions-callout {
+      padding: 9px 11px;
+      border-radius: var(--radius-sm);
+      background: var(--status-attention-bg);
+      border: 1px solid var(--status-attention-border);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .assumptions-callout-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--status-attention-text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .assumptions-list {
+      margin: 0;
+      padding-left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .milestone-foot {
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .dual-channel-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      height: 28px;
+      padding: 0 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
+
+    .btn-primary {
+      background: var(--accent-solid);
+      border-color: var(--accent-solid);
+      color: var(--text-on-accent);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-sm {
+      height: 23px;
+      padding: 0 8px;
+      font-size: 11px;
+      border-radius: var(--radius-xs);
+    }
+
+    /* 原生底部 Composer（验证自然语言双通道拍板） */
+    .stage-composer-wrap {
+      padding: 10px 20px 14px;
+      border-top: 1px solid var(--border-hairline);
+      background: var(--bg-stage);
+      flex-shrink: 0;
+    }
+
+    .stage-composer {
+      max-width: 720px;
+      margin: 0 auto;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      background: var(--bg-elevated);
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stage-composer input {
+      flex: 1;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      font-size: 12.5px;
+      color: var(--text-primary);
+      outline: none;
+    }
+
+    /* ==========================================================================
+       5. 可拖拽分隔条 + 右侧原生分屏 Squad Studio（400px ~ 680px 零溢出）
+       ========================================================================== */
+    .split-resizer {
+      width: 5px;
+      cursor: col-resize;
+      background: var(--border-hairline);
+      position: relative;
+      flex-shrink: 0;
+      transition: background-color 120ms ease;
+    }
+
+    .split-resizer:hover,
+    .split-resizer.is-dragging {
+      background: var(--accent-solid);
+    }
+
+    .squad-studio-pane {
+      width: var(--studio-width);
+      min-width: 400px;
+      max-width: 680px;
+      height: 100%;
+      background: var(--bg-studio);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow-x: hidden;
+    }
+
+    .studio-tabbar {
+      height: 40px;
+      padding: 0 12px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    .studio-tab-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .studio-tab-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 19px;
+      padding: 0 6px;
+      border-radius: var(--radius-xs);
+      font-size: 10.5px;
+      font-weight: 500;
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .badge-stateful {
+      color: var(--accent-text);
+      background: var(--accent-soft);
+      border-color: var(--accent-border);
+    }
+
+    .badge-clean {
+      border-style: dashed;
+      border-color: var(--border-strong);
+      color: var(--text-secondary);
+      background: transparent;
+    }
+
+    .badge-settled {
+      color: var(--status-settled-text);
+      background: var(--status-settled-bg);
+      border-color: var(--status-settled-border);
+    }
+
+    .badge-attention {
+      color: var(--status-attention-text);
+      background: var(--status-attention-bg);
+      border-color: var(--status-attention-border);
+    }
+
+    .badge-danger {
+      color: var(--status-danger-text);
+      background: var(--status-danger-bg);
+      border-color: var(--status-danger-border);
+    }
+
+    /* 置顶拦截槽 Needs You：无阻塞时严格 0px 隐藏！ */
+    .needs-you-slot {
+      background: var(--status-attention-bg);
+      border-bottom: 1px solid var(--status-attention-border);
+      padding: 9px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
+    .needs-you-slot[hidden] {
+      display: none !important;
+      height: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    .needs-you-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--status-attention-text);
+    }
+
+    .needs-you-item {
+      background: var(--bg-elevated);
+      border: 1px solid var(--status-attention-border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .studio-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 12px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* 上半区 STATE 画布 */
+    .studio-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      padding: 10px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .studio-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .studio-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .criteria-compact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .criterion-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11.5px;
+      padding: 4px 6px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-studio);
+      min-width: 0;
+    }
+
+    .criterion-row.is-done {
+      color: var(--text-secondary);
+    }
+
+    .criterion-check {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      flex-shrink: 0;
+      width: 14px;
+    }
+
+    .criterion-check.is-done {
+      color: var(--status-settled-dot);
+    }
+
+    .contracts-drawer {
+      border-top: 1px solid var(--border-hairline);
+      padding-top: 7px;
+    }
+
+    .contracts-toggle {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 2px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .contracts-list {
+      margin: 6px 0 0;
+      padding-left: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* 纵向缩进角色拓扑树（Role Topology Tree） */
+    .topology-tree {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .topo-node {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 5px 7px;
+      border-radius: var(--radius-xs);
+      border: 1px solid transparent;
+      background: var(--bg-studio);
+      cursor: pointer;
+      min-width: 0;
+      text-align: left;
+      width: 100%;
+    }
+
+    .topo-node:hover {
+      border-color: var(--border-default);
+      background: var(--bg-hover);
+    }
+
+    .topo-node.is-selected {
+      border-color: var(--accent-border);
+      background: var(--accent-soft);
+    }
+
+    .topo-indent-1 {
+      padding-left: 18px;
+      position: relative;
+    }
+
+    .topo-indent-1::before {
+      content: "├─";
+      position: absolute;
+      left: 5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .topo-indent-2 {
+      padding-left: 30px;
+      position: relative;
+    }
+
+    .topo-indent-2::before {
+      content: "└─";
+      position: absolute;
+      left: 16px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .topo-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .topo-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* 状态圆点（仅 active 执行低频呼吸，reduced-motion 降级） */
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .status-dot::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--status-idle-dot);
+    }
+
+    .status-dot[data-state="active"]::after {
+      background: var(--status-running-dot);
+    }
+
+    .status-dot[data-state="active"]::before {
+      content: "";
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--status-running-dot);
+      animation: squadPulse 2000ms cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+    }
+
+    .status-dot[data-state="quiescent"]::after {
+      background: var(--status-settled-dot);
+    }
+
+    .status-dot[data-state="waiting"]::after,
+    .status-dot[data-state="escalate"]::after {
+      background: var(--status-attention-dot);
+    }
+
+    .status-dot[data-state="failed"]::after {
+      background: var(--status-danger-dot);
+    }
+
+    @keyframes squadPulse {
+      0% { transform: scale(1); opacity: 0.6; }
+      100% { transform: scale(2.3); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .status-dot[data-state="active"]::before {
+        animation: none;
+        transform: scale(1.75);
+        opacity: 0.28;
+      }
+    }
+
+    /* 下半区角色抽检卡与原地窥屏（Role Inspection & In-Place Peek） */
+    .role-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .role-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .role-card.is-expanded {
+      border-color: var(--accent-border);
+      box-shadow: var(--shadow-card);
+    }
+
+    .role-card.has-attention {
+      border-color: var(--status-attention-border);
+    }
+
+    .role-card-summary {
+      width: 100%;
+      padding: 9px 11px;
+      background: transparent;
+      border: none;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .role-card-summary:hover {
+      background: var(--bg-hover);
+    }
+
+    .role-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .role-ident {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .role-handle {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--text-primary);
+    }
+
+    .role-metrics {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    /* 物理改动比例条（3 files · +64 -18 · ✓ 边界内） */
+    .delta-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      padding-top: 2px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .delta-bar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .delta-meter {
+      width: 44px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--bg-subtle);
+      overflow: hidden;
+      display: inline-flex;
+      flex-shrink: 0;
+    }
+
+    .delta-meter-add {
+      background: var(--status-settled-dot);
+      height: 100%;
+    }
+
+    .delta-meter-del {
+      background: var(--status-danger-dot);
+      height: 100%;
+    }
+
+    .text-add { color: var(--status-settled-text); }
+    .text-del { color: var(--status-danger-text); }
+    .text-warn { color: var(--status-attention-text); }
+
+    /* 角色卡原地展开面板 */
+    .role-peek-panel {
+      border-top: 1px solid var(--border-hairline);
+      background: var(--bg-studio);
+      padding: 10px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .peek-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .peek-tab-list {
+      display: inline-flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .peek-tab {
+      height: 23px;
+      padding: 0 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .peek-tab.is-active {
+      background: var(--accent-soft);
+      border-color: var(--accent-border);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .file-row-btn {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-elevated);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
+      font-size: 11.5px;
+      min-width: 0;
+    }
+
+    .file-row-btn:hover {
+      border-color: var(--accent-border);
+      background: var(--bg-hover);
+    }
+
+    .file-path {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      flex: 1;
+    }
+
+    /* 分屏内原生风格代码 Diff 视图 */
+    .native-diff-box {
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      background: var(--bg-code);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .native-diff-head {
+      padding: 6px 9px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border-hairline);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      min-width: 0;
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      table-layout: fixed;
+    }
+
+    .diff-table td {
+      padding: 1px 6px;
+      vertical-align: top;
+    }
+
+    .diff-ln {
+      width: 34px;
+      text-align: right;
+      color: var(--text-muted);
+      user-select: none;
+      border-right: 1px solid var(--border-hairline);
+    }
+
+    .diff-code {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .diff-row-add .diff-ln { background: var(--diff-add-ln); color: var(--diff-add-text); }
+    .diff-row-add .diff-code { background: var(--diff-add-bg); color: var(--diff-add-text); }
+    .diff-row-del .diff-ln { background: var(--diff-del-ln); color: var(--diff-del-text); }
+    .diff-row-del .diff-code { background: var(--diff-del-bg); color: var(--diff-del-text); }
+
+    .brief-pre {
+      margin: 0;
+      padding: 9px 10px;
+      border-radius: var(--radius-xs);
+      background: var(--bg-code);
+      border: 1px solid var(--border-hairline);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text-secondary);
+    }
+
+    /* JSON 契约快照抽屉 */
+    .contract-drawer-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 12, 16, 0.48);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+
+    .contract-drawer-modal[hidden] {
+      display: none !important;
+    }
+
+    .contract-modal-card {
+      width: min(760px, 100%);
+      max-height: 82vh;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-float);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .contract-modal-pre {
+      margin: 0;
+      padding: 12px 14px;
+      overflow: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.48;
+      background: var(--bg-code);
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       6. 1:1 分屏单栏模式 & 400px~680px 窄视口自适应（零横向溢出保障）
+       ========================================================================== */
+    [data-layout="split-only"] .compact-pane-switcher {
+      display: flex;
+    }
+
+    [data-layout="split-only"] .split-resizer {
+      display: none;
+    }
+
+    [data-layout="split-only"] .native-sidebar,
+    [data-layout="split-only"] .main-stage,
+    [data-layout="split-only"] .squad-studio-pane {
+      display: none;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      border-right: none;
+    }
+
+    [data-layout="split-only"][data-active-pane="studio"] .squad-studio-pane {
+      display: flex;
+    }
+
+    [data-layout="split-only"][data-active-pane="stage"] .main-stage {
+      display: flex;
+    }
+
+    [data-layout="split-only"][data-active-pane="sidebar"] .native-sidebar {
+      display: flex;
+    }
+
+    @media (max-width: 960px) {
+      .compact-pane-switcher {
+        display: flex;
+      }
+      .split-resizer,
+      .width-preset-controls {
+        display: none !important;
+      }
+      .native-sidebar,
+      .main-stage,
+      .squad-studio-pane {
+        display: none;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        border-right: none;
+      }
+      [data-active-pane="studio"] .squad-studio-pane {
+        display: flex;
+      }
+      [data-active-pane="stage"] .main-stage {
+        display: flex;
+      }
+      [data-active-pane="sidebar"] .native-sidebar {
+        display: flex;
+      }
+      .stage-scroll {
+        padding: 12px;
+      }
+      .stage-composer-wrap {
+        padding: 8px 12px 10px;
+      }
+    }
+  </style>
+</head>
+<body data-layout="desktop" data-active-pane="studio">
+  <div class="proto-shell" id="app">
+    <!-- 顶部原型演练控制台 -->
+    <header class="proto-toolbar" aria-label="原型场景与视口控制栏">
+      <div class="proto-toolbar-left">
+        <span class="proto-brand">
+          <span class="proto-brand-mark"></span>
+          <span>Squad V2 Prototype</span>
+        </span>
+        <div class="scenario-strip" id="scenario-strip" role="tablist" aria-label="全流程生命周期场景"></div>
+      </div>
+      <div class="proto-toolbar-right">
+        <div class="ctrl-pill-group width-preset-controls" aria-label="右侧分屏宽度预设">
+          <button type="button" class="ctrl-pill mono" data-studio-width="400">400px</button>
+          <button type="button" class="ctrl-pill mono is-active" data-studio-width="480">480px</button>
+          <button type="button" class="ctrl-pill mono" data-studio-width="640">640px</button>
+        </div>
+        <div class="ctrl-pill-group" aria-label="布局视图切换">
+          <button type="button" class="ctrl-pill is-active" data-layout-btn="desktop">三栏桌面</button>
+          <button type="button" class="ctrl-pill" data-layout-btn="split-only">1:1 分屏</button>
+        </div>
+        <button type="button" class="icon-btn mono" id="btn-inspect-json" title="查看当前对齐 squad-v2-contracts.mts 的实时 SquadStudioSnapshot JSON">
+          <span>Snapshot JSON</span>
+        </button>
+        <button type="button" class="icon-btn" id="btn-theme-toggle" aria-label="切换亮暗主题">
+          <span id="theme-label">切换暗色</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 窄屏 / 1:1 分屏模式下的三面板快速切换器 -->
+    <nav class="compact-pane-switcher" aria-label="紧凑模式面板切换">
+      <div class="compact-pane-tabs">
+        <button type="button" class="compact-pane-tab is-active" data-pane-tab="studio" id="tab-btn-studio">Squad Studio 分屏</button>
+        <button type="button" class="compact-pane-tab" data-pane-tab="stage" id="tab-btn-stage">主对话舞台</button>
+        <button type="button" class="compact-pane-tab" data-pane-tab="sidebar" id="tab-btn-sidebar">原生侧栏</button>
+      </div>
+    </nav>
+
+    <!-- Codex 原生三栏协同工作区 -->
+    <div class="codex-workspace" id="codex-workspace">
+      <!-- 1. 左侧原生会话栏 -->
+      <aside class="native-sidebar" id="native-sidebar" aria-label="Codex 原生会话栏"></aside>
+
+      <!-- 2. 中间主对话舞台（或切入的子会话深聊舞台） -->
+      <main class="main-stage" id="main-stage" aria-label="主对话舞台"></main>
+
+      <!-- 可拖拽原生分屏分隔条 -->
+      <div class="split-resizer" id="split-resizer" role="separator" aria-orientation="vertical" aria-label="拖拽调节右侧 Squad Studio 分屏宽度"></div>
+
+      <!-- 3. 右侧 Codex 原生分屏工作台 Squad Studio -->
+      <section class="squad-studio-pane" id="squad-studio" aria-label="Squad Studio 原生分屏标签页"></section>
+    </div>
+  </div>
+
+  <!-- 对齐 squad-v2-contracts.mts 的实时数据结构检视弹层 -->
+  <div class="contract-drawer-modal" id="contract-modal" hidden>
+    <div class="contract-modal-card" role="dialog" aria-modal="true" aria-labelledby="contract-modal-title">
+      <div class="milestone-card-head">
+        <span class="milestone-eyebrow mono" id="contract-modal-title">SquadStudioSnapshot (gateway/spine/squad-v2-contracts.mts)</span>
+        <button type="button" class="btn btn-sm" id="btn-close-modal">关闭</button>
+      </div>
+      <pre class="contract-modal-pre" id="contract-modal-pre"></pre>
+    </div>
+  </div>
+
+  <script id="squad-v2-runtime">
+    (function () {
+      "use strict";
+
+      // ========================================================================
+      // 1. 真实感原生代码 Diff 样本库（供角色卡点击文件原地预览）
+      // ========================================================================
+      const FILE_DIFF_LIBRARY = {
+        "bridge/request-sanitize.mjs": {
+          title: "bridge/request-sanitize.mjs",
+          sha: "078531c..94a1e2b",
+          lines: [
+            { oldLn: 84, newLn: 84, kind: "ctx", text: "export function normalizeProviderTailMessages(messages, provider) {" },
+            { oldLn: 85, newLn: 85, kind: "ctx", text: "  if (!Array.isArray(messages) || messages.length === 0) return messages;" },
+            { oldLn: 86, newLn: null, kind: "del", text: "  if (provider !== 'gemini') return messages;" },
+            { oldLn: null, newLn: 86, kind: "add", text: "  if (!GEMINI_STRICT_TAIL_PROVIDERS.has(provider)) return messages;" },
+            { oldLn: null, newLn: 87, kind: "add", text: "  // Guarantee trailing turn role satisfies Gemini user/tool-response contract" },
+            { oldLn: null, newLn: 88, kind: "add", text: "  const tail = messages[messages.length - 1];" },
+            { oldLn: null, newLn: 89, kind: "add", text: "  if (tail.role === 'assistant' && !tail.tool_calls?.length) {" },
+            { oldLn: null, newLn: 90, kind: "add", text: "    return [...messages, { role: 'user', content: '[Continue from current state]' }];" },
+            { oldLn: null, newLn: 91, kind: "add", text: "  }" },
+            { oldLn: 87, newLn: 92, kind: "ctx", text: "  return coalesceConsecutiveModelTurns(messages);" }
+          ]
+        },
+        "gateway/squad-native-peer.mts": {
+          title: "gateway/squad-native-peer.mts",
+          sha: "078531c..94a1e2b",
+          lines: [
+            { oldLn: 41, newLn: 41, kind: "ctx", text: "export function buildChildSlotLaunchSpec(anchor: HostThreadRef, slot: SquadSlotRecord) {" },
+            { oldLn: 42, newLn: null, kind: "del", text: "  return { cwd: slot.worktreePath ?? process.cwd(), runtimeId: 'default' };" },
+            { oldLn: null, newLn: 42, kind: "add", text: "  return {" },
+            { oldLn: null, newLn: 43, kind: "add", text: "    cwd: slot.worktreePath ?? anchor.cwd," },
+            { oldLn: null, newLn: 44, kind: "add", text: "    runtimeId: anchor.runtimeId," },
+            { oldLn: null, newLn: 45, kind: "add", text: "    sandboxMode: anchor.sandboxMode," },
+            { oldLn: null, newLn: 46, kind: "add", text: "    stripSquadTools: true" },
+            { oldLn: null, newLn: 47, kind: "add", text: "  };" },
+            { oldLn: 43, newLn: 48, kind: "ctx", text: "}" }
+          ]
+        },
+        "gateway/spine/squad-quiescence.mts": {
+          title: "gateway/spine/squad-quiescence.mts",
+          sha: "078531c..c81f04d",
+          lines: [
+            { oldLn: null, newLn: 1, kind: "add", text: "import type { SquadQuiescenceSnapshot, SquadSlotLiveView } from './squad-v2-contracts.mjs';" },
+            { oldLn: null, newLn: 2, kind: "add", text: "" },
+            { oldLn: null, newLn: 3, kind: "add", text: "export function probeSlotQuiescence(slot: SquadSlotLiveView, activeChildren: number): SquadQuiescenceSnapshot | null {" },
+            { oldLn: null, newLn: 4, kind: "add", text: "  if (slot.activity === 'active' || activeChildren > 0) return null;" },
+            { oldLn: null, newLn: 5, kind: "add", text: "  const selfReport = slot.result ?? synthesizeFallbackReport(slot.delta, slot.lastOutputSnippet);" },
+            { oldLn: null, newLn: 6, kind: "add", text: "  return {" },
+            { oldLn: null, newLn: 7, kind: "add", text: "    squadId: 'sq-v2-034', slotId: slot.slotId, handle: slot.handle," },
+            { oldLn: null, newLn: 8, kind: "add", text: "    activity: slot.activity === 'failed' ? 'failed' : slot.activity === 'waiting' ? 'waiting' : 'quiescent'," },
+            { oldLn: null, newLn: 9, kind: "add", text: "    selfReport, delta: slot.delta ?? null, observedAt: Date.now()" },
+            { oldLn: null, newLn: 10, kind: "add", text: "  };" },
+            { oldLn: null, newLn: 11, kind: "add", text: "}" }
+          ]
+        },
+        "gateway/spine/squad-notice-bus.mts": {
+          title: "gateway/spine/squad-notice-bus.mts",
+          sha: "078531c..c81f04d",
+          lines: [
+            { oldLn: 18, newLn: 18, kind: "ctx", text: "export function flushMergedSquadNotice(anchorIdle: boolean, queue: string[]): string | null {" },
+            { oldLn: 19, newLn: 19, kind: "ctx", text: "  if (!anchorIdle || queue.length === 0) return null;" },
+            { oldLn: null, newLn: 20, kind: "add", text: "  const batch = queue.splice(0, queue.length);" },
+            { oldLn: null, newLn: 21, kind: "add", text: "  return `[Squad Notice] ${batch.join(' · ')}`;" },
+            { oldLn: 20, newLn: 22, kind: "ctx", text: "}" }
+          ]
+        },
+        "gateway/spine/squad-v2-contracts.mts": {
+          title: "gateway/spine/squad-v2-contracts.mts (未在授权 touches 内 — 越界预警演示)",
+          sha: "078531c..dirty",
+          lines: [
+            { oldLn: 129, newLn: 129, kind: "ctx", text: "export interface SquadQuiescenceSnapshot {" },
+            { oldLn: 130, newLn: 130, kind: "ctx", text: "  squadId: string;" },
+            { oldLn: null, newLn: 131, kind: "add", text: "  pendingInternalSubagents?: number; // [ESCALATE] 请求主会话裁决是否扩充契约" },
+            { oldLn: 131, newLn: 132, kind: "ctx", text: "  slotId: string;" }
+          ]
+        },
+        "docs/design/squad-v2-studio-prototype.html": {
+          title: "docs/design/squad-v2-studio-prototype.html",
+          sha: "078531c..72d9b10",
+          lines: [
+            { oldLn: null, newLn: 1, kind: "add", text: "<!-- Squad Studio Native Split View & Inline Milestone Cards -->" },
+            { oldLn: null, newLn: 2, kind: "add", text: "<section class=\"needs-you-slot\" hidden><!-- 0px when needsYou.length === 0 --></section>" },
+            { oldLn: null, newLn: 3, kind: "add", text: "<section class=\"studio-card\"><!-- STATE.md Revision + Criteria + Indented Topology --></section>" },
+            { oldLn: null, newLn: 4, kind: "add", text: "<section class=\"role-card-list\"><!-- In-place Result / Assumptions / Diff Peek --></section>" }
+          ]
+        }
+      };
+
+      // ========================================================================
+      // 2. 五大生命周期场景工厂（100% 严格符合 SquadStudioSnapshot TypeScript 契约）
+      // ========================================================================
+      const SCENARIO_META = [
+        { id: "blueprint", label: "1 · 立项对齐卡", defaultPane: "stage" },
+        { id: "quiet", label: "2 · 静默并行 (0px 零打扰)", defaultPane: "studio" },
+        { id: "escalation", label: "3 · 契约升级拦截", defaultPane: "studio" },
+        { id: "stepin", label: "4 · 子会话深聊与返回", defaultPane: "stage" },
+        { id: "convergence", label: "5 · 空白终审与阶段交付", defaultPane: "stage" }
+      ];
+
+      function buildBaseContracts() {
+        return [
+          "架构真源：docs/architecture/0034-squad-v2-architecture.zh-CN.md",
+          "共享契约：gateway/spine/squad-v2-contracts.mts（单方面禁改，变更须写 status: escalate）",
+          "工具链门禁：重任务统一经由 bash ./tools/Invoke-HeavyTask.sh 串行锁执行",
+          "现场保护：主工作区未提交文件只读，严禁重启运行中的桌面客户端"
+        ];
+      }
+
+      function createScenarioData(scenarioId) {
+        const now = 1794898800000;
+        const baseCriteria = [
+          { id: "C1", text: "Gemini 尾消息正规化、子会话权限继承与 runtimeId 漂移根治并通过单测", verifiedBy: null, verifiedAt: null },
+          { id: "C2", text: "单写者 STATE.md、stateful|clean 双寿命、shared|worktree 双空间与异步 Notice 跑通", verifiedBy: null, verifiedAt: null },
+          { id: "C3", text: "右侧原生分屏 Squad Studio + 主对话内嵌里程碑卡经用户拍板后完成前端落地", verifiedBy: null, verifiedAt: null },
+          { id: "C4", text: "三路分支无越界合入 squad/sq-v2-034，经全新空白终审会话执行项目门禁全绿", verifiedBy: null, verifiedAt: null }
+        ];
+
+        const slotProtocol = {
+          slotId: "role-protocol",
+          handle: "@role-protocol",
+          continuity: "stateful",
+          workspace: "worktree",
+          engine: "codex-native",
+          model: "gpt-5.4",
+          reasoningEffort: "high",
+          threadId: "th-proto-91a",
+          hostRef: { hostId: "local", accountId: "acc-main", runtimeId: "rt-mac-arm64", threadId: "th-proto-91a" },
+          worktreePath: "/Users/developer/.codex/worktrees/squad-v2/role-protocol",
+          branch: "codex/squad-v2-protocol",
+          baseSha: "078531c",
+          touches: ["bridge/translate.mjs", "bridge/request-sanitize.mjs", "gateway/squad-native-peer.mts", "gateway/host-threads.mts"],
+          dependsOn: [],
+          sidebarHidden: true,
+          dispatchedAt: now - 210000,
+          updatedAt: now - 40000,
+          activity: "quiescent",
+          waitsOn: null,
+          elapsedMs: 168000,
+          contextPercent: 24,
+          briefMarkdown: "# Brief: @role-protocol\n- Scope: bridge/request-sanitize.mjs, gateway/squad-native-peer.mts\n- Goal: 修复 Gemini invalid_message_role 与子会话 runtimeId/权限继承裂缝。\n- 禁止调用任何 squad_* 工具；完工写入 .mycodex/result.md。",
+          result: {
+            status: "done",
+            summary: "已完成 Gemini 尾端消息角色正规化，并将主会话 runtimeId 与 sandboxMode 显式透传至子槽位启动器。",
+            assumptions: [
+              "当尾消息为无 tool_calls 的 assistant 回合时，仅对 Gemini 严格模式补齐轻量继续锚点，不改写 OpenAI/Claude 原生消息数组。",
+              "子会话默认剥离全部 mycodex.squad_* 工具暴露，防止子代理反向递归派发。"
+            ],
+            body: "单测覆盖 6 种跨模型混合尾消息序列，全部通过。",
+            criteriaMet: ["C1"],
+            reportedAt: now - 40000,
+            autoSynthesized: false
+          },
+          delta: {
+            baseSha: "078531c",
+            headSha: "94a1e2b",
+            commits: [{ sha: "94a1e2b", subject: "fix(protocol): normalize gemini tail turn and inherit host runtimeId" }],
+            changed: [
+              { path: "bridge/request-sanitize.mjs", status: "M", add: 38, del: 9 },
+              { path: "gateway/squad-native-peer.mts", status: "M", add: 26, del: 9 }
+            ],
+            outsideTouches: []
+          },
+          lastOutputSnippet: "Protocol unit suite passed (14/14)."
+        };
+
+        const slotKernel = {
+          slotId: "role-kernel",
+          handle: "@role-kernel",
+          continuity: "stateful",
+          workspace: "worktree",
+          engine: "codex-native",
+          model: "claude-opus-4-6",
+          reasoningEffort: "high",
+          threadId: "th-kern-82b",
+          hostRef: { hostId: "local", accountId: "acc-main", runtimeId: "rt-mac-arm64", threadId: "th-kern-82b" },
+          worktreePath: "/Users/developer/.codex/worktrees/squad-v2/role-kernel",
+          branch: "codex/squad-v2-kernel",
+          baseSha: "078531c",
+          touches: ["gateway/spine/squad-state.mts", "gateway/spine/squad-quiescence.mts", "gateway/spine/squad-notice-bus.mts", "gateway/spine/mcp-server.mts"],
+          dependsOn: [],
+          sidebarHidden: true,
+          dispatchedAt: now - 195000,
+          updatedAt: now - 12000,
+          activity: "active",
+          waitsOn: null,
+          elapsedMs: 183000,
+          contextPercent: 39,
+          briefMarkdown: "# Brief: @role-kernel\n- Scope: gateway/spine/squad-*.mts, gateway/spine/mcp-server.mts\n- Goal: 实现单写者 STATE.md 乐观锁、物理静止探针与空闲合并 [Squad Notice] 管道。\n- 严禁私自破坏 squad-v2-contracts.mts。",
+          result: null,
+          delta: {
+            baseSha: "078531c",
+            headSha: "c81f04d",
+            commits: [{ sha: "c81f04d", subject: "feat(spine): single-writer state store and quiescence probe" }],
+            changed: [
+              { path: "gateway/spine/squad-quiescence.mts", status: "A", add: 74, del: 0 },
+              { path: "gateway/spine/squad-notice-bus.mts", status: "M", add: 29, del: 11 }
+            ],
+            outsideTouches: []
+          },
+          lastOutputSnippet: "Verifying idle notice coalescing under concurrent slot completions..."
+        };
+
+        const slotStudio = {
+          slotId: "role-studio",
+          handle: "@role-studio",
+          continuity: "stateful",
+          workspace: "worktree",
+          engine: "codex-native",
+          model: "gemini-3.1-pro",
+          reasoningEffort: "high",
+          threadId: "th-stud-73c",
+          hostRef: { hostId: "local", accountId: "acc-main", runtimeId: "rt-mac-arm64", threadId: "th-stud-73c" },
+          worktreePath: "/Users/developer/.codex/worktrees/squad-v2/role-studio",
+          branch: "codex/squad-v2-studio",
+          baseSha: "078531c",
+          touches: ["docs/design/squad-v2-studio-prototype.html"],
+          dependsOn: [],
+          sidebarHidden: true,
+          dispatchedAt: now - 180000,
+          updatedAt: now - 8000,
+          activity: "active",
+          waitsOn: null,
+          elapsedMs: 172000,
+          contextPercent: 31,
+          briefMarkdown: "# Brief: @role-studio (Stage C1 Gate)\n- Scope: 仅允许新增 docs/design/squad-v2-studio-prototype.html\n- Goal: 高信噪比、防注意力涣散双主题原型，待人类拍板后才进入 Stage C2 改 bridge/。",
+          result: {
+            status: "done",
+            summary: "已完成 Codex 三栏协同 + 400~680px 自适应原生分屏交互原型。",
+            assumptions: [
+              "当 needsYou 为空数组时，分屏置顶拦截槽采用物理 0px 隐藏而非置灰占位，将首屏 100% 留给 STATE 判据与角色抽检。",
+              "队友 Assumptions & Trade-offs 默认提炼为琥珀色高对比度焦点卡，避免被折叠进二级日志。"
+            ],
+            body: "支持亮/暗无缝切换、原地 Diff 窥屏与双通道 expectedRevision 审批。",
+            criteriaMet: [],
+            reportedAt: now - 8000,
+            autoSynthesized: false
+          },
+          delta: {
+            baseSha: "078531c",
+            headSha: "72d9b10",
+            commits: [{ sha: "72d9b10", subject: "docs(design): add interactive squad v2 studio stage c1 prototype" }],
+            changed: [
+              { path: "docs/design/squad-v2-studio-prototype.html", status: "A", add: 920, del: 0 }
+            ],
+            outsideTouches: []
+          },
+          lastOutputSnippet: "Playwright headless check: 0 console errors, 0px overflow at 400px-680px."
+        };
+
+        const slotVerifier = {
+          slotId: "clean-verifier",
+          handle: "@clean-verifier",
+          continuity: "clean",
+          workspace: "worktree",
+          engine: "codex-native",
+          model: "gpt-5.4",
+          reasoningEffort: "xhigh",
+          threadId: null,
+          hostRef: null,
+          worktreePath: "/Users/developer/.codex/worktrees/squad-v2/clean-verifier",
+          branch: "squad/sq-v2-034",
+          baseSha: "078531c",
+          touches: [],
+          dependsOn: ["role-protocol", "role-kernel", "role-studio"],
+          sidebarHidden: true,
+          dispatchedAt: null,
+          updatedAt: now - 5000,
+          activity: "planned",
+          waitsOn: "role-protocol, role-kernel, role-studio",
+          elapsedMs: null,
+          contextPercent: 0,
+          briefMarkdown: "# Clean Verifier Contract (Zero Prior Context)\n- 输入仅限：STATE.md 四条验收判据 + git diff 078531c...squad/sq-v2-034\n- 不注入任何讨论流水账，独立运行 Invoke-HeavyTask.sh 门禁并挑刺。",
+          result: null,
+          delta: null,
+          lastOutputSnippet: null
+        };
+
+        // ---- 场景 1：立项对齐卡 Blueprint Gate ----
+        if (scenarioId === "blueprint") {
+          const plannedSlots = [slotProtocol, slotKernel, slotStudio, slotVerifier].map(function (s) {
+            return Object.assign({}, s, {
+              activity: "planned",
+              elapsedMs: null,
+              contextPercent: 0,
+              result: null,
+              delta: null
+            });
+          });
+          return {
+            snapshot: {
+              squadId: "sq-v2-034",
+              anchorThreadId: "01a1d96c-ae84-7142-9d24-d7d29581a460",
+              integrationBranch: "squad/sq-v2-034",
+              integrationWorktree: "/Users/developer/.codex/worktrees/squad-v2/integration",
+              status: "active",
+              studioUrl: "ui://mycodex/squad-studio.html?squadId=sq-v2-034",
+              state: {
+                schemaVersion: 2,
+                squadId: "sq-v2-034",
+                revision: 1,
+                title: "MyCodex Squad V2 架构与原生分屏落地",
+                intent: "废弃 V1 全员共享流水账与 360px 挤压抽屉，落地单写者 STATE、双寿命/双空间角色槽与 Codex 原生右侧分屏工作台。",
+                invariants: ["主会话独占 STATE.md 写权限", "终审必须启用零历史 clean 会话防路径偏见"],
+                contracts: buildBaseContracts(),
+                criteria: baseCriteria,
+                tasks: [
+                  { slotId: "role-protocol", goal: "协议尾消息正规化与子会话权限继承", touches: slotProtocol.touches, dependsOn: [], status: "todo" },
+                  { slotId: "role-kernel", goal: "单写者 STATE 内核与物理静止 Notice 管道", touches: slotKernel.touches, dependsOn: [], status: "todo" },
+                  { slotId: "role-studio", goal: "Stage C1 原型打样门禁 → C2 前端生产落地", touches: slotStudio.touches, dependsOn: [], status: "todo" },
+                  { slotId: "clean-verifier", goal: "三路合入后零上下文独立门禁终审", touches: [], dependsOn: ["role-protocol", "role-kernel", "role-studio"], status: "todo" }
+                ],
+                openBlockers: [],
+                activeGate: {
+                  id: "gate-bp-01",
+                  kind: "blueprint",
+                  title: "立项对齐：Squad V2 协同界面形态与角色隔离策略",
+                  question: "请确认右侧协同界面载体及前端推进门禁（支持卡片按钮或直接在主输入框回复拍板）：",
+                  recommendedOptionId: "opt-native-split",
+                  options: [
+                    {
+                      id: "opt-native-split",
+                      label: "Codex 原生右侧分屏 + Stage C1 原型先审（推荐）",
+                      summary: "通过 open_in_codex 打开 400~680px 可拖拽原生分屏；@role-studio 先只交付单文件 HTML 原型经人类拍板后再动生产代码。"
+                    },
+                    {
+                      id: "opt-inline-only",
+                      label: "仅保留对话流内嵌卡片（无右侧常驻工作台）",
+                      summary: "实现最轻，但多角色并行时缺少原地窥屏 Diff 与拓扑全局状态锚点。"
+                    }
+                  ],
+                  status: "open",
+                  resolutionText: null,
+                  openedAt: now - 300000,
+                  resolvedAt: null,
+                  stateRevision: 1
+                },
+                updatedAt: now - 300000
+              },
+              slots: plannedSlots,
+              needsYou: [
+                {
+                  kind: "gate",
+                  slotId: null,
+                  title: "待拍板立项蓝图 (rev.1)",
+                  detail: "确认「原生分屏 + Stage C1 原型门禁」后，立即并行派发 3 个独立 worktree 角色槽。"
+                }
+              ],
+              events: [
+                { seq: 1, at: now - 300000, kind: "initialized", slotId: null, summary: "初始化小队 sq-v2-034 与集成分支 squad/sq-v2-034" },
+                { seq: 2, at: now - 299000, kind: "gate_opened", slotId: null, summary: "开启立项对齐门禁 gate-bp-01 (rev.1)" }
+              ]
+            },
+            selectedOptionId: "opt-native-split",
+            expandedSlotId: "role-studio",
+            activeThreadView: "anchor",
+            anchorMessages: [
+              { role: "user", text: "帮我设计并组建 MyCodex 工作台 Squad V2 小队，解决之前流水账刷屏、注意力涣散和验证走过场的问题。" },
+              { role: "assistant", speaker: "Orchestrator · 主会话", text: "已完成代码库契约核对并拟定 Squad V2 执行蓝图：采用三路独立 worktree 持久专家并行 + 一路零历史空白验证者（@clean-verifier）收口。开跑前请确认右侧分屏形态与 C1 原型门禁：" }
+            ],
+            notices: [],
+            childChatLog: []
+          };
+        }
+
+        // ---- 场景 2：并行静默执行 Quiet Execution (Needs You 严格 0px) ----
+        if (scenarioId === "quiet") {
+          const criteria = baseCriteria.map(function (c) {
+            return c.id === "C1" ? Object.assign({}, c, { verifiedBy: "@role-protocol", verifiedAt: now - 40000 }) : c;
+          });
+          return {
+            snapshot: {
+              squadId: "sq-v2-034",
+              anchorThreadId: "01a1d96c-ae84-7142-9d24-d7d29581a460",
+              integrationBranch: "squad/sq-v2-034",
+              integrationWorktree: "/Users/developer/.codex/worktrees/squad-v2/integration",
+              status: "active",
+              studioUrl: "ui://mycodex/squad-studio.html?squadId=sq-v2-034",
+              state: {
+                schemaVersion: 2,
+                squadId: "sq-v2-034",
+                revision: 3,
+                title: "MyCodex Squad V2 架构与原生分屏落地",
+                intent: "三路独立 worktree 正在静默推进；无门禁或契约冲突时右侧拦截槽保持 0px 零打扰。",
+                invariants: ["主会话独占 STATE.md 写权限", "终审必须启用零历史 clean 会话防路径偏见"],
+                contracts: buildBaseContracts(),
+                criteria: criteria,
+                tasks: [
+                  { slotId: "role-protocol", goal: "协议尾消息正规化与子会话权限继承", touches: slotProtocol.touches, dependsOn: [], status: "done" },
+                  { slotId: "role-kernel", goal: "单写者 STATE 内核与物理静止 Notice 管道", touches: slotKernel.touches, dependsOn: [], status: "running" },
+                  { slotId: "role-studio", goal: "Stage C1 原型打样门禁", touches: slotStudio.touches, dependsOn: [], status: "running" },
+                  { slotId: "clean-verifier", goal: "三路合入后零上下文独立门禁终审", touches: [], dependsOn: ["role-protocol", "role-kernel", "role-studio"], status: "todo" }
+                ],
+                openBlockers: [],
+                activeGate: null,
+                updatedAt: now - 40000
+              },
+              slots: [
+                slotProtocol,
+                slotKernel,
+                Object.assign({}, slotStudio, { result: null }),
+                slotVerifier
+              ],
+              needsYou: [],
+              events: [
+                { seq: 3, at: now - 210000, kind: "gate_resolved", slotId: null, summary: "立项门禁批准：采用原生右侧分屏 + C1 原型先审 (rev.2)" },
+                { seq: 4, at: now - 208000, kind: "dispatched", slotId: null, summary: "并行派发 @role-protocol, @role-kernel, @role-studio" },
+                { seq: 5, at: now - 40000, kind: "quiescent", slotId: "role-protocol", summary: "@role-protocol 物理静止 (done · 2 files +64 -18)" }
+              ]
+            },
+            selectedOptionId: "opt-native-split",
+            expandedSlotId: "role-protocol",
+            activeThreadView: "anchor",
+            anchorMessages: [
+              { role: "user", text: "按推荐方案批准开跑，先让 @role-studio 把 C1 原型打好给我看。" },
+              { role: "assistant", speaker: "Orchestrator · 主会话", text: "已按 rev.2 锁定蓝图并向三路独立 worktree 非阻塞派发任务。输入框已交还给你——你可以继续和我讨论其他问题，右侧 Squad Studio 保持静默不滚屏，有需要拍板的节点会自动置顶提醒。" }
+            ],
+            notices: [
+              "@role-protocol 已静止完工（C1 单测 14/14 通过 · 2 files +64 −18 · ✓ 边界内），其余两路仍在运行。"
+            ],
+            childChatLog: []
+          };
+        }
+
+        // ---- 场景 3：契约升级拦截 Mid-flight Escalation ----
+        if (scenarioId === "escalation") {
+          const escalatedKernel = Object.assign({}, slotKernel, {
+            activity: "quiescent",
+            elapsedMs: 214000,
+            result: {
+              status: "escalate",
+              summary: "物理静止探针遇到嵌套内部 subagent 场景，请求主会话裁决是否扩充共享契约字段。",
+              assumptions: [
+                "若子槽位内部唤醒了本地 explore 子代理，父回合短暂 idle 不代表整个槽位真正静止。",
+                "已在本地工作树试写 squad-v2-contracts.mts (+1 行可选字段)，因不在授权 touches 内主动停机上报 escalate。"
+              ],
+              body: "等待主会话裁决：方案 A 将可选字段纳入共享契约；方案 B 撤回契约改动，在探针内部聚合。",
+              criteriaMet: [],
+              reportedAt: now - 15000,
+              autoSynthesized: false
+            },
+            delta: {
+              baseSha: "078531c",
+              headSha: "d19e44a",
+              commits: [{ sha: "d19e44a", subject: "wip(spine): quiescence probe subagent guard" }],
+              changed: [
+                { path: "gateway/spine/squad-quiescence.mts", status: "A", add: 74, del: 0 },
+                { path: "gateway/spine/squad-notice-bus.mts", status: "M", add: 29, del: 11 },
+                { path: "gateway/spine/squad-v2-contracts.mts", status: "M", add: 1, del: 0 }
+              ],
+              outsideTouches: ["gateway/spine/squad-v2-contracts.mts"]
+            }
+          });
+          return {
+            snapshot: {
+              squadId: "sq-v2-034",
+              anchorThreadId: "01a1d96c-ae84-7142-9d24-d7d29581a460",
+              integrationBranch: "squad/sq-v2-034",
+              integrationWorktree: "/Users/developer/.codex/worktrees/squad-v2/integration",
+              status: "active",
+              studioUrl: "ui://mycodex/squad-studio.html?squadId=sq-v2-034",
+              state: {
+                schemaVersion: 2,
+                squadId: "sq-v2-034",
+                revision: 4,
+                title: "MyCodex Squad V2 架构与原生分屏落地",
+                intent: "拦截子会话契约升级请求与越界改动预警，支持在分屏顶部原位一键拍板。",
+                invariants: ["主会话独占 STATE.md 写权限", "未授权契约变更必须拦截审阅"],
+                contracts: buildBaseContracts(),
+                criteria: baseCriteria.map(function (c) {
+                  return c.id === "C1" ? Object.assign({}, c, { verifiedBy: "@role-protocol", verifiedAt: now - 90000 }) : c;
+                }),
+                tasks: [
+                  { slotId: "role-protocol", goal: "协议尾消息正规化与子会话权限继承", touches: slotProtocol.touches, dependsOn: [], status: "done" },
+                  { slotId: "role-kernel", goal: "单写者 STATE 内核与物理静止 Notice 管道", touches: slotKernel.touches, dependsOn: [], status: "blocked" },
+                  { slotId: "role-studio", goal: "Stage C1 原型打样门禁", touches: slotStudio.touches, dependsOn: [], status: "review" },
+                  { slotId: "clean-verifier", goal: "三路合入后零上下文独立门禁终审", touches: [], dependsOn: ["role-protocol", "role-kernel", "role-studio"], status: "todo" }
+                ],
+                openBlockers: [
+                  { id: "blk-01", slotId: "role-kernel", summary: "请求裁决 SquadQuiescenceSnapshot 契约与 1 处越界改动", createdAt: now - 15000 }
+                ],
+                activeGate: {
+                  id: "gate-esc-02",
+                  kind: "decision",
+                  title: "契约升级裁决：@role-kernel 越界触碰 squad-v2-contracts.mts",
+                  question: "@role-kernel 发现嵌套 subagent 静止探针边界并请求修改共享契约，请选择处理策略：",
+                  recommendedOptionId: "opt-keep-contract",
+                  options: [
+                    {
+                      id: "opt-keep-contract",
+                      label: "维持现有契约零改动，内核内部消化计数（推荐）",
+                      summary: "要求 @role-kernel 回滚 squad-v2-contracts.mts 越界行，避免惊动前端与协议分支重编。"
+                    },
+                    {
+                      id: "opt-accept-contract",
+                      label: "批准新增可选字段并升级 STATE 公共契约至 rev.5",
+                      summary: "向后兼容保留 pendingInternalSubagents?: number，同步通知下游槽位。"
+                    }
+                  ],
+                  status: "open",
+                  resolutionText: null,
+                  openedAt: now - 15000,
+                  resolvedAt: null,
+                  stateRevision: 4
+                },
+                updatedAt: now - 15000
+              },
+              slots: [slotProtocol, escalatedKernel, slotStudio, slotVerifier],
+              needsYou: [
+                {
+                  kind: "slot_escalated",
+                  slotId: "role-kernel",
+                  title: "@role-kernel 提交 status: escalate（含 1 个越界文件）",
+                  detail: "触碰 gateway/spine/squad-v2-contracts.mts (+1 −0)，请求裁决保持零破坏契约或升级公共接口。"
+                }
+              ],
+              events: [
+                { seq: 6, at: now - 15000, kind: "waiting", slotId: "role-kernel", summary: "@role-kernel 主动上报 escalate 并暂停等待契约裁决" },
+                { seq: 7, at: now - 14000, kind: "gate_opened", slotId: "role-kernel", summary: "开启契约裁决门禁 gate-esc-02 (rev.4)" }
+              ]
+            },
+            selectedOptionId: "opt-keep-contract",
+            expandedSlotId: "role-kernel",
+            activeThreadView: "anchor",
+            anchorMessages: [
+              { role: "user", text: "先跑着，如果有谁动到了公共契约立刻拦下来告诉我。" },
+              { role: "assistant", speaker: "Orchestrator · 主会话", text: "收到 @role-kernel 的契约升级上报（物理增量检测同时标记了 1 个越界文件 `squad-v2-contracts.mts`）。你可以在右侧分屏置顶 `Needs You` 槽直接一键裁决，或在这里回复。" }
+            ],
+            notices: [
+              "⚠ @role-kernel 上报 status: escalate（检测到 1 个 outsideTouches 文件），已挂起等待裁决。"
+            ],
+            childChatLog: []
+          };
+        }
+
+        // ---- 场景 4：进入 stateful 子会话深聊与一键返回锚点 ----
+        if (scenarioId === "stepin") {
+          return {
+            snapshot: {
+              squadId: "sq-v2-034",
+              anchorThreadId: "01a1d96c-ae84-7142-9d24-d7d29581a460",
+              integrationBranch: "squad/sq-v2-034",
+              integrationWorktree: "/Users/developer/.codex/worktrees/squad-v2/integration",
+              status: "active",
+              studioUrl: "ui://mycodex/squad-studio.html?squadId=sq-v2-034",
+              state: {
+                schemaVersion: 2,
+                squadId: "sq-v2-034",
+                revision: 5,
+                title: "MyCodex Squad V2 架构与原生分屏落地",
+                intent: "支持人类直接切入 stateful 持久专家微调审美细节，顶部常驻轻量「★ 返回主会话」导航锚点。",
+                invariants: ["主会话独占 STATE.md 写权限", "人类直聊子会话后由 Notice Bus 自动回流单行摘要"],
+                contracts: buildBaseContracts(),
+                criteria: baseCriteria.map(function (c) {
+                  return (c.id === "C1" || c.id === "C2")
+                    ? Object.assign({}, c, { verifiedBy: c.id === "C1" ? "@role-protocol" : "@role-kernel", verifiedAt: now - 30000 })
+                    : c;
+                }),
+                tasks: [
+                  { slotId: "role-protocol", goal: "协议尾消息正规化与子会话权限继承", touches: slotProtocol.touches, dependsOn: [], status: "done" },
+                  { slotId: "role-kernel", goal: "单写者 STATE 内核与物理静止 Notice 管道", touches: slotKernel.touches, dependsOn: [], status: "done" },
+                  { slotId: "role-studio", goal: "Stage C1 原型审美微调（人类已切入对话）", touches: slotStudio.touches, dependsOn: [], status: "review" },
+                  { slotId: "clean-verifier", goal: "三路合入后零上下文独立门禁终审", touches: [], dependsOn: ["role-protocol", "role-kernel", "role-studio"], status: "todo" }
+                ],
+                openBlockers: [],
+                activeGate: null,
+                updatedAt: now - 10000
+              },
+              slots: [
+                slotProtocol,
+                Object.assign({}, slotKernel, {
+                  activity: "quiescent",
+                  result: {
+                    status: "done",
+                    summary: "已按裁决回滚契约越界行，在探针内部完成嵌套 subagent 静止过滤并通过全部单测。",
+                    assumptions: ["Notice 合并窗口仅在主会话 turn 状态为 idle 时触发投递，绝不打断主会话流式输出。"],
+                    body: "6 原语 MCP 注册与幂等锁回归通过。",
+                    criteriaMet: ["C2"],
+                    reportedAt: now - 25000,
+                    autoSynthesized: false
+                  }
+                }),
+                Object.assign({}, slotStudio, { activity: "quiescent" }),
+                slotVerifier
+              ],
+              needsYou: [],
+              events: [
+                { seq: 8, at: now - 10000, kind: "human_stepped_in", slotId: "role-studio", summary: "人类切入持久槽位 @role-studio 微调视觉与排版细节" }
+              ]
+            },
+            selectedOptionId: "opt-native-split",
+            expandedSlotId: "role-studio",
+            activeThreadView: "role-studio",
+            anchorMessages: [
+              { role: "user", text: "我去 @role-studio 子会话里直接跟它调两句亮色主题的边框对比度，调完回来拍板。" },
+              { role: "assistant", speaker: "Orchestrator · 主会话", text: "好的，@role-studio 是 `stateful` 持久专家槽，保留完整设计上下文。你切过去微调完点击顶部「★ 返回主会话」即可，Gateway 会自动把你们达成的结果单行回流给我。" }
+            ],
+            notices: [],
+            childChatLog: [
+              { role: "user", text: "亮色模式下侧边栏用暖石膏色 #F6F5F2，另外没有任何阻塞时 Needs You 区域必须彻底 0px 隐藏，不要留灰色空框。" },
+              { role: "assistant", speaker: "@role-studio · stateful (gemini-3.1-pro)", text: "已更新至 `squad-v2-studio-prototype.html`：亮色侧栏采用 `#F6F5F2` 与纯白舞台形成柔和物理分层；当 `needsYou.length === 0` 时拦截槽直接设置 `hidden`（`height: 0`），首屏直接呈现 STATE 判据与拓扑树。你可以点击上方「★ 返回主会话」验收合流。" }
+            ]
+          };
+        }
+
+        // ---- 场景 5：空白终审与阶段交付卡 Clean Verify & Convergence ----
+        const verifiedCriteria = baseCriteria.map(function (c) {
+          return Object.assign({}, c, { verifiedBy: "@clean-verifier", verifiedAt: now - 3000 });
+        });
+        const doneKernel = Object.assign({}, slotKernel, {
+          activity: "quiescent",
+          elapsedMs: 228000,
+          result: {
+            status: "done",
+            summary: "单写者 STATE.md、乐观锁 expectedRevision、worktree 增量扫描与空闲 Notice 合并总线全部落地。",
+            assumptions: [
+              "若子会话崩溃或未写 .mycodex/result.md 即进入静止，内核自动读取 git diff 与末条消息合成 autoSynthesized 快照。",
+              "6 原语保持对旧版调用参数的平滑兼容层，零破坏既有测试。"
+            ],
+            body: "后端内核单测 32/32 全绿。",
+            criteriaMet: ["C2"],
+            reportedAt: now - 60000,
+            autoSynthesized: false
+          }
+        });
+        const doneStudio = Object.assign({}, slotStudio, {
+          activity: "quiescent",
+          elapsedMs: 245000,
+          touches: ["docs/design/squad-v2-studio-prototype.html", "bridge/diy/squad-card.mts", "bridge/desktop-spine-ui.mts"],
+          result: {
+            status: "done",
+            summary: "C1 原型经拍板后已完成 Stage C2 原生分屏与内嵌里程碑卡组件绑定。",
+            assumptions: [
+              "分屏支持 400px~680px 拖拽记忆，窄于 960px 宿主窗口时自动收敛为无横向滚动条紧凑布局。"
+            ],
+            body: "亮暗双主题与键盘焦点可达性全部通过无头浏览器校验。",
+            criteriaMet: ["C3"],
+            reportedAt: now - 35000,
+            autoSynthesized: false
+          }
+        });
+        const doneVerifier = Object.assign({}, slotVerifier, {
+          threadId: "th-clean-99z",
+          activity: "quiescent",
+          waitsOn: null,
+          dispatchedAt: now - 28000,
+          elapsedMs: 25000,
+          contextPercent: 14,
+          result: {
+            status: "done",
+            summary: "零历史上下文独立检视 078531c...squad/sq-v2-034 完整 Diff 并运行 Invoke-HeavyTask.sh 门禁：4 条判据全部达成，零越界文件。",
+            assumptions: [
+              "终审基于真实 Git 工作树与门禁退出码，未读取任何前置对话协商记录，排除顺从偏见。",
+              "留意项：Windows 平台完整打包仍按发布规范留待正式发版阶段在 Windows Runner 执行。"
+            ],
+            body: "typecheck / test:diy / 边界守卫全部通过。",
+            criteriaMet: ["C1", "C2", "C3", "C4"],
+            reportedAt: now - 3000,
+            autoSynthesized: false
+          },
+          delta: {
+            baseSha: "078531c",
+            headSha: "f30b88e",
+            commits: [],
+            changed: [],
+            outsideTouches: []
+          },
+          lastOutputSnippet: "Invoke-HeavyTask.sh typecheck & unit gates: PASS (0 errors)."
+        });
+
+        return {
+          snapshot: {
+            squadId: "sq-v2-034",
+            anchorThreadId: "01a1d96c-ae84-7142-9d24-d7d29581a460",
+            integrationBranch: "squad/sq-v2-034",
+            integrationWorktree: "/Users/developer/.codex/worktrees/squad-v2/integration",
+            status: "active",
+            studioUrl: "ui://mycodex/squad-studio.html?squadId=sq-v2-034",
+            state: {
+              schemaVersion: 2,
+              squadId: "sq-v2-034",
+              revision: 7,
+              title: "MyCodex Squad V2 架构与原生分屏落地",
+              intent: "三路成果已合入集成分支并通过 @clean-verifier 空白终审，提炼关键假设供人类最终确认合入。",
+              invariants: ["主会话独占 STATE.md 写权限", "终审必须启用零历史 clean 会话防路径偏见"],
+              contracts: buildBaseContracts(),
+              criteria: verifiedCriteria,
+              tasks: [
+                { slotId: "role-protocol", goal: "协议尾消息正规化与子会话权限继承", touches: slotProtocol.touches, dependsOn: [], status: "done" },
+                { slotId: "role-kernel", goal: "单写者 STATE 内核与物理静止 Notice 管道", touches: slotKernel.touches, dependsOn: [], status: "done" },
+                { slotId: "role-studio", goal: "原生分屏工作台与内嵌里程碑卡落地", touches: doneStudio.touches, dependsOn: [], status: "done" },
+                { slotId: "clean-verifier", goal: "三路合入后零上下文独立门禁终审", touches: [], dependsOn: ["role-protocol", "role-kernel", "role-studio"], status: "done" }
+              ],
+              openBlockers: [],
+              activeGate: {
+                id: "gate-conv-03",
+                kind: "convergence",
+                title: "阶段交付裁决：4/4 判据已由 @clean-verifier 独立验证通过",
+                question: "请审阅提炼出的队友关键假设与边界取舍，确认将集成分支 squad/sq-v2-034 合入目标主分支：",
+                recommendedOptionId: "opt-merge-close",
+                options: [
+                  {
+                    id: "opt-merge-close",
+                    label: "确认合入主分支并收束小队（保留持久专家可按需扶正）",
+                    summary: "执行 fast-forward 合入，归档临时 worktree，保留全部真实会话历史。"
+                  },
+                  {
+                    id: "opt-hold-review",
+                    label: "暂缓合入，先在右侧分屏逐文件抽检 Diff",
+                    summary: "保持集成分支冻结，展开右侧文件变更明细核对实现细节。"
+                  }
+                ],
+                status: "open",
+                resolutionText: null,
+                openedAt: now - 2000,
+                resolvedAt: null,
+                stateRevision: 7
+              },
+              updatedAt: now - 2000
+            },
+            slots: [slotProtocol, doneKernel, doneStudio, doneVerifier],
+            needsYou: [
+              {
+                kind: "gate",
+                slotId: "role-protocol",
+                title: "阶段交付待确认合入 (4/4 判据全绿 · rev.7)",
+                detail: "@clean-verifier 零历史终审通过；请审阅提炼出的 7 条队友关键假设与取舍后拍板合入。"
+              }
+            ],
+            events: [
+              { seq: 9, at: now - 30000, kind: "integrated", slotId: null, summary: "三路分支无冲突合入集成分支 squad/sq-v2-034" },
+              { seq: 10, at: now - 28000, kind: "dispatched", slotId: "clean-verifier", summary: "拉起零历史空白验证会话 @clean-verifier 执行独立终审" },
+              { seq: 11, at: now - 3000, kind: "quiescent", slotId: "clean-verifier", summary: "@clean-verifier 终审通过 (4/4 判据勾选)" }
+            ]
+          },
+          selectedOptionId: "opt-merge-close",
+          expandedSlotId: "clean-verifier",
+          activeThreadView: "anchor",
+          anchorMessages: [
+            { role: "user", text: "三路都做完后合到集成分支，拉一个完全没有上下文包袱的 clean-verifier 严格跑一遍门禁和边界检查。" },
+            { role: "assistant", speaker: "Orchestrator · 主会话", text: "三路分支已干净合入 `squad/sq-v2-034`，全新拉起的 `@clean-verifier`（零对话历史，仅输入 4 条判据与完整 Git Diff）已完成独立验证。我已把各角色的关键假设（Assumptions & Trade-offs）提炼在下方阶段交付卡中，请审阅拍板：" }
+          ],
+          notices: [
+            "✓ @clean-verifier 空白终审完成：4/4 判据通过，0 越界文件，门禁退出码 0。"
+          ],
+          childChatLog: []
+        };
+      }
+
+      // ========================================================================
+      // 3. 交互状态机与 DOM 安全转义工具
+      // ========================================================================
+      const store = {
+        scenarioId: "blueprint",
+        theme: "light",
+        layout: "desktop",
+        activePane: "studio",
+        studioWidth: 480,
+        sidebarSlotsOpen: false,
+        contractsOpen: false,
+        peekTabBySlot: {},
+        selectedDiffFileBySlot: {},
+        session: createScenarioData("blueprint")
+      };
+
+      function esc(val) {
+        return String(val == null ? "" : val)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function formatDuration(ms) {
+        if (ms == null) return "—";
+        const totalSec = Math.max(1, Math.round(ms / 1000));
+        const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
+        const s = String(totalSec % 60).padStart(2, "0");
+        return m + ":" + s;
+      }
+
+      function activityLabel(slot) {
+        if (slot.result && slot.result.status === "escalate") return "请求升级";
+        if (slot.result && slot.result.status === "blocked") return "受阻";
+        switch (slot.activity) {
+          case "active": return "运行中";
+          case "quiescent": return slot.result && slot.result.status === "done" ? "已静止·完工" : "已静止";
+          case "waiting": return "等待输入";
+          case "failed": return "异常";
+          case "closed": return "已收束";
+          default: return "待派发";
+        }
+      }
+
+      function dotState(slot) {
+        if (slot.result && (slot.result.status === "escalate" || slot.result.status === "blocked")) {
+          return "escalate";
+        }
+        return slot.activity;
+      }
+
+      function computeAggregateBadge(snapshot) {
+        let attn = snapshot.needsYou.length;
+        let running = 0;
+        let done = 0;
+        snapshot.slots.forEach(function (s) {
+          if (s.activity === "active") running += 1;
+          else if (s.activity === "quiescent" && s.result && s.result.status === "done") done += 1;
+        });
+        const parts = [];
+        if (attn > 0) parts.push('<span class="text-warn">⚠' + attn + '</span>');
+        if (running > 0) parts.push('<span style="color:var(--status-running-text)">⟳' + running + '</span>');
+        if (done > 0) parts.push('<span class="text-add">✓' + done + '</span>');
+        if (parts.length === 0) parts.push('<span>○' + snapshot.slots.length + '</span>');
+        return parts.slice(0, 2).join('<span>·</span>');
+      }
+
+      function switchScenario(id) {
+        store.scenarioId = id;
+        store.session = createScenarioData(id);
+        store.peekTabBySlot = {};
+        store.selectedDiffFileBySlot = {};
+        store.sidebarSlotsOpen = id === "stepin";
+        const meta = SCENARIO_META.find(function (m) { return m.id === id; });
+        if (meta && (store.layout === "split-only" || window.innerWidth <= 960)) {
+          store.activePane = meta.defaultPane;
+        }
+        renderAll();
+      }
+
+      // 双通道共用拍板动作（校验 expectedRevision，原位推进 STATE）
+      function resolveActiveGate(expectedRevision, customNote) {
+        const snap = store.session.snapshot;
+        const gate = snap.state.activeGate;
+        if (!gate || gate.status !== "open") return;
+        if (expectedRevision !== snap.state.revision) return;
+
+        const chosenId = store.session.selectedOptionId || gate.recommendedOptionId;
+        const chosenOpt = (gate.options || []).find(function (o) { return o.id === chosenId; });
+        const summaryText = customNote || (chosenOpt ? chosenOpt.label : "已批准");
+
+        gate.status = "approved";
+        gate.resolutionText = summaryText;
+        gate.resolvedAt = Date.now();
+        snap.state.revision += 1;
+        snap.state.updatedAt = Date.now();
+        snap.needsYou = [];
+        snap.state.openBlockers = [];
+
+        if (gate.kind === "blueprint") {
+          snap.slots.forEach(function (s) {
+            if (s.dependsOn.length === 0) {
+              s.activity = "active";
+              s.elapsedMs = 12000;
+              s.contextPercent = 11;
+            }
+          });
+          snap.state.tasks.forEach(function (t) {
+            if (t.dependsOn.length === 0) t.status = "running";
+          });
+          snap.state.activeGate = null;
+          store.session.notices.push("已按 rev." + snap.state.revision + " 拍板「" + summaryText + "」，3 个独立 worktree 槽位已进入静默并行（右侧 Needs You 自动归零隐藏）。");
+        } else if (gate.kind === "decision") {
+          const kSlot = snap.slots.find(function (s) { return s.slotId === "role-kernel"; });
+          if (kSlot) {
+            if (chosenId === "opt-keep-contract" && kSlot.delta) {
+              kSlot.delta.outsideTouches = [];
+              kSlot.delta.changed = kSlot.delta.changed.filter(function (f) {
+                return f.path !== "gateway/spine/squad-v2-contracts.mts";
+              });
+            }
+            kSlot.result = {
+              status: "done",
+              summary: "已执行主会话裁决（" + summaryText + "），静止探针与 Notice 管道全部验证通过。",
+              assumptions: ["嵌套 subagent 静止计数已在探针内部闭环消化，公共契约保持 100% 稳定。"],
+              body: "单测 32/32 通过。",
+              criteriaMet: ["C2"],
+              reportedAt: Date.now(),
+              autoSynthesized: false
+            };
+            kSlot.activity = "quiescent";
+          }
+          const kTask = snap.state.tasks.find(function (t) { return t.slotId === "role-kernel"; });
+          if (kTask) kTask.status = "done";
+          const c2 = snap.state.criteria.find(function (c) { return c.id === "C2"; });
+          if (c2) { c2.verifiedBy = "@role-kernel"; c2.verifiedAt = Date.now(); }
+          snap.state.activeGate = null;
+          store.session.notices.push("契约裁决已生效（rev." + snap.state.revision + "）：@role-kernel 越界风险解除并完成 C2 收口。");
+        } else if (gate.kind === "convergence") {
+          if (chosenId === "opt-hold-review") {
+            store.session.expandedSlotId = "role-protocol";
+            store.peekTabBySlot["role-protocol"] = "files";
+            store.activePane = "studio";
+            renderAll();
+            return;
+          }
+          snap.status = "closed";
+          snap.slots.forEach(function (s) { s.activity = "closed"; });
+          snap.state.activeGate = null;
+          store.session.notices.push("✓ 集成分支 squad/sq-v2-034 已按 rev." + snap.state.revision + " 合入目标分支，小队已收束（全部会话历史完整保留）。");
+        }
+
+        snap.events.push({
+          seq: snap.events.length + 1,
+          at: Date.now(),
+          kind: "gate_resolved",
+          slotId: null,
+          summary: "Gate 裁决完成 (rev." + snap.state.revision + "): " + summaryText
+        });
+        renderAll();
+      }
+
+      function stepIntoSlot(slotId) {
+        const slot = store.session.snapshot.slots.find(function (s) { return s.slotId === slotId; });
+        if (!slot || slot.continuity !== "stateful") return;
+        store.session.activeThreadView = slotId;
+        if (store.session.childChatLog.length === 0) {
+          store.session.childChatLog = [
+            {
+              role: "assistant",
+              speaker: slot.handle + " · stateful (" + slot.model + ")",
+              text: "当前正专注于授权边界 `" + (slot.touches.join(", ") || "shared") + "`。你可以直接对我补充领域细节或审美偏好，完成后点击上方「★ 返回主会话」，结果将单行回流给主会话。"
+            }
+          ];
+        }
+        store.activePane = "stage";
+        renderAll();
+      }
+
+      function returnToAnchorThread() {
+        const prevSlotId = store.session.activeThreadView;
+        if (prevSlotId === "anchor") return;
+        const slot = store.session.snapshot.slots.find(function (s) { return s.slotId === prevSlotId; });
+        store.session.activeThreadView = "anchor";
+        const handle = slot ? slot.handle : prevSlotId;
+        const noticeText = "人类已直接切入持久槽位 " + handle + " 完成细节对齐并返回，无公共契约冲突（STATE 保持 rev." + store.session.snapshot.state.revision + "）。";
+        if (store.session.notices[store.session.notices.length - 1] !== noticeText) {
+          store.session.notices.push(noticeText);
+        }
+        renderAll();
+      }
+
+      function togglePromoteSlot(slotId) {
+        const slot = store.session.snapshot.slots.find(function (s) { return s.slotId === slotId; });
+        if (!slot) return;
+        slot.sidebarHidden = !slot.sidebarHidden;
+        renderAll();
+      }
+
+      // ========================================================================
+      // 4. 三大区域渲染器（Sidebar / Main Stage / Right Split Squad Studio）
+      // ========================================================================
+      function renderToolbar() {
+        document.documentElement.setAttribute("data-theme", store.theme);
+        document.body.setAttribute("data-layout", store.layout);
+        document.body.setAttribute("data-active-pane", store.activePane);
+        document.documentElement.style.setProperty("--studio-width", store.studioWidth + "px");
+
+        const themeLabel = document.getElementById("theme-label");
+        if (themeLabel) {
+          themeLabel.textContent = store.theme === "light" ? "切换暗色" : "切换亮色";
+        }
+
+        const strip = document.getElementById("scenario-strip");
+        strip.innerHTML = SCENARIO_META.map(function (sc) {
+          const activeCls = sc.id === store.scenarioId ? " is-active" : "";
+          return '<button type="button" role="tab" aria-selected="' + (sc.id === store.scenarioId) + '" class="scenario-btn' + activeCls + '" data-scenario="' + esc(sc.id) + '">' + esc(sc.label) + '</button>';
+        }).join("");
+
+        document.querySelectorAll("[data-layout-btn]").forEach(function (btn) {
+          btn.classList.toggle("is-active", btn.getAttribute("data-layout-btn") === store.layout);
+        });
+        document.querySelectorAll("[data-studio-width]").forEach(function (btn) {
+          btn.classList.toggle("is-active", Number(btn.getAttribute("data-studio-width")) === store.studioWidth);
+        });
+
+        const attnCount = store.session.snapshot.needsYou.length;
+        const studioTabBtn = document.getElementById("tab-btn-studio");
+        if (studioTabBtn) {
+          studioTabBtn.textContent = attnCount > 0 ? "Squad Studio (⚠" + attnCount + ")" : "Squad Studio 分屏";
+        }
+        document.querySelectorAll("[data-pane-tab]").forEach(function (btn) {
+          btn.classList.toggle("is-active", btn.getAttribute("data-pane-tab") === store.activePane);
+        });
+      }
+
+      function renderSidebar() {
+        const snap = store.session.snapshot;
+        const activeView = store.session.activeThreadView;
+        const promotedSlots = snap.slots.filter(function (s) { return !s.sidebarHidden; });
+        const hiddenSlots = snap.slots.filter(function (s) { return s.sidebarHidden; });
+
+        const promotedHtml = promotedSlots.map(function (s) {
+          const sel = activeView === s.slotId ? " is-selected" : "";
+          return (
+            '<div class="thread-row' + sel + '" data-sidebar-thread="' + esc(s.slotId) + '" role="button" tabindex="0">' +
+              '<span class="thread-row-left">' +
+                '<span class="status-dot" data-state="' + esc(dotState(s)) + '"></span>' +
+                '<span class="thread-title">' + esc(s.handle) + ' · 持久专家</span>' +
+              '</span>' +
+              '<button type="button" class="mini-promote-btn" data-promote-slot="' + esc(s.slotId) + '" title="收纳回小队折叠槽">收纳</button>' +
+            '</div>'
+          );
+        }).join("");
+
+        const hiddenListHtml = store.sidebarSlotsOpen
+          ? hiddenSlots.map(function (s) {
+              const sel = activeView === s.slotId ? " is-selected" : "";
+              const canStepIn = s.continuity === "stateful";
+              return (
+                '<div class="slot-subrow' + sel + '">' +
+                  '<span style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;cursor:' + (canStepIn ? 'pointer' : 'default') + '" ' +
+                    (canStepIn ? 'data-step-slot="' + esc(s.slotId) + '"' : '') + '>' +
+                    '<span class="status-dot" data-state="' + esc(dotState(s)) + '"></span>' +
+                    '<span class="mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(s.handle) + '</span>' +
+                  '</span>' +
+                  (s.continuity === "stateful"
+                    ? '<button type="button" class="mini-promote-btn" data-promote-slot="' + esc(s.slotId) + '" title="扶正至主侧栏长期保留">扶正</button>'
+                    : '<span class="mono" style="font-size:9.5px;color:var(--text-muted)">clean</span>') +
+                '</div>'
+              );
+            }).join("")
+          : "";
+
+        document.getElementById("native-sidebar").innerHTML =
+          '<div class="sidebar-top">' +
+            '<span>CODEX THREADS</span>' +
+            '<span class="mono">Local</span>' +
+          '</div>' +
+          '<div class="sidebar-list">' +
+            '<div class="sidebar-section-label">Pinned</div>' +
+            '<button type="button" class="thread-row' + (activeView === "anchor" ? " is-selected" : "") + '" id="btn-anchor-thread">' +
+              '<span class="thread-row-left">' +
+                '<span class="proto-brand-mark"></span>' +
+                '<span class="thread-title">设计并组建 MyCodex 工作台小队</span>' +
+              '</span>' +
+              '<span class="sidebar-micro-badge" title="小队实时聚合状态">' + computeAggregateBadge(snap) + '</span>' +
+            '</button>' +
+            promotedHtml +
+            (hiddenSlots.length > 0
+              ? '<button type="button" class="hidden-slots-toggle" id="btn-toggle-hidden-slots">' +
+                  '<span>' + (store.sidebarSlotsOpen ? "▾" : "▸") + ' 已折叠临时子槽位 (' + hiddenSlots.length + ')</span>' +
+                  '<span class="mono" style="font-size:10px">默认静默</span>' +
+                '</button>' +
+                hiddenListHtml
+              : '') +
+            '<div class="sidebar-section-label" style="margin-top:10px">Recent</div>' +
+            '<div class="thread-row" style="opacity:0.72;cursor:default">' +
+              '<span class="thread-row-left"><span class="thread-title">修复 App Server 唤醒延迟</span></span>' +
+              '<span class="mono" style="font-size:10px;color:var(--text-muted)">2h</span>' +
+            '</div>' +
+            '<div class="thread-row" style="opacity:0.72;cursor:default">' +
+              '<span class="thread-row-left"><span class="thread-title">整理 ADR-0033 实战复盘笔记</span></span>' +
+              '<span class="mono" style="font-size:10px;color:var(--text-muted)">1d</span>' +
+            '</div>' +
+          '</div>';
+      }
+
+      function renderMilestoneCard(snap) {
+        const gate = snap.state.activeGate;
+        if (!gate || gate.status !== "open") return "";
+
+        if (gate.kind === "blueprint") {
+          const rolesHtml = snap.slots.map(function (s) {
+            return (
+              '<div class="mc-role-chip">' +
+                '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px">' +
+                  '<strong class="mono" style="font-size:11.5px">' + esc(s.handle) + '</strong>' +
+                  '<span class="badge mono">' + esc(s.model) + (s.reasoningEffort ? " · " + esc(s.reasoningEffort) : "") + '</span>' +
+                '</div>' +
+                '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">' +
+                  '<span class="badge ' + (s.continuity === "stateful" ? "badge-stateful" : "badge-clean") + ' mono">' + esc(s.continuity) + '</span>' +
+                  '<span class="badge mono">' + esc(s.workspace) + '</span>' +
+                '</div>' +
+                '<span style="font-size:11px;color:var(--text-secondary);margin-top:2px">' +
+                  esc((snap.state.tasks.find(function (t) { return t.slotId === s.slotId; }) || {}).goal || "") +
+                '</span>' +
+              '</div>'
+            );
+          }).join("");
+
+          const optionsHtml = (gate.options || []).map(function (opt) {
+            const selected = (store.session.selectedOptionId || gate.recommendedOptionId) === opt.id;
+            const isRec = gate.recommendedOptionId === opt.id;
+            return (
+              '<button type="button" class="mc-option' + (selected ? " is-selected" : "") + '" data-gate-option="' + esc(opt.id) + '">' +
+                '<span class="mono" style="font-weight:700;color:var(--accent-text)">' + (selected ? "◉" : "○") + '</span>' +
+                '<span style="display:flex;flex-direction:column;gap:2px;min-width:0">' +
+                  '<span style="font-size:12px;font-weight:600;color:var(--text-primary)">' +
+                    esc(opt.label) +
+                    (isRec ? ' <span class="badge badge-stateful" style="margin-left:4px">Recommended</span>' : '') +
+                  '</span>' +
+                  '<span style="font-size:11.5px;color:var(--text-secondary)">' + esc(opt.summary) + '</span>' +
+                '</span>' +
+              '</button>'
+            );
+          }).join("");
+
+          return (
+            '<section class="milestone-card" aria-label="立项对齐卡 Blueprint Card">' +
+              '<div class="milestone-card-head">' +
+                '<span class="milestone-eyebrow">◆ INLINE MILESTONE · 立项对齐卡 (Blueprint Card)</span>' +
+                '<span class="badge mono">STATE rev.' + snap.state.revision + ' · base 078531c</span>' +
+              '</div>' +
+              '<div class="milestone-body">' +
+                '<div>' +
+                  '<h3 class="milestone-title">' + esc(snap.state.title) + '</h3>' +
+                  '<p class="milestone-intent" style="margin-top:4px">' + esc(snap.state.intent) + '</p>' +
+                '</div>' +
+                '<div class="mc-section">' +
+                  '<div class="mc-label"><span>可验证完成判据 (Done Criteria)</span><span class="mono">4 项硬门槛</span></div>' +
+                  '<div class="mc-criteria-list">' +
+                    snap.state.criteria.map(function (c) {
+                      return '<div class="mc-criterion"><span class="mono" style="font-weight:600;color:var(--accent-text)">' + esc(c.id) + '</span><span>' + esc(c.text) + '</span></div>';
+                    }).join("") +
+                  '</div>' +
+                '</div>' +
+                '<div class="mc-section">' +
+                  '<div class="mc-label"><span>角色切分与异构模型配置 (stateful 持久专家 + clean 空白终审)</span></div>' +
+                  '<div class="mc-role-grid">' + rolesHtml + '</div>' +
+                '</div>' +
+                '<div class="mc-section">' +
+                  '<div class="mc-label"><span>需你拍板的架构与门禁取舍</span></div>' +
+                  '<div class="mc-option-list">' + optionsHtml + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="milestone-foot">' +
+                '<span class="dual-channel-hint">双通道同步：点击右侧按钮或直接在下方输入框自然语言回复（共用 expectedRevision=' + snap.state.revision + '）</span>' +
+                '<div class="btn-row">' +
+                  '<button type="button" class="btn" data-focus-studio="true">展开分屏</button>' +
+                  '<button type="button" class="btn btn-primary" data-approve-gate="' + snap.state.revision + '">批准开跑 ↵</button>' +
+                '</div>' +
+              '</div>' +
+            '</section>'
+          );
+        }
+
+        if (gate.kind === "convergence") {
+          const allAssumptions = [];
+          let totalFiles = 0;
+          let totalAdd = 0;
+          let totalDel = 0;
+          snap.slots.forEach(function (s) {
+            if (s.delta) {
+              totalFiles += s.delta.changed.length;
+              s.delta.changed.forEach(function (f) { totalAdd += f.add; totalDel += f.del; });
+            }
+            if (s.result && Array.isArray(s.result.assumptions)) {
+              s.result.assumptions.forEach(function (a) {
+                allAssumptions.push({ handle: s.handle, text: a });
+              });
+            }
+          });
+
+          return (
+            '<section class="milestone-card" aria-label="阶段交付卡 Convergence Card">' +
+              '<div class="milestone-card-head">' +
+                '<span class="milestone-eyebrow" style="color:var(--status-settled-text)">✓ INLINE MILESTONE · 阶段交付卡 (Convergence Card)</span>' +
+                '<span class="badge badge-settled mono">4/4 Verified · rev.' + snap.state.revision + '</span>' +
+              '</div>' +
+              '<div class="milestone-body">' +
+                '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+                  '<h3 class="milestone-title">' + esc(gate.title) + '</h3>' +
+                  '<span class="mono" style="font-size:11.5px;color:var(--text-secondary)">集成分支 ' + esc(snap.integrationBranch) + ' · ' + totalFiles + ' files <span class="text-add">+' + totalAdd + '</span> <span class="text-del">−' + totalDel + '</span></span>' +
+                '</div>' +
+                '<div class="mc-section">' +
+                  '<div class="mc-label"><span>判据独立验收清单</span><span class="mono">零上下文终审署名</span></div>' +
+                  '<div class="mc-criteria-list">' +
+                    snap.state.criteria.map(function (c) {
+                      return (
+                        '<div class="mc-criterion">' +
+                          '<span class="mono text-add" style="font-weight:700">✓ ' + esc(c.id) + '</span>' +
+                          '<span style="flex:1">' + esc(c.text) + '</span>' +
+                          '<span class="badge badge-clean mono">' + esc(c.verifiedBy || "verified") + '</span>' +
+                        '</div>'
+                      );
+                    }).join("") +
+                  '</div>' +
+                '</div>' +
+                '<div class="assumptions-callout">' +
+                  '<div class="assumptions-callout-title">' +
+                    '<span>★ 提炼供人类审阅的关键假设与取舍 (Teammate Assumptions & Trade-offs)</span>' +
+                    '<span class="mono">' + allAssumptions.length + ' 条核心决策</span>' +
+                  '</div>' +
+                  '<ul class="assumptions-list">' +
+                    allAssumptions.map(function (item) {
+                      return '<li><strong class="mono">' + esc(item.handle) + '：</strong>' + esc(item.text) + '</li>';
+                    }).join("") +
+                  '</ul>' +
+                '</div>' +
+                '<div class="mc-criterion" style="background:var(--bg-subtle)">' +
+                  '<span class="mono" style="font-weight:600;color:var(--text-muted)">未决风险 / 范围边界</span>' +
+                  '<span style="color:var(--text-secondary)">本地 macOS 构建与浏览器交互校验已全绿；Windows 六平台正式安装包仍留待发版流水线执行。</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="milestone-foot">' +
+                '<span class="dual-channel-hint">可直接回复「确认合入，把 @role-studio 扶正保留」或点击按钮执行</span>' +
+                '<div class="btn-row">' +
+                  '<button type="button" class="btn" id="btn-review-split-diff">审阅分屏 Diff</button>' +
+                  '<button type="button" class="btn btn-primary" data-approve-gate="' + snap.state.revision + '">确认合入 ↵</button>' +
+                '</div>' +
+              '</div>' +
+            '</section>'
+          );
+        }
+
+        return (
+          '<section class="milestone-card" aria-label="契约升级裁决卡">' +
+            '<div class="milestone-card-head">' +
+              '<span class="milestone-eyebrow text-warn">⚠ 契约升级裁决 · ' + esc(gate.title) + '</span>' +
+              '<span class="badge badge-attention mono">expectedRevision=' + snap.state.revision + '</span>' +
+            '</div>' +
+            '<div class="milestone-body">' +
+              '<p class="milestone-intent">' + esc(gate.question) + '</p>' +
+              '<div class="mc-option-list">' +
+                (gate.options || []).map(function (opt) {
+                  const selected = (store.session.selectedOptionId || gate.recommendedOptionId) === opt.id;
+                  return (
+                    '<button type="button" class="mc-option' + (selected ? " is-selected" : "") + '" data-gate-option="' + esc(opt.id) + '">' +
+                      '<span class="mono" style="font-weight:700">' + (selected ? "◉" : "○") + '</span>' +
+                      '<span><strong>' + esc(opt.label) + '</strong> — <span style="color:var(--text-secondary)">' + esc(opt.summary) + '</span></span>' +
+                    '</button>'
+                  );
+                }).join("") +
+              '</div>' +
+            '</div>' +
+            '<div class="milestone-foot">' +
+              '<span class="dual-channel-hint">右侧分屏置顶 Needs You 槽可一键处理</span>' +
+              '<button type="button" class="btn btn-primary" data-approve-gate="' + snap.state.revision + '">确认裁决 ↵</button>' +
+            '</div>' +
+          '</section>'
+        );
+      }
+
+      function renderMainStage() {
+        const snap = store.session.snapshot;
+        const activeView = store.session.activeThreadView;
+        const stageEl = document.getElementById("main-stage");
+
+        if (activeView !== "anchor") {
+          const slot = snap.slots.find(function (s) { return s.slotId === activeView; }) || snap.slots[0];
+          const chatHtml = store.session.childChatLog.map(function (m) {
+            if (m.role === "user") return '<div class="msg-user">' + esc(m.text) + '</div>';
+            return (
+              '<div class="msg-assistant">' +
+                '<div class="msg-speaker"><span>' + esc(m.speaker) + '</span></div>' +
+                '<div>' + esc(m.text) + '</div>' +
+              '</div>'
+            );
+          }).join("");
+
+          stageEl.innerHTML =
+            '<div class="return-anchor-bar" role="region" aria-label="子会话返回主会话锚点">' +
+              '<div style="display:flex;align-items:center;gap:8px;min-width:0">' +
+                '<span class="badge badge-stateful mono">stateful 深聊中</span>' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">正在直连持久专家 <strong>' + esc(slot.handle) + '</strong>（仅聚焦 ' + esc(slot.branch || "shared") + '，已隔离全队流水账）</span>' +
+              '</div>' +
+              '<button type="button" class="return-anchor-btn" id="btn-return-anchor">★ 返回主会话</button>' +
+            '</div>' +
+            '<div class="stage-header">' +
+              '<div class="stage-header-title">' +
+                '<span class="status-dot" data-state="' + esc(dotState(slot)) + '"></span>' +
+                '<span class="mono">' + esc(slot.handle) + '</span>' +
+                '<span class="badge mono">' + esc(slot.model) + '</span>' +
+                '<span class="badge mono">' + esc(slot.workspace) + '</span>' +
+              '</div>' +
+              '<span class="mono" style="font-size:11px;color:var(--text-muted)">ctx ' + (slot.contextPercent || 18) + '%</span>' +
+            '</div>' +
+            '<div class="stage-scroll">' +
+              '<div class="stage-stream">' + chatHtml + '</div>' +
+            '</div>' +
+            '<div class="stage-composer-wrap">' +
+              '<form class="stage-composer" id="stage-composer-form">' +
+                '<input type="text" id="stage-composer-input" placeholder="直接向 ' + esc(slot.handle) + ' 补充设计或代码细节，回车发送…" autocomplete="off" />' +
+                '<button type="submit" class="btn btn-sm btn-primary">发送微调</button>' +
+              '</form>' +
+            '</div>';
+          return;
+        }
+
+        const messagesHtml = store.session.anchorMessages.map(function (m) {
+          if (m.role === "user") return '<div class="msg-user">' + esc(m.text) + '</div>';
+          return (
+            '<div class="msg-assistant">' +
+              '<div class="msg-speaker"><span>' + esc(m.speaker) + '</span></div>' +
+              '<div>' + esc(m.text) + '</div>' +
+            '</div>'
+          );
+        }).join("");
+
+        const noticesHtml = store.session.notices.map(function (n) {
+          return (
+            '<div class="squad-notice-pill">' +
+              '<span style="display:flex;align-items:center;gap:8px;min-width:0">' +
+                '<span class="squad-notice-tag">[Squad Notice]</span>' +
+                '<span>' + esc(n) + '</span>' +
+              '</span>' +
+              '<span class="mono" style="font-size:10.5px;color:var(--text-muted);flex-shrink:0">idle 合并投递</span>' +
+            '</div>'
+          );
+        }).join("");
+
+        const gateOpen = snap.state.activeGate && snap.state.activeGate.status === "open";
+        const placeholderText = gateOpen
+          ? "输入自然语言拍板（如：批准推荐方案开跑）或继续正常对话，共用 expectedRevision=" + snap.state.revision + "…"
+          : "主会话输入框随时可用：小队在后台静默运行，不会刷屏打断你的当前思考…";
+
+        stageEl.innerHTML =
+          '<div class="stage-header">' +
+            '<div class="stage-header-title">' +
+              '<span>设计并组建 MyCodex 工作台小队</span>' +
+              '<span class="badge mono">Orchestrator</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px">' +
+              '<span class="mono" style="font-size:11px;color:var(--text-muted)">STATE rev.' + snap.state.revision + '</span>' +
+              '<button type="button" class="btn btn-sm" data-focus-studio="true">定位 Squad Studio</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="stage-scroll">' +
+            '<div class="stage-stream">' +
+              messagesHtml +
+              renderMilestoneCard(snap) +
+              noticesHtml +
+            '</div>' +
+          '</div>' +
+          '<div class="stage-composer-wrap">' +
+            '<form class="stage-composer" id="stage-composer-form">' +
+              '<input type="text" id="stage-composer-input" placeholder="' + esc(placeholderText) + '" autocomplete="off" />' +
+              '<button type="submit" class="btn btn-sm btn-primary">' + (gateOpen ? "发送并拍板" : "发送") + '</button>' +
+            '</form>' +
+          '</div>';
+      }
+
+      function renderDiffBox(slotId, filePath) {
+        const diffEntry = FILE_DIFF_LIBRARY[filePath] || {
+          title: filePath,
+          sha: "078531c..HEAD",
+          lines: [
+            { oldLn: 1, newLn: 1, kind: "ctx", text: "// Scoped workspace modification within declared touches" },
+            { oldLn: null, newLn: 2, kind: "add", text: "export const verifiedByCleanSlot = true;" }
+          ]
+        };
+        const rows = diffEntry.lines.map(function (ln) {
+          const rowCls = ln.kind === "add" ? "diff-row-add" : ln.kind === "del" ? "diff-row-del" : "";
+          const prefix = ln.kind === "add" ? "+" : ln.kind === "del" ? "-" : " ";
+          return (
+            '<tr class="' + rowCls + '">' +
+              '<td class="diff-ln">' + (ln.oldLn == null ? "" : ln.oldLn) + '</td>' +
+              '<td class="diff-ln">' + (ln.newLn == null ? "" : ln.newLn) + '</td>' +
+              '<td class="diff-code">' + esc(prefix + " " + ln.text) + '</td>' +
+            '</tr>'
+          );
+        }).join("");
+
+        return (
+          '<div class="native-diff-box">' +
+            '<div class="native-diff-head">' +
+              '<span class="mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">' + esc(diffEntry.title) + '</span>' +
+              '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+                '<span class="mono" style="color:var(--text-muted)">' + esc(diffEntry.sha) + '</span>' +
+                '<button type="button" class="btn btn-sm" data-close-diff="' + esc(slotId) + '">← 文件列表</button>' +
+              '</div>' +
+            '</div>' +
+            '<table class="diff-table" aria-label="代码变更预览"><tbody>' + rows + '</tbody></table>' +
+          '</div>'
+        );
+      }
+
+      function renderRolePeek(slot) {
+        const defaultTab = (slot.delta && slot.delta.outsideTouches.length > 0) ? "files" : "result";
+        const activeTab = store.peekTabBySlot[slot.slotId] || defaultTab;
+        const selectedDiff = store.selectedDiffFileBySlot[slot.slotId] || null;
+        const filesCount = slot.delta ? slot.delta.changed.length : 0;
+
+        let bodyHtml = "";
+        if (activeTab === "result") {
+          if (slot.result) {
+            const statusBadgeCls = slot.result.status === "done"
+              ? "badge-settled"
+              : slot.result.status === "escalate" ? "badge-attention" : "badge-danger";
+            bodyHtml =
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap">' +
+                '<span style="font-size:12px;font-weight:600">' + esc(slot.result.summary) + '</span>' +
+                '<span class="badge ' + statusBadgeCls + ' mono">status: ' + esc(slot.result.status) + (slot.result.autoSynthesized ? " · auto" : "") + '</span>' +
+              '</div>' +
+              (slot.result.assumptions && slot.result.assumptions.length > 0
+                ? '<div class="assumptions-callout">' +
+                    '<div class="assumptions-callout-title"><span>关键假设与取舍 (Assumptions & Trade-offs)</span></div>' +
+                    '<ul class="assumptions-list">' +
+                      slot.result.assumptions.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join("") +
+                    '</ul>' +
+                  '</div>'
+                : '') +
+              '<div style="font-size:11.5px;color:var(--text-secondary)">' + esc(slot.result.body) + '</div>';
+          } else {
+            bodyHtml =
+              '<div style="font-size:11.5px;color:var(--text-secondary);padding:4px 2px">' +
+                (slot.activity === "active"
+                  ? '正在独立工作树内静默执行，尚未写入 `.mycodex/result.md`。末条物理探针：`' + esc(slot.lastOutputSnippet || "running...") + '`'
+                  : '当前槽位处于 `' + esc(slot.activity) + '` 阶段，等待前置依赖完成派发。') +
+              '</div>';
+          }
+        } else if (activeTab === "files") {
+          if (selectedDiff) {
+            bodyHtml = renderDiffBox(slot.slotId, selectedDiff);
+          } else if (slot.delta && slot.delta.changed.length > 0) {
+            const outsideSet = new Set(slot.delta.outsideTouches || []);
+            bodyHtml =
+              '<div class="file-list">' +
+                slot.delta.changed.map(function (f) {
+                  const isOutside = outsideSet.has(f.path);
+                  return (
+                    '<button type="button" class="file-row-btn" data-open-diff-slot="' + esc(slot.slotId) + '" data-open-diff-path="' + esc(f.path) + '">' +
+                      '<span class="mono" style="font-weight:600;width:14px;color:var(--accent-text)">' + esc(f.status) + '</span>' +
+                      '<span class="file-path mono">' + esc(f.path) + '</span>' +
+                      (isOutside ? '<span class="badge badge-danger mono">越出 touches</span>' : '') +
+                      '<span class="mono" style="flex-shrink:0"><span class="text-add">+' + f.add + '</span> <span class="text-del">−' + f.del + '</span> · Diff ▸</span>' +
+                    '</button>'
+                  );
+                }).join("") +
+              '</div>';
+          } else {
+            bodyHtml = '<div style="font-size:11.5px;color:var(--text-muted)">无工作树文件增删（只读终审或尚未产生提交）。</div>';
+          }
+        } else {
+          bodyHtml =
+            '<pre class="brief-pre">' + esc(slot.briefMarkdown || "# 尚未生成角色裁剪简报") + '</pre>' +
+            '<div class="mono" style="font-size:10.5px;color:var(--text-muted)">授权写边界 touches: ' +
+              esc(slot.touches.length ? slot.touches.join(", ") : "[] (只读验证)") +
+            '</div>';
+        }
+
+        return (
+          '<div class="role-peek-panel">' +
+            '<div class="peek-tabs">' +
+              '<div class="peek-tab-list">' +
+                '<button type="button" class="peek-tab' + (activeTab === "result" ? " is-active" : "") + '" data-peek-slot="' + esc(slot.slotId) + '" data-peek-tab="result">Result & 假设</button>' +
+                '<button type="button" class="peek-tab' + (activeTab === "files" ? " is-active" : "") + '" data-peek-slot="' + esc(slot.slotId) + '" data-peek-tab="files">改动文件 (' + filesCount + ')</button>' +
+                '<button type="button" class="peek-tab' + (activeTab === "brief" ? " is-active" : "") + '" data-peek-slot="' + esc(slot.slotId) + '" data-peek-tab="brief">裁剪 Brief</button>' +
+              '</div>' +
+              (slot.continuity === "stateful"
+                ? '<button type="button" class="btn btn-sm" data-step-slot="' + esc(slot.slotId) + '">切入子会话深聊 ↗</button>'
+                : '<span class="badge badge-clean mono" title="空白验证者禁止多轮私聊污染上下文">零历史隔离槽</span>') +
+            '</div>' +
+            bodyHtml +
+          '</div>'
+        );
+      }
+
+      function renderStudio() {
+        const snap = store.session.snapshot;
+        const studioEl = document.getElementById("squad-studio");
+        const doneCriteriaCount = snap.state.criteria.filter(function (c) { return Boolean(c.verifiedBy); }).length;
+        const gate = snap.state.activeGate;
+
+        const hasNeeds = snap.needsYou.length > 0;
+        const needsHtml =
+          '<section class="needs-you-slot" id="needs-you-slot"' + (hasNeeds ? '' : ' hidden') + ' aria-label="Needs You 置顶拦截槽">' +
+            (hasNeeds
+              ? '<div class="needs-you-head">' +
+                  '<span>⚠ NEEDS YOU · 需你拍板 (' + snap.needsYou.length + ')</span>' +
+                  '<span class="mono">STATE rev.' + snap.state.revision + '</span>' +
+                '</div>' +
+                snap.needsYou.map(function (item) {
+                  const jumpBtnLabel = item.kind === "slot_escalated" ? "原地查看越界 Diff" : "原地抽检代码 Diff";
+                  return (
+                    '<div class="needs-you-item">' +
+                      '<div style="font-size:12px;font-weight:600;color:var(--text-primary)">' + esc(item.title) + '</div>' +
+                      '<div style="font-size:11.5px;color:var(--text-secondary)">' + esc(item.detail) + '</div>' +
+                      '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:2px">' +
+                        (item.slotId
+                          ? '<button type="button" class="btn btn-sm" data-jump-slot="' + esc(item.slotId) + '" data-jump-kind="' + esc(item.kind) + '">' + jumpBtnLabel + '</button>'
+                          : '<span class="mono" style="font-size:10.5px;color:var(--text-muted)">expectedRevision=' + snap.state.revision + '</span>') +
+                        (gate && gate.status === "open"
+                          ? '<button type="button" class="btn btn-sm btn-primary" data-approve-gate="' + snap.state.revision + '">' +
+                              (gate.kind === "blueprint" ? "原位批准开跑" : gate.kind === "decision" ? "采用推荐裁决" : "原位确认合入") +
+                            '</button>'
+                          : '') +
+                      '</div>' +
+                    '</div>'
+                  );
+                }).join("")
+              : '') +
+          '</section>';
+
+        const topoHtml =
+          '<div class="topology-tree" role="tree" aria-label="纵向缩进角色拓扑树">' +
+            '<div class="topo-node" style="cursor:default;background:var(--bg-subtle)">' +
+              '<span class="topo-left">' +
+                '<span class="proto-brand-mark"></span>' +
+                '<strong style="font-size:11.5px">Orchestrator · 主会话 (单写者 STATE.md)</strong>' +
+              '</span>' +
+              '<span class="badge mono">' + esc(snap.integrationBranch || "main") + '</span>' +
+            '</div>' +
+            snap.slots.map(function (s) {
+              const indentCls = s.dependsOn.length > 0 ? " topo-indent-2" : " topo-indent-1";
+              const selCls = store.session.expandedSlotId === s.slotId ? " is-selected" : "";
+              return (
+                '<button type="button" class="topo-node' + indentCls + selCls + '" data-select-slot="' + esc(s.slotId) + '">' +
+                  '<span class="topo-left">' +
+                    '<span class="status-dot" data-state="' + esc(dotState(s)) + '"></span>' +
+                    '<span class="mono" style="font-weight:600;font-size:11.5px">' + esc(s.handle) + '</span>' +
+                    (s.dependsOn.length > 0
+                      ? '<span class="mono" style="font-size:10px;color:var(--text-muted)">after 3 slots</span>'
+                      : '') +
+                  '</span>' +
+                  '<span class="topo-right">' +
+                    '<span class="badge ' + (s.continuity === "stateful" ? "badge-stateful" : "badge-clean") + ' mono">' + esc(s.continuity) + '</span>' +
+                    '<span class="badge mono">' + esc(s.workspace) + '</span>' +
+                  '</span>' +
+                '</button>'
+              );
+            }).join("") +
+          '</div>';
+
+        const roleCardsHtml = snap.slots.map(function (s) {
+          const expanded = store.session.expandedSlotId === s.slotId;
+          const hasAttn = (s.result && s.result.status === "escalate") || (s.delta && s.delta.outsideTouches.length > 0);
+          let files = 0, add = 0, del = 0, outside = 0;
+          if (s.delta) {
+            files = s.delta.changed.length;
+            outside = s.delta.outsideTouches.length;
+            s.delta.changed.forEach(function (f) { add += f.add; del += f.del; });
+          }
+          const totalLines = Math.max(1, add + del);
+          const addPct = Math.round((add / totalLines) * 100);
+          const delPct = 100 - addPct;
+
+          const deltaSummaryHtml = s.delta && files > 0
+            ? '<div class="delta-bar-group">' +
+                '<span class="delta-meter" aria-hidden="true">' +
+                  '<span class="delta-meter-add" style="width:' + addPct + '%"></span>' +
+                  '<span class="delta-meter-del" style="width:' + delPct + '%"></span>' +
+                '</span>' +
+                '<span class="mono">' + files + ' files · <span class="text-add">+' + add + '</span> <span class="text-del">−' + del + '</span></span>' +
+              '</div>' +
+              (outside > 0
+                ? '<span class="badge badge-danger mono">✗ ' + outside + ' 越界</span>'
+                : '<span class="mono text-add" style="font-weight:600">✓ 边界内</span>')
+            : '<span class="mono" style="color:var(--text-muted)">' +
+                (s.continuity === "clean" ? "只读独立终审槽 · 零历史污染" : "等待产生工作树提交…") +
+              '</span>' +
+              '<span class="mono" style="color:var(--text-muted)">' + esc(s.branch || "shared") + '</span>';
+
+          return (
+            '<article class="role-card' + (expanded ? " is-expanded" : "") + (hasAttn ? " has-attention" : "") + '" id="card-' + esc(s.slotId) + '">' +
+              '<button type="button" class="role-card-summary" data-select-slot="' + esc(s.slotId) + '" aria-expanded="' + expanded + '">' +
+                '<div class="role-row-top">' +
+                  '<div class="role-ident">' +
+                    '<span class="status-dot" data-state="' + esc(dotState(s)) + '"></span>' +
+                    '<span class="role-handle mono">' + esc(s.handle) + '</span>' +
+                    '<span class="badge mono">' + esc(s.model) + '</span>' +
+                    '<span class="badge ' + (s.continuity === "stateful" ? "badge-stateful" : "badge-clean") + ' mono">' + esc(s.continuity) + '</span>' +
+                  '</div>' +
+                  '<div class="role-metrics mono">' +
+                    '<span>' + esc(activityLabel(s)) + '</span>' +
+                    '<span>·</span>' +
+                    '<span>' + formatDuration(s.elapsedMs) + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="delta-strip">' + deltaSummaryHtml + '</div>' +
+              '</button>' +
+              (expanded ? renderRolePeek(s) : '') +
+            '</article>'
+          );
+        }).join("");
+
+        studioEl.innerHTML =
+          '<div class="studio-tabbar">' +
+            '<div class="studio-tab-title">' +
+              '<span class="proto-brand-mark"></span>' +
+              '<span>Squad Studio</span>' +
+              '<span class="mono" style="font-size:11px;color:var(--text-muted)">' + esc(snap.squadId) + '</span>' +
+            '</div>' +
+            '<div class="studio-tab-meta">' +
+              '<span class="badge mono">rev.' + snap.state.revision + '</span>' +
+              '<span class="badge mono" id="studio-width-readout">' + ((window.innerWidth <= 960 || store.layout === "split-only") ? window.innerWidth : store.studioWidth) + 'px</span>' +
+            '</div>' +
+          '</div>' +
+          needsHtml +
+          '<div class="studio-scroll">' +
+            '<section class="studio-card" aria-label="上半区 STATE 画布">' +
+              '<div class="studio-section-head">' +
+                '<span class="studio-section-title">STATE 画布 · 判据与拓扑</span>' +
+                '<span class="badge ' + (doneCriteriaCount === snap.state.criteria.length ? "badge-settled" : "") + ' mono">✓ ' + doneCriteriaCount + '/' + snap.state.criteria.length + ' 判据</span>' +
+              '</div>' +
+              '<div class="criteria-compact-list">' +
+                snap.state.criteria.map(function (c) {
+                  const done = Boolean(c.verifiedBy);
+                  return (
+                    '<div class="criterion-row' + (done ? " is-done" : "") + '">' +
+                      '<span style="display:flex;gap:6px;min-width:0">' +
+                        '<span class="criterion-check' + (done ? " is-done" : "") + '">' + (done ? "✓" : "·") + '</span>' +
+                        '<span><strong class="mono">' + esc(c.id) + '</strong> ' + esc(c.text) + '</span>' +
+                      '</span>' +
+                      (done ? '<span class="mono" style="font-size:10px;color:var(--status-settled-text);flex-shrink:0">' + esc(c.verifiedBy) + '</span>' : '') +
+                    '</div>'
+                  );
+                }).join("") +
+              '</div>' +
+              topoHtml +
+              '<div class="contracts-drawer">' +
+                '<button type="button" class="contracts-toggle" id="btn-toggle-contracts" aria-expanded="' + store.contractsOpen + '">' +
+                  '<span>' + (store.contractsOpen ? "▾" : "▸") + ' 公共契约与铁律 (' + (snap.state.contracts.length + snap.state.invariants.length) + ' 条)</span>' +
+                  '<span class="mono" style="font-size:10px;color:var(--text-muted)">按需展开</span>' +
+                '</button>' +
+                (store.contractsOpen
+                  ? '<ul class="contracts-list">' +
+                      snap.state.invariants.map(function (inv) { return '<li><strong>[铁律]</strong> ' + esc(inv) + '</li>'; }).join("") +
+                      snap.state.contracts.map(function (ct) { return '<li>' + esc(ct) + '</li>'; }).join("") +
+                    '</ul>'
+                  : '') +
+              '</div>' +
+            '</section>' +
+            '<div class="studio-section-head" style="padding:0 2px">' +
+              '<span class="studio-section-title">角色抽检与原地窥屏 (' + snap.slots.length + ')</span>' +
+              '<span class="mono" style="font-size:10.5px;color:var(--text-muted)">点击卡片展开假设与代码 Diff</span>' +
+            '</div>' +
+            '<div class="role-card-list">' + roleCardsHtml + '</div>' +
+          '</div>';
+      }
+
+      function renderAll() {
+        renderToolbar();
+        renderSidebar();
+        renderMainStage();
+        renderStudio();
+      }
+
+      // ========================================================================
+      // 5. 全局事件委托与 400px~680px 可拖拽原生分屏逻辑
+      // ========================================================================
+      document.addEventListener("click", function (ev) {
+        const target = ev.target.closest("button, [data-sidebar-thread], [data-step-slot]");
+        if (!target) return;
+
+        if (target.hasAttribute("data-scenario")) {
+          switchScenario(target.getAttribute("data-scenario"));
+          return;
+        }
+        if (target.id === "btn-theme-toggle") {
+          store.theme = store.theme === "light" ? "dark" : "light";
+          renderToolbar();
+          return;
+        }
+        if (target.hasAttribute("data-layout-btn")) {
+          store.layout = target.getAttribute("data-layout-btn");
+          renderToolbar();
+          return;
+        }
+        if (target.hasAttribute("data-studio-width")) {
+          store.studioWidth = Number(target.getAttribute("data-studio-width"));
+          store.layout = "desktop";
+          renderAll();
+          return;
+        }
+        if (target.hasAttribute("data-pane-tab")) {
+          store.activePane = target.getAttribute("data-pane-tab");
+          renderToolbar();
+          return;
+        }
+        if (target.id === "btn-inspect-json") {
+          const modal = document.getElementById("contract-modal");
+          document.getElementById("contract-modal-pre").textContent = JSON.stringify(store.session.snapshot, null, 2);
+          modal.hidden = false;
+          return;
+        }
+        if (target.id === "btn-close-modal") {
+          document.getElementById("contract-modal").hidden = true;
+          return;
+        }
+        if (target.hasAttribute("data-promote-slot")) {
+          ev.stopPropagation();
+          togglePromoteSlot(target.getAttribute("data-promote-slot"));
+          return;
+        }
+        if (target.id === "btn-anchor-thread" || target.id === "btn-return-anchor") {
+          returnToAnchorThread();
+          return;
+        }
+        if (target.id === "btn-toggle-hidden-slots") {
+          store.sidebarSlotsOpen = !store.sidebarSlotsOpen;
+          renderSidebar();
+          return;
+        }
+        if (target.hasAttribute("data-sidebar-thread")) {
+          stepIntoSlot(target.getAttribute("data-sidebar-thread"));
+          return;
+        }
+        if (target.hasAttribute("data-step-slot")) {
+          ev.stopPropagation();
+          stepIntoSlot(target.getAttribute("data-step-slot"));
+          return;
+        }
+        if (target.hasAttribute("data-gate-option")) {
+          store.session.selectedOptionId = target.getAttribute("data-gate-option");
+          renderMainStage();
+          return;
+        }
+        if (target.hasAttribute("data-approve-gate")) {
+          resolveActiveGate(Number(target.getAttribute("data-approve-gate")));
+          return;
+        }
+        if (target.hasAttribute("data-focus-studio")) {
+          store.activePane = "studio";
+          renderToolbar();
+          return;
+        }
+        if (target.id === "btn-review-split-diff") {
+          store.session.expandedSlotId = "role-protocol";
+          store.peekTabBySlot["role-protocol"] = "files";
+          store.selectedDiffFileBySlot["role-protocol"] = "bridge/request-sanitize.mjs";
+          store.activePane = "studio";
+          renderAll();
+          return;
+        }
+        if (target.id === "btn-toggle-contracts") {
+          store.contractsOpen = !store.contractsOpen;
+          renderStudio();
+          return;
+        }
+        if (target.hasAttribute("data-jump-slot")) {
+          const sid = target.getAttribute("data-jump-slot");
+          const jkind = target.getAttribute("data-jump-kind");
+          store.session.expandedSlotId = sid;
+          store.peekTabBySlot[sid] = "files";
+          store.selectedDiffFileBySlot[sid] = jkind === "slot_escalated"
+            ? "gateway/spine/squad-v2-contracts.mts"
+            : "bridge/request-sanitize.mjs";
+          renderStudio();
+          return;
+        }
+        if (target.hasAttribute("data-select-slot")) {
+          const sid = target.getAttribute("data-select-slot");
+          store.session.expandedSlotId = store.session.expandedSlotId === sid ? null : sid;
+          renderStudio();
+          return;
+        }
+        if (target.hasAttribute("data-peek-tab")) {
+          const sid = target.getAttribute("data-peek-slot");
+          store.peekTabBySlot[sid] = target.getAttribute("data-peek-tab");
+          store.selectedDiffFileBySlot[sid] = null;
+          renderStudio();
+          return;
+        }
+        if (target.hasAttribute("data-open-diff-path")) {
+          const sid = target.getAttribute("data-open-diff-slot");
+          store.selectedDiffFileBySlot[sid] = target.getAttribute("data-open-diff-path");
+          renderStudio();
+          return;
+        }
+        if (target.hasAttribute("data-close-diff")) {
+          const sid = target.getAttribute("data-close-diff");
+          store.selectedDiffFileBySlot[sid] = null;
+          renderStudio();
+          return;
+        }
+      });
+
+      document.addEventListener("submit", function (ev) {
+        if (ev.target && ev.target.id === "stage-composer-form") {
+          ev.preventDefault();
+          const input = document.getElementById("stage-composer-input");
+          const val = (input.value || "").trim();
+          if (!val) return;
+          input.value = "";
+
+          if (store.session.activeThreadView !== "anchor") {
+            const slot = store.session.snapshot.slots.find(function (s) {
+              return s.slotId === store.session.activeThreadView;
+            });
+            store.session.childChatLog.push({ role: "user", text: val });
+            store.session.childChatLog.push({
+              role: "assistant",
+              speaker: (slot ? slot.handle : "@specialist") + " · stateful",
+              text: "收到微调要求：「" + val + "」。已在当前独立工作树内更新实现，不触碰公共契约；随时可点顶部「★ 返回主会话」合流。"
+            });
+            renderMainStage();
+            return;
+          }
+
+          store.session.anchorMessages.push({ role: "user", text: val });
+          const snap = store.session.snapshot;
+          if (snap.state.activeGate && snap.state.activeGate.status === "open") {
+            resolveActiveGate(snap.state.revision, val);
+          } else {
+            store.session.anchorMessages.push({
+              role: "assistant",
+              speaker: "Orchestrator · 主会话",
+              text: "已记录：「" + val + "」。后台槽位仍在静默推进，无契约冲突时不中断你的主线对话。"
+            });
+            renderMainStage();
+          }
+        }
+      });
+
+      (function initSplitResizer() {
+        const resizer = document.getElementById("split-resizer");
+        let dragging = false;
+
+        resizer.addEventListener("pointerdown", function (ev) {
+          dragging = true;
+          resizer.classList.add("is-dragging");
+          resizer.setPointerCapture(ev.pointerId);
+        });
+
+        resizer.addEventListener("pointermove", function (ev) {
+          if (!dragging) return;
+          const nextWidth = Math.min(680, Math.max(400, Math.round(window.innerWidth - ev.clientX)));
+          store.studioWidth = nextWidth;
+          document.documentElement.style.setProperty("--studio-width", nextWidth + "px");
+          const readout = document.getElementById("studio-width-readout");
+          if (readout) readout.textContent = nextWidth + "px";
+        });
+
+        function stopDrag() {
+          if (!dragging) return;
+          dragging = false;
+          resizer.classList.remove("is-dragging");
+          renderToolbar();
+        }
+        resizer.addEventListener("pointerup", stopDrag);
+        resizer.addEventListener("pointercancel", stopDrag);
+      })();
+
+      renderAll();
+      window.addEventListener("resize", function () {
+        const readout = document.getElementById("studio-width-readout");
+        const studioEl = document.getElementById("squad-studio");
+        if (readout && studioEl && studioEl.clientWidth > 0) {
+          readout.textContent = studioEl.clientWidth + "px";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

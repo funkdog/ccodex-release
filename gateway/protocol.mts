@@ -5,25 +5,29 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { cliInput } from "./input.mjs";
+import { handoffPrompt } from "./conversation-handoff.mjs";
 import { MediaStore, extractToolOutput } from "./media.mjs";
 import { ApprovalPreferences } from "./approval-preferences.mjs";
 import type { EngineImage } from "./contracts.mjs";
+import { createDisplaySink, projectStoredItemToV2, clipUtf8, boundedJson } from "./display-projector.mjs";
 
 export const protocolVersion = "0.165.0-alpha.1.2";
 // Built-in pin section exported by the installed app-server/sidebar contract.
 export const pinnedSectionId = "01984de2-8f74-7c91-a3b2-5c5e937cf318";
 const invalid = (message: string) => Object.assign(new Error(message), { code: -32602 });
 const now = () => Math.floor(Date.now() / 1000);
-// Older callers may omit the native default, but Desktop reads it directly.
+// Text-only API callers and older stored chats may omit the native default.
+// Desktop reads this array directly while hydrating messages and attachments.
 const publicInput = (input: UserInput[]) => input.map(item => item.type === "text"
   ? { ...item, text_elements: item.text_elements ?? [] } : item);
 const publicTurn = (turn: Turn) => {
   const { nativeStartEventId, ...value } = structuredClone(turn);
-  for (const item of value.items) if (item.type === "userMessage") item.content = publicInput(item.content);
-  return value;
+  const items = value.items.map(projectStoredItemToV2);
+  for (const item of items) if (item.type === "userMessage") item.content = publicInput(item.content);
+  return { ...value, items };
 };
 const publicThread = (thread: StoredThread) => {
-  const { schemaVersion, engineId, engineAdapter, nativeSessionId, archived, sectionOrder, ...publicValue } = structuredClone(thread);
+  const { schemaVersion, engineId, engineAdapter, nativeSessionId, archived, sectionOrder, executionOrigins, handoffPending, ...publicValue } = structuredClone(thread);
   // Populate the pinned Desktop contract even for older gateway documents.
   return { environments: [], extra: null, forkedFromId: null, parentThreadId: null,
     section: null, sectionEnteredAt: null, historyMode: "legacy", reasoningEffort: null, cliApprovalMode: "ask",
@@ -37,8 +41,7 @@ const publicResult = (thread: StoredThread) => ({ thread: publicThread(thread), 
   reasoningEffort: thread.reasoningEffort ?? null });
 
 export class GatewayProtocol {
-  store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string | null; home: string;
-  allowEmptyCatalog: boolean;
+  store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string; home: string;
   notify: (method: string, params: unknown) => void;
   active: Map<string, { controller: AbortController; turnId: string; done?: Promise<void> }>;
   catalogPromise: Promise<GatewayModel[]> | null; catalogWarnings: string[] = [];
@@ -48,14 +51,15 @@ export class GatewayProtocol {
   closing = false;
   media: MediaStore;
   approvalPreferences: ApprovalPreferences;
-  constructor({ store, engines, defaultEngine, home, notify, allowEmptyCatalog = false }: { store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string | null; home: string; notify: (method: string, params: unknown) => void; allowEmptyCatalog?: boolean }) {
+  constructor({ store, engines, defaultEngine, home, notify, onThreadDeleted = async () => {} }: { store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string; home: string; notify: (method: string, params: unknown) => void; onThreadDeleted?: (id: string) => Promise<void> }) {
     this.store = store; this.engines = engines; this.defaultEngine = defaultEngine; this.home = home; this.notify = notify;
     this.active = new Map();
     this.media = new MediaStore(home);
     this.approvalPreferences = new ApprovalPreferences(home);
     this.catalogPromise = null;
-    this.allowEmptyCatalog = allowEmptyCatalog;
+    this.onThreadDeleted = onThreadDeleted;
   }
+  private onThreadDeleted: (id: string) => Promise<void>;
   async models() {
     if (!this.catalogPromise) this.catalogPromise = (async () => {
       const models: GatewayModel[] = [];
@@ -70,8 +74,10 @@ export class GatewayProtocol {
               .filter(value => typeof value === "string" && /^[a-z][a-z0-9-]{0,20}$/.test(value)))];
             const defaultEffort = model.defaultReasoningEffort != null && efforts.includes(model.defaultReasoningEffort) ? model.defaultReasoningEffort
               : efforts.includes("medium") ? "medium" : efforts[0] ?? "none";
-            models.push({ id, model: id, displayName: `${engine.displayName || engineId} · ${model.name || model.id}`,
+            models.push({ id, model: id, displayName: `${model.sourceLabel ? "Codex" : engine.displayName || engineId} · ${model.name || model.id}`,
               description: model.description || `Native ${engineId} CLI`, hidden: false,
+              ...(model.preferredSource ? { preferredSource: true } : {}),
+              ...(model.sourceLabel ? { sourceLabel: model.sourceLabel } : {}),
               isDefault: engineId === this.defaultEngine && !models.some(item => item.isDefault),
               inputModalities: model.inputModalities ?? (engine.supportsImages && model.capabilities?.supports?.vision ? ["text", "image"] : ["text"]),
               nativeCopilot: engine.nativeProvider === true && engine.adapter !== "codex-gemini",
@@ -82,7 +88,7 @@ export class GatewayProtocol {
           }
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); errors.push(`${engineId}: ${error.message}`); }
       }
-      if (!models.length && !this.allowEmptyCatalog) throw new Error(`No CLI models are available. ${errors.join("; ")}`);
+      if (!models.length) throw new Error(`No CLI models are available. ${errors.join("; ")}`);
       return models;
     })().catch(error => { this.catalogPromise = null; throw error; });
     return (await this.catalogPromise).map(model => {
@@ -125,6 +131,9 @@ export class GatewayProtocol {
       timer = setTimeout(() => reject(invalid("CLI cancellation has not settled; the chat was preserved. Retry after it stops.")), 30000);
     })]); } finally { clearTimeout(timer); }
   }
+  async switchExecution(params: { threadId: string; model: string; expectedModel?: string }, native?: Record<string, unknown>) {
+    throw invalid("会话创建后执行引擎和模型来源已固定；更换引擎请新建会话。");
+  }
   async deleteThread(threadId: string) {
     const pending = this.deletions.get(threadId);
     if (pending) return pending;
@@ -136,12 +145,30 @@ export class GatewayProtocol {
       if (!deleted) {
         const latest = this.store.get(threadId), engine = this.engines.get(latest.engineId);
         const sameAdapter = engine && (engine.adapter ?? "test") === latest.engineAdapter;
-        const cleanup = !latest.nativeSessionId ? "complete" : sameAdapter && !engine.deleteSession ? "unsupported" : "pending";
+        const cleanup = latest.executionOrigins?.some(origin => origin.nativeSessionId) ? "pending"
+          : !latest.nativeSessionId ? "complete" : sameAdapter && !engine.deleteSession ? "unsupported" : "pending";
         deleted = this.store.tombstone(latest, cleanup);
         this.notify("thread/deleted", { threadId });
       }
+      try { await this.onThreadDeleted(threadId); }
+      catch { console.error("Optional squad cleanup failed; the chat remains deleted. Cleanup will retry on deletion or gateway startup."); }
       this.media.removeThread(threadId);
       if (deleted.cleanup !== "pending") return;
+      if (deleted.executionCleanup) {
+        let unsupported = false;
+        for (const origin of [...deleted.executionCleanup]) {
+          const adapter = this.engines.get(origin.engineId);
+          if (!adapter || (adapter.adapter ?? "test") !== origin.engineAdapter) throw invalid("聊天已在本地删除；原引擎尚不可用，其运行时历史清理待重试。");
+          if (!adapter.deleteSession) unsupported = true;
+          else try { await adapter.deleteSession({ nativeSessionId: origin.nativeSessionId, cwd: origin.cwd }); }
+          catch { throw invalid("聊天已在本地删除；某个历史引擎的清理尚未确认，请重试删除。"); }
+          deleted = { ...deleted, executionCleanup: (deleted.executionCleanup ?? []).filter(value => value !== origin) };
+          this.store.saveTombstone(deleted);
+        }
+        this.store.saveTombstone({ schemaVersion: 1, id: deleted.id, engineId: deleted.engineId, engineAdapter: deleted.engineAdapter,
+          deleted: true, deletedAt: deleted.deletedAt, executionHandoff: true, cleanup: unsupported ? "unsupported" : "complete" });
+        return;
+      }
       const engine = this.engines.get(deleted.engineId);
       if (!engine?.deleteSession || (engine.adapter ?? "test") !== deleted.engineAdapter) throw invalid("The chat is deleted locally; its CLI archive cleanup is pending until the original adapter is available.");
       try { await engine.deleteSession({ nativeSessionId: deleted.nativeSessionId!, cwd: deleted.cwd! }); }
@@ -189,6 +216,7 @@ export class GatewayProtocol {
       if (effort != null && typeof effort !== "string") throw invalid("Invalid fork reasoning effort.");
       const reasoningEffort = this.effort(params.effort ?? effort as string | null | undefined, selected, source.reasoningEffort);
       const branch: StoredThread = { ...structuredClone(source), id: randomUUID(), sessionId: undefined, nativeSessionId: null,
+        executionOrigins: [],
         forkedFromId: source.id, turns: structuredClone(source.turns.slice(0, count)), createdAt: now(), updatedAt: now(), archived: false,
         status: { type: "idle" }, sectionId: null, section: null, sectionEnteredAt: null, sectionOrder: undefined,
         model: selected.model, reasoningEffort, approvalPolicy: params.approvalPolicy ?? source.approvalPolicy };
@@ -401,6 +429,9 @@ export class GatewayProtocol {
         if (!engine || (engine.adapter ?? "test") !== latest.engineAdapter) throw invalid("The stored CLI engine is no longer configured or its adapter changed.");
         const selected = this.selectAvailableModel(catalog, params.model ?? latest.model);
         if (selected.engineId !== latest.engineId) throw invalid("A thread cannot change CLI engines. Start a new thread.");
+        const source = (value: string) => /^api-([a-f0-9]{12})--/.exec(value)?.[1] ?? "default";
+        if (engine.nativeProvider && source(selected.nativeModel) !== source(latest.model.slice(latest.engineId.length + 1)))
+          throw invalid("会话创建后模型来源已固定；更换来源请新建会话。");
         const changingModel = selected.model !== latest.model;
         if (changingModel && !engine.supportsModelSwitch) throw invalid("This CLI adapter does not support switching an existing session's model.");
         if (Object.hasOwn(params, "reasoningEffort")) latest.reasoningEffort = this.effort(params.reasoningEffort, selected);
@@ -424,6 +455,16 @@ export class GatewayProtocol {
         return { thread: publicThread(latest) };
       }
       return {}; // Native first-send clears its own disabled-plugin list.
+    }
+    if (method === "thread/execution/switch") {
+      if (Object.keys(params).some(key => !["threadId", "model", "expectedModel"].includes(key)) || typeof params.model !== "string") throw invalid("Invalid execution switch.");
+      return this.switchExecution({ threadId: params.threadId, model: params.model, expectedModel: params.expectedModel });
+    }
+    if (method === "gateway/thread/adopt") {
+      const native = params.nativeThread;
+      if (Object.keys(params).some(key => !["threadId", "model", "nativeThread"].includes(key)) || !native || typeof native !== "object" || Array.isArray(native) ||
+          (native as Record<string, unknown>).id !== params.threadId || typeof params.model !== "string") throw invalid("Invalid native handoff snapshot.");
+      return this.switchExecution({ threadId: params.threadId, model: params.model }, native as Record<string, unknown>);
     }
     if (["thread/attachment/list", "thread/queue/list", "thread/goal/get"].includes(method)) {
       this.store.get(params.threadId); // Empty supported reads, never invented attachments or goals.
@@ -512,7 +553,7 @@ export class GatewayProtocol {
     if (thread.archived) throw invalid("Unarchive the thread before sending a turn.");
     if (this.active.has(thread.id)) throw invalid("This thread already has an active turn.");
     const selected = await this.selectModel(params.model ?? thread.model);
-    const { prompt, attachments } = cliInput(params.input, {
+    const { prompt: userPrompt, attachments } = cliInput(params.input, {
       supportsImages: selected.inputModalities.includes("image") && this.engines.get(selected.engineId)!.supportsImages === true,
     });
     // Metadata can change on a different connection during catalog discovery.
@@ -533,7 +574,8 @@ export class GatewayProtocol {
     // cannot reset the committed choice (including a newly inherited default).
     thread.cliApprovalMode = this.approvalMode(thread.cliApprovalMode, selected);
     thread.approvalPolicy = params.approvalPolicy ?? thread.approvalPolicy ?? "on-request";
-    thread.preview ||= prompt.slice(0, 200) || "[Image]";
+    const prompt = thread.handoffPending ? handoffPrompt(thread, userPrompt) : userPrompt;
+    thread.preview ||= userPrompt.slice(0, 200) || "[Image]";
     thread.turns.push(turn);
     thread.updatedAt = now();
     thread.status = { type: "active", activeFlags: [] };
@@ -546,20 +588,42 @@ export class GatewayProtocol {
   }
   async execute({ thread, turn, selected, prompt, attachments, controller, connection, reasoningEffort }: { thread: StoredThread; turn: Turn; selected: SelectedModel; prompt: string; attachments?: Attachment[]; controller: AbortController; connection: GatewayConnection; reasoningEffort?: string | null }) {
     const context = { threadId: thread.id, turnId: turn.id };
-    const item = { id: randomUUID(), type: "agentMessage" as const, text: "", phase: "final_answer" };
+    let activeText: { id: string; type: "agentMessage"; text: string; phase: string } | null = null;
+    let textBytes = 0;
+    const closeText = (phase = "commentary") => {
+      if (!activeText) return;
+      activeText.phase = phase;
+      this.notify("item/completed", { ...context, item: structuredClone(activeText), completedAtMs: Date.now() });
+      activeText = null;
+    };
     const tools = new Map<string, ToolItem>();
-    const image = (image: EngineImage) => {
+    let toolBytes = 0;
+    const chargeTool = (value: unknown) => {
+      toolBytes += Buffer.byteLength(JSON.stringify(value));
+      if (toolBytes > 2 * 1024 * 1024) throw new Error("CLI tool data exceeds the gateway turn limit.");
+    };
+    const display = createDisplaySink({ turn, context, signal: controller.signal, beforeItem: () => closeText(),
+      save: () => this.saveExecution(thread), notify: (method, params) => this.notify(method, params),
+      request: (method, params) => connection.request(method, params, controller.signal) });
+    const image = (image: EngineImage, viewOnly = false) => {
       if (controller.signal.aborted) return;
-      const saved = this.media.save(thread.id, randomUUID(), image); turn.items.push(saved);
+      closeText();
+      const saved = this.media.save(thread.id, randomUUID(), image);
+      if (viewOnly) {
+        try { display.sink.imageView({ id: saved.id, path: saved.savedPath }); }
+        catch (error) { try { fs.unlinkSync(saved.savedPath); } catch {} throw error; }
+        return;
+      }
+      turn.items.push(saved);
       try { this.saveExecution(thread); } catch (error) { turn.items.pop(); try { fs.unlinkSync(saved.savedPath); } catch {} throw error; }
       this.notify("item/started", { ...context, item: saved, startedAtMs: Date.now() });
       this.notify("item/completed", { ...context, item: saved, completedAtMs: Date.now() });
     };
     this.notify("turn/started", { threadId: thread.id, turn: structuredClone(turn) });
     this.notify("thread/status/changed", { threadId: thread.id, status: thread.status });
-    this.notify("item/started", { ...context, item: structuredClone(item), startedAtMs: Date.now() });
     try {
       await this.engines.get(thread.engineId)!.run({ prompt, attachments, model: selected.nativeModel,
+        display: display.sink,
         reasoningEffort: reasoningEffort === "none" && selected.efforts.length === 1 ? undefined : reasoningEffort,
         // Desktop's native approvalPolicy is a separate host setting. In
         // particular, its ordinary `never` envelope cannot veto a saved CLI
@@ -575,17 +639,29 @@ export class GatewayProtocol {
         onCheckpoint: eventId => { turn.nativeStartEventId = eventId; this.saveExecution(thread); },
         onImage: image,
         onText: delta => {
+          if (controller.signal.aborted) return;
           if (typeof delta !== "string") throw new Error("Invalid CLI text event.");
-          if (item.text.length + delta.length > 1024 * 1024) throw new Error("CLI response exceeds the gateway limit.");
-          item.text += delta;
-          this.notify("item/agentMessage/delta", { ...context, itemId: item.id, delta });
+          if (!delta) return;
+          textBytes += Buffer.byteLength(delta, "utf8");
+          if (textBytes > 1024 * 1024) throw new Error("CLI response exceeds the gateway limit.");
+          if (!activeText) {
+            activeText = { id: randomUUID(), type: "agentMessage", text: "", phase: "commentary" };
+            turn.items.push(activeText);
+            this.notify("item/started", { ...context, item: structuredClone(activeText), startedAtMs: Date.now() });
+          }
+          activeText.text += delta;
+          this.notify("item/agentMessage/delta", { ...context, itemId: activeText.id, delta });
         },
         onTool: event => {
+          if (controller.signal.aborted) return;
           if (event.phase === "start") {
             if (tools.has(event.id)) return;
+            if (tools.size >= 512) throw new Error("CLI tool count exceeds the gateway limit.");
+            closeText();
             const tool: ToolItem = { id: randomUUID(), type: "dynamicToolCall", namespace: thread.engineId,
-              tool: event.name, arguments: extractToolOutput(event.input).safe, status: "inProgress", contentItems: null,
+              tool: clipUtf8(event.name, 4096), arguments: boundedJson(extractToolOutput(event.input).safe), status: "inProgress", contentItems: null,
               success: null, durationMs: null };
+            chargeTool(tool);
             tools.set(event.id, tool);
             turn.items.push(tool);
             this.notify("item/started", { ...context, item: structuredClone(tool), startedAtMs: Date.now() });
@@ -598,10 +674,12 @@ export class GatewayProtocol {
             if (event.success && !event.images?.length && !result.images.length && /view.?image|read.*image/i.test(tool.tool) && tool.arguments && typeof tool.arguments === "object") {
               const p = tool.arguments as Record<string, unknown>, file = p.path ?? p.file_path; if (typeof file === "string") result.images.push({ kind: "file", path: path.resolve(thread.cwd, file) });
             }
-            tool.contentItems = [{ type: "inputText", text: result.output.slice(0, 128 * 1024) }];
+            const contentItems = [{ type: "inputText" as const, text: clipUtf8(result.output) }];
+            chargeTool(contentItems);
+            tool.contentItems = contentItems;
             this.notify("item/completed", { ...context, item: structuredClone(tool), completedAtMs: Date.now() });
             const seen = new Set<string>();
-            for (const value of [...(event.images ?? []), ...result.images]) { const key = value.kind === "file" ? value.path : value.mimeType + createHash("sha256").update(value.data).digest("hex"); if (!seen.has(key)) { seen.add(key); image(value); } }
+            for (const value of [...(event.images ?? []), ...result.images]) { const key = value.kind === "file" ? value.path : value.mimeType + createHash("sha256").update(value.data).digest("hex"); if (!seen.has(key)) { seen.add(key); image(value, /view.?image|read.*image/i.test(tool.tool)); } }
           }
         },
         // Explicit CLI denial blocks permissions, not business questions.
@@ -613,11 +691,13 @@ export class GatewayProtocol {
         }, controller.signal),
       });
       turn.status = controller.signal.aborted ? "interrupted" : "completed";
+      if (turn.status === "completed") thread.handoffPending = false;
     } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause));
       turn.status = controller.signal.aborted ? "interrupted" : "failed";
       turn.error = turn.status === "failed" ? { message: error.message, codexErrorInfo: null, additionalDetails: null } : null;
     }
-    turn.items.push(item);
+    closeText(turn.status === "completed" ? "final_answer" : "commentary");
+    display.finish();
     for (const tool of tools.values()) if (tool.status === "inProgress") {
       tool.status = "failed";
       tool.success = false;
@@ -628,7 +708,6 @@ export class GatewayProtocol {
     thread.status = { type: "idle" };
     try {
       this.saveExecution(thread);
-      this.notify("item/completed", { ...context, item, completedAtMs: Date.now() });
       this.notify("turn/completed", { threadId: thread.id, turn: publicTurn(turn) });
       this.notify("thread/status/changed", { threadId: thread.id, status: thread.status });
     } catch {

@@ -12,11 +12,9 @@ const xml = value => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt
 const managedBy = "ccodex-current-host-launcher";
 
 export function installMacLauncher({ root = path.resolve(import.meta.dirname, ".."), configFile,
-  bundleIdentifier = "local.mycodex.launcher",
   destination = path.join(os.homedir(), "Applications", "MyCodex.app") }) {
   if (process.platform !== "darwin") throw new Error("The MyCodex app launcher is macOS-only.");
   if (process.env.CODEX_COPILOT_HEAVY_LOCK_HELD !== "1") throw new Error("Build through the repository heavy-task scheduler.");
-  if (!["local.mycodex.launcher", "local.mycodex.adapters.launcher"].includes(bundleIdentifier)) throw new Error("Unknown MyCodex launcher identity.");
   root = fs.realpathSync(root); configFile = fs.realpathSync(configFile); destination = path.resolve(destination);
   assertTypeScriptBuild(root);
   const selection = resolveDesktopMode({ arguments: ["--config", configFile] });
@@ -46,7 +44,7 @@ export function installMacLauncher({ root = path.resolve(import.meta.dirname, ".
     fs.mkdirSync(path.dirname(executable), { recursive: true }); fs.mkdirSync(resources); fs.mkdirSync(iconset);
     const binding = { schemaVersion: 1, managedBy, node: process.execPath, root, configFile, application: host.application };
     fs.writeFileSync(path.join(resources, "launcher.json"), JSON.stringify(binding, null, 2) + "\n", { mode: 0o600 });
-    const plist = { CFBundleExecutable: "MyCodex", CFBundleIdentifier: bundleIdentifier,
+    const plist = { CFBundleExecutable: "MyCodex", CFBundleIdentifier: "local.mycodex.launcher",
       CFBundleName: "MyCodex", CFBundleDisplayName: "MyCodex", CFBundlePackageType: "APPL",
       CFBundleShortVersionString: "0.1.0", CFBundleVersion: "1", CFBundleIconFile: "MyCodex.icns", LSMinimumSystemVersion: "13.0" };
     fs.writeFileSync(path.join(contents, "Info.plist"), '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>' +

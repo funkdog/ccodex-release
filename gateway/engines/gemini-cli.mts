@@ -7,6 +7,7 @@ import path from "node:path";
 import { startAcpPeer } from "../acp-peer.mjs";
 import { approveOnce } from "./permissions.mjs";
 import { extractToolOutput } from "../media.mjs";
+import { createAcpDisplay } from "./acp-display.mjs";
 
 export function geminiEnvironment(env: NodeJS.ProcessEnv, cliHome: string) {
   const result = { ...env };
@@ -56,7 +57,7 @@ export function geminiCliEngine({ executable, cliHome, env, start = startGeminiP
           description: m.description, inputModalities: info.agentCapabilities?.promptCapabilities?.image ? ["text", "image"] : ["text"] }));
       } finally { await peer?.dispose(); fs.rmSync(cwd, { recursive: true, force: true }); }
     },
-    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, getApprovalMode = () => "ask" }) {
+    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, display, getApprovalMode = () => "ask" }) {
       accountCheck(cliHome);
       if (reasoningEffort != null) throw new Error("Gemini CLI ACP does not advertise reasoning overrides.");
       if (signal.aborted) return;
@@ -64,7 +65,7 @@ export function geminiCliEngine({ executable, cliHome, env, start = startGeminiP
       let sessionId: string | undefined, sending = false, callbackError: unknown, cancelled: ReturnType<typeof setTimeout> | undefined;
       let commandsReady!: () => void;
       const commands = new Promise<void>(resolve => { commandsReady = resolve; });
-      const tools = new Set();
+      const timeline = createAcpDisplay(display, cwd, onTool);
       const abort = () => {
         if (sessionId && sending && !peer.closed) peer.notify({ method: "session/cancel", params: { sessionId } });
         // Also bounds a CLI that does not acknowledge cancellation.
@@ -77,13 +78,10 @@ export function geminiCliEngine({ executable, cliHome, env, start = startGeminiP
         if (update?.sessionUpdate === "available_commands_update") commandsReady();
         if (!sending || signal.aborted) return; // Resumed history is already in the gateway.
         try {
+          if (update) timeline.update(update);
           if (update?.sessionUpdate === "agent_message_chunk" && update.content && !Array.isArray(update.content)) {
             if (update.content.type === "text" && typeof update.content.text === "string") onText(update.content.text);
             if (update.content.type === "image") for (const image of extractToolOutput(update.content).images) onImage?.(image);
-          }
-          if (update && ["tool_call", "tool_call_update"].includes(update.sessionUpdate)) {
-            if (!tools.has(update.toolCallId)) { tools.add(update.toolCallId); onTool?.({ phase: "start", id: update.toolCallId, name: update.title || "Gemini tool", input: update.rawInput ?? {} }); }
-            if (["completed", "failed"].includes(update.status)) onTool?.({ phase: "end", id: update.toolCallId, success: update.status === "completed", ...extractToolOutput(update.content ?? update.rawOutput ?? "", { toolName: update.title, cwd }) });
           }
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); callbackError = error; abort(); }
       };
@@ -92,7 +90,7 @@ export function geminiCliEngine({ executable, cliHome, env, start = startGeminiP
           if (message.method !== "session/request_permission" || message.params?.sessionId !== sessionId || !sending) throw new Error("Unsupported Gemini client request.");
           const option = message.params!.options?.find(value => value.kind === "allow_once");
           const allowed = option && !signal.aborted && getApprovalMode() !== "deny" &&
-            await approveOnce(ask, `Gemini CLI requests permission:\n${JSON.stringify(message.params!.toolCall)}`);
+            (await timeline.approve(message.params!.toolCall) ?? await approveOnce(ask, `Gemini CLI requests permission:\n${JSON.stringify(message.params!.toolCall)}`));
           peer.notify({ id: message.id, result: { outcome: allowed && !signal.aborted
             ? { outcome: "selected", optionId: option.optionId } : { outcome: "cancelled" } } });
         } catch { if (!peer.closed) peer.notify({ id: message.id, result: { outcome: { outcome: "cancelled" } } }); }
@@ -121,6 +119,7 @@ export function geminiCliEngine({ executable, cliHome, env, start = startGeminiP
           ...(prompt ? [{ type: "text", text: prompt }] : []),
           ...(attachments ?? []).map(a => ({ type: "image", data: a.data, mimeType: a.mimeType }))] });
         if (callbackError) throw callbackError;
+        timeline.closeThought();
         if (!signal.aborted && result.stopReason !== "end_turn") throw new Error(`Gemini turn ended with ${result.stopReason || "unknown status"}.`);
       } finally { sending = false; clearTimeout(cancelled); signal.removeEventListener("abort", abort); await peer.dispose(); }
     },

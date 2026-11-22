@@ -1,0 +1,435 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "scope": "ADR 0032 final local source closure: materialized Chat reasoning round trips and removal of the obsolete literal personality slot",
+  "platform": "Darwin arm64",
+  "head": "70e5964db80c47f61c53208661db2da777e4d9c7",
+  "sourceSha256": {
+    "bridge/translate.mjs": "c7cfb00a11b29f84be4fec8861fcec7783ee75e4a910690261638c63cb1e3473",
+    "bridge/catalog.mjs": "42284fc0d8bb5973064708b20fdfc68d572ebd9c05b8102946b6ccc78283e229",
+    "gateway/contracts.mts": "6b4a93106caa2be5c6c4eb472adeaf75ec37d38fdb9e846e28d3f58ad1fb056a",
+    "gateway/display-contracts.mts": "1b12ef8a169786cdc5a86e62474f465d623c1f9b2d253bf2628ef9927e257482",
+    "gateway/display-projector.mts": "db1c9ce3d1af98d7c885004adc765e9c395013c94270faa5f7f19f2e52e26940",
+    "gateway/state.mts": "b9f3f1cc89dccad0723299f9d0d45dfcd8d294e134bd561ef5dfee6490728b57",
+    "gateway/protocol.mts": "10712b9274f80d378ff0be5397d7729fd7023e905a671d60551a0242c29a4167",
+    "gateway/engines/tool-display.mts": "68636b168ed5f89f847c9e44d3d605ae5527ee844d4e42bb3dc54b876b4acba5",
+    "gateway/engines/acp-display.mts": "495d4e635c488beae09b49bea2b8b9fde1448e4aba614eb2569e693f257040a6",
+    "gateway/engines/claude-code.mts": "60fceb96457d6d0b005446de304acea4f894b58414e56dd122f050702baad6b9",
+    "gateway/engines/gemini-cli.mts": "591482ab6a28cebb57ee087d4379465337a3bffa113d0081733d0b89e42ca392",
+    "gateway/engines/antigravity.mts": "c3a51a4246033e8b35445729ebddb27fa0b68df58c470a938007bc54d56d93f8",
+    "gateway/engines/github-copilot.mts": "36f4994b152e5cc74eed74eae20671bc98320b1193debff4c12a4f49c1f9ef95",
+    "gateway/google-provider.mts": "8dd06195b5b6d0740fda7dc011ecb448dcace4cc6776d6316e48826e8818b348",
+    "gateway/google-translation.mts": "72c0a335a8f4369243e198ccaa6c3a256b7df7a6b64bb0555f7f9ac53c28ae1f",
+    "gateway/sdk-contracts.mts": "6129d32b25ab4cee0207724163fc50b5a540b4953063d70ffebe7434d369d2b0",
+    "assets/chat-instructions.md": "de27788caf939e975231f9da8b7a3ac2f8ffcd380b1d21618ec683bc125c6606",
+    "assets/display-coverage-ledger.json": "f604adbabec80893f05b321f4f0e849d269b6a52a11f632f85d38fb14ac5d70f",
+    "tests/display-projector-test.mjs": "250100a63b9ec2964c73f21cf74f945979f03ec3c9740e209fffeb55af9e86f9",
+    "tests/display-adapters-test.mjs": "2554340fdbcc2c177e836e7d757f1148364bcbeecb8620d57853f9323a33c16d",
+    "tests/display-schema-drift-test.mjs": "e32017cae663c07a44138d0e26f6602b66ec3b8e18769fb39d139c577907193d",
+    "tests/chat-translation-test.mjs": "6254ffe472aed45540f2f79aa33efefca721a6f4eef7331aa14856caa743235a",
+    "tests/gateway-protocol-test.mjs": "260c03c4072d182eeb66665693a2c6896b9024b8cc9eab863554ce936d6e627b",
+    "tests/tool-translation-native-test.mjs": "d118f2c007a74d0746189142c4393ec73ff9c4c8b1c2f9a3bb2dd1aac589a54b",
+    "tests/fixtures/display.mjs": "caae218c9d7a7c57d5a7ad59b95899313f7e5149d3d66d1e8ed4a263bfd06edb",
+    "tools/typescript-task.mjs": "b9c1edc6fd6039cb9c42f2c757005e5f7d33eeb8699225e110ce1c83de569f62",
+    "package.json": "d0273d528a3a1c88f7f6b9871b06e40a208f9927d333dd2a66cd740964227042",
+    "package-lock.json": "3f2ac3c96138a0cd68085b12ae414a68f81182ef787a80ff9e3d3eb2ac28f461",
+    "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md": "a548219eb0a60263731250030338fe4f6b8658864656fbf058f9ae824f26c996"
+  },
+  "testDurationMs": 3052.957792,
+  "worktree": "Shared dirty checkout on codex/mycodex-app-server-design. Whole-file hashes identify the reviewed snapshot, not exclusive authorship of pre-existing changes.",
+  "nativeCore": {
+    "version": "codex-cli 0.167.0-alpha.4.1",
+    "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "modified": false
+  },
+  "node": "v24.16.0",
+  "commands": [
+    {
+      "command": "node tools/typescript-task.mjs typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "node tools/typescript-task.mjs build",
+      "exitCode": 0,
+      "build": {
+        "sources": 96,
+        "outputs": 192
+      }
+    },
+    {
+      "command": "node tools/typescript-task.mjs check",
+      "exitCode": 0
+    },
+    {
+      "command": "MYCODEX_REQUIRE_DISPLAY_SCHEMA=1 bash tools/Invoke-HeavyTask.sh <node> --test --test-concurrency=6 tests/chat-translation-test.mjs tests/display-schema-drift-test.mjs tests/tool-translation-native-test.mjs tests/tool-translation-test.mjs tests/google-provider-test.mjs tests/display-adapters-test.mjs tests/display-projector-test.mjs tests/gateway-protocol-test.mjs",
+      "exitCode": 0,
+      "tests": {
+        "total": 91,
+        "pass": 91,
+        "fail": 0,
+        "skipped": 0
+      },
+      "durationMs": 3052.957792
+    },
+    {
+      "command": "git diff --check -- bridge/catalog.mjs",
+      "exitCode": 0
+    }
+  ],
+  "failureBeforeFix": {
+    "chatTranslation": {
+      "failed": 3,
+      "passed": 11
+    },
+    "gatewaySegmentation": {
+      "failed": 2,
+      "passed": 24
+    },
+    "evidence": "Observed in this development session before applying the corresponding fixes; not a claim about the HEAD checkout, which already had unrelated edits."
+  },
+  "governance": {
+    "priorArchitectureDocuments": 38,
+    "architectureDocumentsIncluding0032": 39,
+    "extraDesignDocuments": 1,
+    "inventoryCoverage": "38/38",
+    "duplicatePrefixes": {
+      "0023": 2,
+      "0025": 2,
+      "0031": 2
+    },
+    "formatChecks": [
+      "balanced Markdown fences",
+      "no trailing whitespace",
+      "all local Markdown links resolve",
+      "inventory equals current architecture directory excluding 0032"
+    ],
+    "snapshotBoundary": "Original 38 prior architecture documents plus 0032. Concurrent 0033 additions are outside this review revision; the historical inventory is not represented as today's complete directory."
+  },
+  "notVerified": [
+    "Current active Desktop window visual rendering, workflow folding, diff drawer and native approval dialogs after loading this change",
+    "Real upstream provider accounts, quotas or paid model inference",
+    "Formal release/installers or six-platform packaging"
+  ],
+  "preserved": [
+    "Active user Desktop/Gateway sessions",
+    "VERSION and NATIVE_PATCH_CHAIN.json",
+    "Unrelated dirty and untracked files; no automatic commit or publication"
+  ],
+  "cleanup": [
+    "Build stages are removed by the repository wrapper/build finalizers",
+    "Isolated test profiles and processes are disposed by test hooks",
+    "Removed the owned failed-browser synthetic fixture from the initial missing-Playwright attempt",
+    "Removed temporary schema export and SDK type-reference archive",
+    "Review logs and isolated no-node_modules fixture removed after optional/required Ajv boundary checks."
+  ],
+  "governanceBoundary": "Legacy P3 retirement recommendations are an inventory and exit-evidence checklist, not an unreviewed deletion. Existing engine-switch compatibility endpoints reject switching in their method bodies.",
+  "priorFullSuite": {
+    "sourceSha256": {
+      "bridge/translate.mjs": "82494fa55ff7f29dfa728ce8f01c04337352b15ac6ad420b4a5eb3d4dc2d9ba6",
+      "bridge/catalog.mjs": "42284fc0d8bb5973064708b20fdfc68d572ebd9c05b8102946b6ccc78283e229",
+      "gateway/contracts.mts": "6b4a93106caa2be5c6c4eb472adeaf75ec37d38fdb9e846e28d3f58ad1fb056a",
+      "gateway/display-contracts.mts": "1b12ef8a169786cdc5a86e62474f465d623c1f9b2d253bf2628ef9927e257482",
+      "gateway/display-projector.mts": "db1c9ce3d1af98d7c885004adc765e9c395013c94270faa5f7f19f2e52e26940",
+      "gateway/state.mts": "b9f3f1cc89dccad0723299f9d0d45dfcd8d294e134bd561ef5dfee6490728b57",
+      "gateway/protocol.mts": "10712b9274f80d378ff0be5397d7729fd7023e905a671d60551a0242c29a4167",
+      "gateway/engines/tool-display.mts": "68636b168ed5f89f847c9e44d3d605ae5527ee844d4e42bb3dc54b876b4acba5",
+      "gateway/engines/acp-display.mts": "495d4e635c488beae09b49bea2b8b9fde1448e4aba614eb2569e693f257040a6",
+      "gateway/engines/claude-code.mts": "60fceb96457d6d0b005446de304acea4f894b58414e56dd122f050702baad6b9",
+      "gateway/engines/gemini-cli.mts": "591482ab6a28cebb57ee087d4379465337a3bffa113d0081733d0b89e42ca392",
+      "gateway/engines/antigravity.mts": "c3a51a4246033e8b35445729ebddb27fa0b68df58c470a938007bc54d56d93f8",
+      "gateway/engines/github-copilot.mts": "36f4994b152e5cc74eed74eae20671bc98320b1193debff4c12a4f49c1f9ef95",
+      "gateway/google-provider.mts": "8dd06195b5b6d0740fda7dc011ecb448dcace4cc6776d6316e48826e8818b348",
+      "gateway/google-translation.mts": "72c0a335a8f4369243e198ccaa6c3a256b7df7a6b64bb0555f7f9ac53c28ae1f",
+      "gateway/sdk-contracts.mts": "6129d32b25ab4cee0207724163fc50b5a540b4953063d70ffebe7434d369d2b0",
+      "assets/chat-instructions.md": "4fa32f678fe83e241db008d0bd6065edb68419e50fff5f8b8f352235d49b0633",
+      "assets/display-coverage-ledger.json": "f604adbabec80893f05b321f4f0e849d269b6a52a11f632f85d38fb14ac5d70f",
+      "tests/display-projector-test.mjs": "250100a63b9ec2964c73f21cf74f945979f03ec3c9740e209fffeb55af9e86f9",
+      "tests/display-adapters-test.mjs": "2554340fdbcc2c177e836e7d757f1148364bcbeecb8620d57853f9323a33c16d",
+      "tests/display-schema-drift-test.mjs": "142399e8e757db6428176899093c891561668f289d8eb3a11419afdce9007b1d",
+      "tests/chat-translation-test.mjs": "49b9bc0c87aa74570217da3e4c6964a2f6b339b0d6c511976a0f2716cb0b5476",
+      "tests/gateway-protocol-test.mjs": "260c03c4072d182eeb66665693a2c6896b9024b8cc9eab863554ce936d6e627b",
+      "tests/tool-translation-native-test.mjs": "2ce860255c82a78cf79fcd005d92270c85e74e27572aa301a69d029229ed162e",
+      "tests/fixtures/display.mjs": "caae218c9d7a7c57d5a7ad59b95899313f7e5149d3d66d1e8ed4a263bfd06edb",
+      "tools/typescript-task.mjs": "73b175b40239b1487e768109d43a80ae32fa53ef1a4d387078459a2cc1fc574e",
+      "package.json": "d0273d528a3a1c88f7f6b9871b06e40a208f9927d333dd2a66cd740964227042",
+      "package-lock.json": "3f2ac3c96138a0cd68085b12ae414a68f81182ef787a80ff9e3d3eb2ac28f461",
+      "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md": "18a1d96df3f449374c82cd2a4cd32e602f2e4ecb270cfc83c26df5de6f79e9a2"
+    },
+    "commands": [
+      {
+        "command": "node tools/typescript-task.mjs test",
+        "env": {
+          "MYCODEX_TEST_PLAYWRIGHT": "/Users/developer/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs",
+          "MYCODEX_REQUIRE_DISPLAY_SCHEMA": "1"
+        },
+        "exitCode": 0,
+        "tests": {
+          "total": 469,
+          "pass": 469,
+          "fail": 0,
+          "skipped": 0
+        },
+        "includes": [
+          "wrapped TypeScript build",
+          "real installed app-server schema export and Ajv validation",
+          "isolated native CLI reasoning/tool/image and cold restore tests",
+          "isolated Chrome component interactions",
+          "full default DIY regression matrix",
+          "package module import check"
+        ],
+        "moduleCheck": {
+          "modules": 237,
+          "relativeImportsVerified": 563,
+          "evaluatedCode": false
+        }
+      },
+      {
+        "command": "node tools/typescript-task.mjs typecheck",
+        "exitCode": 0
+      },
+      {
+        "command": "node tools/typescript-task.mjs check",
+        "exitCode": 0
+      },
+      {
+        "command": "git diff --check",
+        "exitCode": 0
+      }
+    ],
+    "testDurationMs": 56242.111792,
+    "note": "Initial implementation verification; not a claim that the full concurrent Squad suite was rerun for these review fixes."
+  },
+  "reviewRevision": {
+    "changedFiles": [
+      "assets/chat-instructions.md",
+      "bridge/catalog.mjs",
+      "bridge/translate.mjs",
+      "tests/chat-translation-test.mjs",
+      "tests/display-schema-drift-test.mjs",
+      "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md",
+      "docs/architecture/evidence/2026-11-13-display-standard.json"
+    ],
+    "fixes": [
+      "Restore the official pinned gpt-5.4 workspace, formatting, editing, review and frontend instruction contract; retain {{ personality }} and matching native personality variables.",
+      "Chat responses containing any tool call close trailing text with commentary, including tool-before-text ordering.",
+      "Opaque fragments are retained on the current output only; existing opaque reasoning history is rejected before upstream transmission, not silently skipped or replayed.",
+      "Load Ajv dynamically; optional clean checkouts skip clearly, required admission checks fail clearly when Ajv is absent."
+    ],
+    "redBeforeFix": {
+      "tests": 17,
+      "pass": 12,
+      "fail": 5
+    },
+    "sourceHashNote": "All existing digest keys identify the current shared-worktree snapshot. Only changedFiles were manually edited in this review revision; unrelated concurrent changes are not claimed as this task's work.",
+    "concurrencyExclusions": [
+      "docs/architecture/0033-*.md",
+      "docs/design/*",
+      "gateway/spine/squad-*.mts",
+      "bridge/diy/*squad*",
+      "other unrelated dirty files"
+    ],
+    "cleanup": [
+      "Removed /tmp/mycodex-display-tests.log from the initial implementation.",
+      "Removed the owned /tmp/mycodex-0032-review fixture, copied sources and validation log after all test processes exited."
+    ],
+    "supersededItems": [
+      1,
+      3
+    ],
+    "supersededNote": "The opaque output/rejection assumption is corrected by opaqueRoundTripFix. The assumption that restoring an old personality slot restores native style injection is corrected by personalityLiteralClosure. Historical commands and observations are retained."
+  },
+  "priorReviewCommands": [
+    {
+      "command": "node tools/typescript-task.mjs typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "node tools/typescript-task.mjs build",
+      "exitCode": 0,
+      "build": {
+        "sources": 96,
+        "outputs": 192
+      },
+      "note": "Repository wrapper; additional shared Squad sources are compiled, not edited by this revision."
+    },
+    {
+      "command": "node tools/typescript-task.mjs check",
+      "exitCode": 0
+    },
+    {
+      "command": "bash tools/Invoke-HeavyTask.sh <node> --test --test-concurrency=6 tests/chat-translation-test.mjs tests/display-schema-drift-test.mjs tests/tool-translation-test.mjs tests/tool-translation-native-test.mjs tests/google-provider-test.mjs tests/display-adapters-test.mjs tests/display-projector-test.mjs tests/gateway-protocol-test.mjs",
+      "env": {
+        "MYCODEX_REQUIRE_DISPLAY_SCHEMA": "1"
+      },
+      "exitCode": 0,
+      "tests": {
+        "total": 88,
+        "pass": 88,
+        "fail": 0,
+        "skipped": 0
+      },
+      "durationMs": 2765.154417
+    },
+    {
+      "command": "MYCODEX_REQUIRE_DISPLAY_SCHEMA=0 bash tools/Invoke-HeavyTask.sh <node> --test <isolated-clean-copy>/tests/display-schema-drift-test.mjs",
+      "fixture": "396 copied manifest inputs/outputs/resources, verified build fingerprint, no node_modules",
+      "exitCode": 0,
+      "tests": {
+        "total": 2,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 1
+      },
+      "diagnostic": "Ajv is not installed in this clean checkout; npm ci enables Schema validation."
+    },
+    {
+      "command": "MYCODEX_REQUIRE_DISPLAY_SCHEMA=1 bash tools/Invoke-HeavyTask.sh <node> --test <isolated-clean-copy>/tests/display-schema-drift-test.mjs",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "negativeTestPassed": true,
+      "tests": {
+        "total": 2,
+        "pass": 1,
+        "fail": 1,
+        "skipped": 0
+      },
+      "diagnostic": "Required Ajv dependency is unavailable; install the pinned development dependencies with npm ci before admission checks."
+    },
+    {
+      "command": "git diff --check -- bridge/catalog.mjs bridge/translate.mjs",
+      "exitCode": 0
+    }
+  ],
+  "opaqueRoundTripFix": {
+    "status": "resolved_in_source_and_isolated_native_regression",
+    "changedFiles": [
+      "bridge/translate.mjs",
+      "tests/chat-translation-test.mjs",
+      "tests/tool-translation-native-test.mjs",
+      "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md",
+      "docs/architecture/evidence/2026-11-13-display-standard.json"
+    ],
+    "rootCause": "Writing Chat reasoning_opaque to Responses encrypted_content, then rejecting that reasoning item on the next materialized request, self-locks tool-result return or later user turns.",
+    "behavior": [
+      "Only nonempty readable reasoning_text/reasoning_content creates a reasoning summary item.",
+      "reasoning_opaque is ignored, never emitted as encrypted_content, and never creates an empty card or splits a text segment.",
+      "Input reasoning and web_search_call metadata are skipped, including legacy encrypted reasoning; materialized messages, function calls and tool results are preserved.",
+      "previous_response_id, compaction, item_reference and unextracted input_file still fail before upstream transmission."
+    ],
+    "redBeforeFix": {
+      "total": 24,
+      "pass": 15,
+      "fail": 9,
+      "nativeToolRoundTrips": {
+        "failed": 3,
+        "error": "unsupported_input for the bridge's own encrypted reasoning history"
+      }
+    },
+    "nativeRegression": {
+      "executable": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+      "version": "codex-cli 0.167.0-alpha.4.1",
+      "parameterShapes": [
+        "simple",
+        "root-union",
+        "open-required"
+      ],
+      "firstChatResponse": {
+        "reasoning_text": "**Checking UI**\nInspecting fixture.",
+        "reasoning_opaque": "SYNTHETIC_GEMINI_OPAQUE_TOKEN",
+        "tool_call": "owned synthetic namespaced UI tool"
+      },
+      "assertions": [
+        "First turn completes after exactly two upstream requests, including the real core's tool result return.",
+        "Readable reasoning summary notifications arrive.",
+        "Next user turn in the same native thread also completes, producing a third upstream request.",
+        "No upstream request contains the synthetic opaque token.",
+        "No bridge fixture errors are recorded."
+      ]
+    },
+    "relatedTests": {
+      "total": 91,
+      "pass": 91,
+      "fail": 0,
+      "skipped": 0,
+      "requiredSchema": true
+    },
+    "limitations": [
+      "Synthetic upstream with the real installed Codex app-server, not paid real-account gemini-4-carbon inference.",
+      "No active Desktop/Gateway restart, runtime synchronization or formal release.",
+      "The separate personality interpolation finding in 2026-11-13-display-standard-rereview.json is not resolved by this P0-only change."
+    ],
+    "cleanup": "Owned temporary validation log and scratch directory removed after evidence collection.",
+    "validationCommands": [
+      {
+        "command": "node tools/typescript-task.mjs build",
+        "exitCode": 0,
+        "build": {
+          "sources": 96,
+          "outputs": 192
+        }
+      },
+      {
+        "command": "node tools/typescript-task.mjs typecheck",
+        "exitCode": 0
+      },
+      {
+        "command": "node tools/typescript-task.mjs check",
+        "exitCode": 0
+      },
+      {
+        "command": "MYCODEX_REQUIRE_DISPLAY_SCHEMA=1 bash tools/Invoke-HeavyTask.sh <node> --test --test-concurrency=6 tests/chat-translation-test.mjs tests/tool-translation-native-test.mjs tests/tool-translation-test.mjs tests/google-provider-test.mjs tests/display-adapters-test.mjs tests/display-projector-test.mjs tests/display-schema-drift-test.mjs tests/gateway-protocol-test.mjs",
+        "exitCode": 0,
+        "tests": {
+          "total": 91,
+          "pass": 91,
+          "fail": 0,
+          "skipped": 0
+        },
+        "durationMs": 3291.308292
+      },
+      {
+        "command": "git diff --check -- bridge/translate.mjs",
+        "exitCode": 0
+      }
+    ],
+    "personalityFollowup": "The independent personality finding excluded from the P0 fix is now closed by personalityLiteralClosure; the historical rereview report is preserved unchanged."
+  },
+  "personalityLiteralClosure": {
+    "status": "resolved_by_removing_obsolete_literal",
+    "acceptedObservation": "Installed codex-cli 0.167.0-alpha.4.1 consumes literal instructions and no longer expands the legacy personality slot.",
+    "changedFiles": [
+      "assets/chat-instructions.md",
+      "bridge/catalog.mjs",
+      "tests/chat-translation-test.mjs",
+      "tests/display-schema-drift-test.mjs",
+      "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md",
+      "docs/architecture/evidence/2026-11-13-display-standard.json"
+    ],
+    "changes": [
+      "Removed only the obsolete {{ personality }} slot from the complete Chat instruction asset.",
+      "Removed the additional instructions_variables copy introduced for that slot.",
+      "Both catalog and asset tests now reject unresolved personality literals and preserve the clickable file links, dirty Git worktree protection, rg/apply_patch constraints, severity-ordered code review, frontend rules and single-stream progress contract."
+    ],
+    "regression": {
+      "total": 91,
+      "pass": 91,
+      "fail": 0,
+      "skipped": 0,
+      "requiredSchema": true,
+      "includesOpaqueNativeToolRoundTripAndNextUserTurn": true
+    },
+    "previousFindingReport": {
+      "path": "docs/architecture/evidence/2026-11-13-display-standard-rereview.json",
+      "disposition": "Historical finding evidence preserved unchanged; its finding is addressed by this closure, not by restoring unsupported native style selection."
+    },
+    "boundary": "This removes a dead literal; it does not reintroduce friendly/pragmatic selection into the current native core.",
+    "localSynchronization": {
+      "performed": false,
+      "owner": "Main review session",
+      "scope": "Idle bridge hot synchronization is deliberately left to the main review session."
+    },
+    "cleanup": "Owned temporary validation log and scratch directory removed after collecting results.",
+    "protectedFiles": "Parallel Squad changes, VERSION, NATIVE_PATCH_CHAIN.json and unrelated existing dirty files were not edited."
+  }
+}

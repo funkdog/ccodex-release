@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildChatRequest, readSse } from "../bridge/translate.mjs";
+import { buildChatRequest, createResponsesWriter, readSse } from "../bridge/translate.mjs";
 import { buildCatalog } from "../bridge/catalog.mjs";
 import { sanitizeResponsesBody } from "../bridge/request-sanitize.mjs";
 import { memoryResponsesBridge, encodeEvents } from "./fixtures/responses-bridge.mjs";
@@ -10,6 +10,141 @@ const context = [
   { type: "function_call_output", id: "fco_selection", namespace: "agent", name: "codex_apps_selected_page_part_1_of_1",
     output: 'Companion Page snapshot part 1 of 1:\n{"page_id":null,"document_view":null}' },
 ];
+
+function translated(chunks, streaming = true) {
+  let body = "";
+  const res = { writeHead() {}, write(value) { body += value; }, end(value = "") { body += value; } };
+  const writer = createResponsesWriter(res, { model: "fixture" }, new Map(), { streaming });
+  for (const delta of chunks) writer.pushChunk({ choices: [delta] });
+  writer.finish();
+  const events = streaming ? body.split("\n\n").filter(Boolean).map(frame => JSON.parse(frame.split("\ndata: ")[1])) : [];
+  return { events, response: streaming ? events.at(-1).response : JSON.parse(body) };
+}
+
+for (const streaming of [true, false]) test(`reasoning and interleaved text preserve order and phases (stream=${streaming})`, () => {
+  const { events, response } = translated([
+    { delta: { reasoning_content: "think", reasoning_opaque: "opaque" } },
+    { delta: { content: "before" } },
+    { delta: { tool_calls: [{ index: 0, id: "call", function: { name: "inspect", arguments: "{}" } }] } },
+    { delta: { reasoning_text: "again" } },
+    { delta: { content: "answer" }, finish_reason: "stop" },
+  ], streaming);
+  assert.deepEqual(response.output.map(item => item.type), ["reasoning", "message", "function_call", "reasoning", "message"]);
+  assert.equal(response.output[0].summary[0].text, "think");
+  assert.equal(response.output[0].encrypted_content, undefined);
+  assert(!JSON.stringify({ events, response }).includes('"opaque"'), "Opaque state must not be emitted or echoed");
+  assert.equal(response.output[1].phase, "commentary");
+  assert.equal(response.output[4].phase, "commentary", "Pending tool calls prevent a final answer in this response");
+  assert.equal(response.output[4].content[0].text, "answer");
+  if (streaming) {
+    assert.deepEqual(events.filter(e => e.item_id === response.output[0].id || e.item?.id === response.output[0].id).map(e => e.type), [
+      "response.output_item.added", "response.reasoning_summary_part.added", "response.reasoning_summary_text.delta",
+      "response.reasoning_summary_text.done", "response.reasoning_summary_part.done", "response.output_item.done",
+    ]);
+    assert.deepEqual(events.map(e => e.sequence_number), events.map((_, index) => index));
+  }
+});
+
+for (const streaming of [true, false]) test(`text after a tool call remains commentary until the next response (stream=${streaming})`, () => {
+  const { response } = translated([
+    { delta: { tool_calls: [{ index: 0, id: "call_pending", function: { name: "inspect", arguments: "{}" } }] } },
+    { delta: { content: "I will inspect this now." }, finish_reason: "tool_calls" },
+  ], streaming);
+  assert.deepEqual(response.output.map(item => item.type), ["function_call", "message"]);
+  assert.equal(response.output[1].phase, "commentary");
+  assert.equal(translated([{ delta: { content: "Result after the tool finished." }, finish_reason: "stop" }], streaming).response.output[0].phase, "final_answer");
+});
+
+test("opaque-only reasoning creates no empty card; truncated text is not final", () => {
+  const { events, response } = translated([{ delta: { reasoning_opaque: "opaque" } }, { delta: { content: "partial" }, finish_reason: "length" }]);
+  assert.deepEqual(response.output.map(item => item.type), ["message"]);
+  assert(!events.some(event => event.type.startsWith("response.reasoning_")));
+  assert.equal(response.output[0].phase, "commentary");
+  assert.equal(response.status, "incomplete");
+});
+
+for (const streaming of [true, false]) test(`opaque deltas neither split text nor leak into responses (stream=${streaming})`, () => {
+  const { response } = translated([
+    { delta: { content: "before" } }, { delta: { reasoning_opaque: "SYNTHETIC_GEMINI_OPAQUE_TOKEN" } },
+    { delta: { content: "after" }, finish_reason: "stop" },
+  ], streaming);
+  assert.equal(response.output.length, 1);
+  assert.equal(response.output[0].content[0].text, "beforeafter");
+  assert.equal(response.output[0].phase, "final_answer");
+  assert(!JSON.stringify(response).includes("SYNTHETIC_GEMINI_OPAQUE_TOKEN"));
+});
+
+test("materialized tool history ignores legacy reasoning metadata without losing the conversation", () => {
+  const request = { input: [
+    { role: "user", content: "original question" },
+    { type: "reasoning", encrypted_content: "SYNTHETIC_GEMINI_OPAQUE_TOKEN", summary: [] },
+    { type: "function_call", call_id: "call_inspect", name: "inspect", arguments: "{}" },
+    { type: "function_call_output", call_id: "call_inspect", output: "original result" },
+    { role: "assistant", content: "original answer" }, { role: "user", content: "next question" },
+  ] };
+  const before = structuredClone(request), { body } = buildChatRequest(request, {});
+  assert.deepEqual(body.messages.map(message => message.role), ["user", "assistant", "tool", "assistant", "user"]);
+  assert.equal(body.messages[0].content, "original question");
+  assert.equal(body.messages[1].tool_calls[0].id, "call_inspect");
+  assert.equal(body.messages[2].content, "original result");
+  assert.equal(body.messages[3].content, "original answer");
+  assert.equal(body.messages[4].content, "next question");
+  assert(!JSON.stringify(body).includes("SYNTHETIC_GEMINI_OPAQUE_TOKEN"));
+  assert.deepEqual(request, before);
+});
+
+test("Gemini can continue after a streamed assistant comment without changing the recorded history", () => {
+  const input = [
+    { role: "user", content: "Continue the report." },
+    { role: "assistant", phase: "commentary", content: "I will check the totals." },
+    { type: "reasoning", summary: [] },
+  ];
+  const original = structuredClone(input);
+  const translate = (model, history) => buildChatRequest({ model, input: history }, {}).body.messages;
+  const messages = translate("gemini-4-carbon", input);
+  assert.deepEqual(messages.slice(0, 2), [
+    { role: "user", content: input[0].content },
+    { role: "assistant", content: input[1].content },
+  ]);
+  assert.equal(messages.length, 3);
+  assert.equal(messages.at(-1).role, "user");
+  assert.ok(messages.at(-1).content.trim());
+  assert.deepEqual(input, original);
+  assert.deepEqual(translate("gpt-fixture", input), messages.slice(0, 2));
+  const call = { type: "function_call", name: "inspect", call_id: "test", arguments: "{}" };
+  assert.ok(translate("gemini-4-carbon", [...input, call]).at(-1).tool_calls);
+  assert.equal(translate("gemini-4-carbon", [...input, call,
+    { type: "function_call_output", call_id: "test", output: "result" }]).at(-1).role, "tool");
+  assert.deepEqual(translate("gemini-4-carbon", [...input, { role: "user", content: "Wait." }]).at(-1),
+    { role: "user", content: "Wait." });
+});
+
+test("upstream failure preserves partial reasoning and text without claiming completion", () => {
+  const events = [];
+  const writer = createResponsesWriter({ writeHead() {}, write(frame) { events.push(JSON.parse(frame.split("\ndata: ")[1])); }, end() {} }, { model: "fixture" }, new Map());
+  writer.pushChunk({ choices: [{ delta: { reasoning_text: "think", content: "partial" } }] });
+  writer.fail("fixture failure");
+  assert.equal(events.at(-1).type, "response.failed");
+  assert.equal(events.at(-1).response.output[1].content[0].text, "partial");
+  assert.equal(events.at(-1).response.output[1].phase, "commentary");
+  assert.equal(events.some(e => e.type === "response.completed"), false);
+});
+
+test("Copilot top-level reasoning usage is retained and nested usage takes precedence", () => {
+  for (const nested of [undefined, 0, 20]) {
+    let response;
+    const writer = createResponsesWriter({ end(raw) { response = JSON.parse(raw); }, writeHead() {} },
+      { model: "gemini-fixture" }, new Map(), { streaming: false });
+    writer.pushChunk({ choices: [{ message: { content: "READY" } }], usage: {
+      prompt_tokens: 35, completion_tokens: 75, total_tokens: 110, reasoning_tokens: 70,
+      ...(nested === undefined ? {} : { completion_tokens_details: { reasoning_tokens: nested } }),
+    } });
+    writer.finish();
+    assert.equal(response.usage.output_tokens_details.reasoning_tokens, nested ?? 70);
+    assert.equal(response.usage.output_tokens, 75);
+    assert.equal(response.usage.total_tokens, 110);
+  }
+});
 
 test("Responses serializes named app context as reference data while leaving real tool results and native state intact", () => {
   const native = [
@@ -147,7 +282,7 @@ test("production Chat route accepts Desktop context and completes a named tool r
   assert.deepEqual(bridge.diagnostics().errors, []);
 });
 
-test("Chat rejects opaque history and file attachments instead of silently dropping context", async t => {
+test("Chat rejects unmaterialized history and file attachments instead of silently dropping context", async t => {
   for (const request of [
     { model: "gemini-fixture", previous_response_id: "resp_prev", input: "continue" },
     { model: "gemini-fixture", input: [{ type: "compaction", encrypted_content: "opaque" }, { role: "user", content: "next" }] },
@@ -239,7 +374,14 @@ test("Chat catalog entries disable Responses-only transport and GPT-only instruc
     assert.doesNotMatch(template, /multi_tool_use\.parallel/);
     assert.doesNotMatch(template, /`commentary`|commentary channel|`final` channel/i);
     assert.match(template, /single assistant text stream/);
+    assert.doesNotMatch(template, /\{\{\s*personality\s*\}\}/);
+    assert.ok(template.includes("[app.ts](/abs/path/app.ts:12)"));
+    for (const contract of ["`rg` or `rg --files`", "Always use apply_patch for manual code edits.",
+      "NEVER revert existing changes you did not make", "ordered by severity with file/line references", "## Frontend tasks"]) {
+      assert.ok(template.includes(contract), `Chat must retain ${contract}`);
+    }
     if (entry.base_instructions) {
+      assert.doesNotMatch(entry.base_instructions, /\{\{\s*personality\s*\}\}/);
       assert.doesNotMatch(entry.base_instructions, /multi_tool_use\.parallel/);
       assert.doesNotMatch(entry.base_instructions, /`commentary`|commentary channel|`final` channel/i);
     }

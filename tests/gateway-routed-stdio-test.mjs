@@ -7,10 +7,36 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { startGateway } from "../gateway/server.mjs";
 import { readMessages, writeMessage } from "../gateway/ipc.mjs";
+import { connectGateway } from "../gateway/ipc.mjs";
 import { RpcPeer } from "../gateway/rpc-peer.mjs";
 
 const frontend = path.resolve(import.meta.dirname, "../gateway/routed-stdio.mjs");
 const nativeFixture = path.resolve(import.meta.dirname, "fixtures/native-app-server.mjs");
+test("Desktop's initialize-only handshake registers the native switching channel through the routed frontend", { timeout: 15000 }, async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "rt-host-"));
+  const config = { home, endpoint: path.join(home, "s"), token: randomUUID(), generation: "fixture", spine: { mcp: false, eventTap: false } };
+  const server = await startGateway({ ...config, engines: new Map(), defaultEngine: "fixture" });
+  const file = path.join(home, "connection.json"); fs.writeFileSync(file, JSON.stringify(config), { mode: 0o600 });
+  const child = spawn(process.execPath, [frontend, nativeFixture, "app-server"], { env: { HOME: home, PATH: process.env.PATH,
+    TEST_CCODEX_NATIVE_PROCESS: "test-only", CCODEX_NATIVE_CLI: process.execPath, CCODEX_GATEWAY_CONNECTION: file }, stdio: ["pipe", "pipe", "pipe"] });
+  const native = new RpcPeer(message => writeMessage(child.stdin, message));
+  readMessages(child.stdout, message => native.receive(message)); child.stderr.resume();
+  const exited = new Promise(resolve => child.once("exit", resolve));
+  let socket; const control = new RpcPeer(message => writeMessage(socket, message));
+  t.after(async () => { socket?.destroy(); child.stdin.end(); const timer = setTimeout(() => child.kill("SIGKILL"), 6000);
+    try { await exited; } finally { clearTimeout(timer); await server.close(); fs.rmSync(home, { recursive: true, force: true }); } });
+  const reply = await native.request("initialize", { clientInfo: { name: "desktop-without-notification", version: "1" } });
+  assert.equal(reply.userAgent, "native-fixture");
+  // Deliberately omit initialized: this is the live Desktop lifecycle.
+  socket = await connectGateway(config, message => control.receive(message));
+  await control.request("initialize", { clientInfo: { name: "assert-host", version: "1" } });
+  let status; const deadline = Date.now() + 5000;
+  do { status = await control.request("diy/host/status", {}); if (status.bindings.length) break; await new Promise(resolve => setTimeout(resolve, 20)); } while (Date.now() < deadline);
+  assert.equal(status.bindings.length, 1, "A ready Desktop frontend must be available to the execution-switch broker");
+  assert.equal(status.bindings[0].frontendPid, process.pid);
+  assert.equal(status.bindings[0].executionSwitch, true);
+});
+
 test("routed stdio preserves native profile and runs an external turn through the real shared IPC", async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "rt-"));
   const nativeHome = path.join(home, "native-profile");
@@ -97,4 +123,23 @@ test("native app-server exit closes the frontend without retrying or leaving an 
   await assert.rejects(peer.request("fixture/crash", {}, { timeoutMs: 5000 }), /disconnected/);
   assert.equal(await exited, 1);
   assert.deepEqual(fs.readdirSync(home), ["connection.json"]);
+});
+
+
+for (const listen of [["--listen", "stdio://"], ["--listen=stdio://"]]) test(`internal app-server ${listen.join(" ")} routes protocol without registering a Desktop host`, { timeout: 12000 }, async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "rt-helper-"));
+  const config = { home, endpoint: path.join(home, "s"), token: randomUUID(), generation: "fixture", spine: { mcp: false, eventTap: false } };
+  const gateway = await startGateway({ ...config, engines: new Map(), defaultEngine: "fixture" });
+  const file = path.join(home, "connection.json"); fs.writeFileSync(file, JSON.stringify(config), { mode: 0o600 });
+  const child = spawn(process.execPath, [frontend, nativeFixture, "app-server", ...listen], { env: { HOME: home, PATH: process.env.PATH, TEST_CCODEX_NATIVE_PROCESS: "test-only", CCODEX_NATIVE_CLI: process.execPath, CCODEX_GATEWAY_CONNECTION: file }, stdio: ["pipe", "pipe", "pipe"] });
+  const peer = new RpcPeer(message => writeMessage(child.stdin, message));
+  readMessages(child.stdout, message => peer.receive(message)); child.stderr.resume();
+  const exited = new Promise(resolve => child.once("exit", resolve));
+  let socket; const control = new RpcPeer(message => writeMessage(socket, message));
+  t.after(async () => { socket?.destroy(); control.close(); child.stdin.end(); const timer = setTimeout(() => child.kill("SIGKILL"), 4000); try { await exited; } finally { clearTimeout(timer); peer.close(); await gateway.close(); fs.rmSync(home, { recursive: true, force: true }); } });
+  assert.equal((await peer.request("initialize", { clientInfo: { name: "node_repl", version: "1" } })).userAgent, "native-fixture");
+  assert.ok((await peer.request("model/list", {})).data.some(model => model.model === "native-model"));
+  socket = await connectGateway(config, message => control.receive(message)); await control.request("initialize", {});
+  await new Promise(resolve => setTimeout(resolve, 350));
+  assert.deepEqual((await control.request("diy/host/status", {})).bindings, [], "headless helpers must not advertise Squad/switch capabilities or a fake Desktop PID");
 });

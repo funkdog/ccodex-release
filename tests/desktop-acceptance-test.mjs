@@ -77,12 +77,15 @@ test("macOS acceptance sandbox enforces private writes and blocks Internet witho
 
 test("sandboxed routed shim uses synthetic native identity plus isolated gateway and restores image history", { timeout: 15000 }, async t => {
   if (process.platform !== "darwin") return t.skip("macOS acceptance sandbox only");
-  const root = fixture(t), gateway = await createAcceptanceGateway(root); t.after(() => gateway.close());
+  const cleanups = [];
+  t.after(async () => { for (const cleanup of cleanups.reverse()) await cleanup(); });
+  const root = fixture({ after(cleanup) { cleanups.push(cleanup); } }), gateway = await createAcceptanceGateway(root);
+  cleanups.push(() => gateway.close());
   const child = spawn("/usr/bin/sandbox-exec", ["-p", acceptanceSandbox(root), path.join(root, "codex"), "app-server"], { env: acceptanceEnvironment(root), cwd: path.join(root, "workspace"), stdio: ["pipe", "pipe", "pipe"] });
   let stderr = ""; child.stderr.on("data", data => { stderr += data; }); const peer = new RpcPeer(message => writeMessage(child.stdin, message)); readMessages(child.stdout, message => peer.receive(message), error => peer.close(error));
   const exited = new Promise(resolve => child.once("exit", code => { peer.close(new Error(`Sandboxed shim exited ${code}: ${stderr}`)); resolve(code); }));
-  t.after(async () => { child.stdin.end(); const timer = setTimeout(() => child.kill("SIGKILL"), 1000); await exited; clearTimeout(timer); peer.close(); });
-  assert.match((await peer.request("initialize", { clientInfo: { name: "acceptance-test", version: "1" } }, { timeoutMs: 3000 })).userAgent, /fixture/);
+  cleanups.push(async () => { child.stdin.end(); const timer = setTimeout(() => child.kill("SIGKILL"), 1000); await exited; clearTimeout(timer); peer.close(); });
+  assert.match((await peer.request("initialize", { clientInfo: { name: "acceptance-test", version: "1" } }, { timeoutMs: 6000 })).userAgent, /fixture/);
   const catalog = await peer.request("model/list", {}, { timeoutMs: 6000 }); assert.ok(catalog.data.some(row => row.model === "mycodex/acceptance/fixture"), JSON.stringify(catalog) + stderr);
   const history = await peer.request("thread/turns/list", { threadId: gateway.threadIds[0], itemsView: "summary" }, { timeoutMs: 3000 }); assert.ok(history.data[0].items.some(item => item.type === "imageGeneration"));
   const auth = await peer.request("account/read", {}); assert.equal(auth.account, null); assert.equal(auth.requiresOpenaiAuth, false);

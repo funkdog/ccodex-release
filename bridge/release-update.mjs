@@ -5,12 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const DEFAULT_RELEASE_REPO =
-  process.env.CODEX_COPILOT_RELEASE_REPO || "nifan_microsoft/ccodex-release";
-export const DEFAULT_RELEASE_REPOS = Object.freeze([
-  "ai-microsoft/ccodex-release",
-  "nifan_microsoft/ccodex-release",
-]);
+const PUBLIC_RELEASE_REPO = "funkdog/ccodex-release";
+export const DEFAULT_RELEASE_REPO = process.env.CODEX_COPILOT_RELEASE_REPO || PUBLIC_RELEASE_REPO;
+export const DEFAULT_RELEASE_REPOS = Object.freeze([PUBLIC_RELEASE_REPO]);
 const SEMVER = /(\d+\.\d+\.\d+)/;
 const MAX_METADATA_BYTES = 2 * 1024 * 1024;
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -145,7 +142,7 @@ function resolveReleaseAuthTokens({ home, root } = {}) {
         const list = Array.isArray(parsed) ? parsed : [parsed];
         const preferred = list.filter((item) =>
           item?.target === "LegacyGeneric:target=git:https://github.com" ||
-          String(item?.target || "").includes("nifan_microsoft"));
+          String(item?.target || "").includes(PUBLIC_RELEASE_REPO));
         for (const item of [...preferred, ...list]) add(item?.secret);
       } catch {
         /* ignore credman failure */

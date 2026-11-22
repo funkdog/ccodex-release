@@ -4,6 +4,7 @@ import type { CopilotSdk, CopilotSessionOptions, CopilotSession } from "../sdk-c
 import { randomUUID } from "node:crypto";
 import { approveOnce } from "./permissions.mjs";
 import { extractToolOutput } from "../media.mjs";
+import { object } from "./tool-display.mjs";
 
 export function copilotEngine({ sdk, executable, env }: { sdk: CopilotSdk; executable?: string; env?: NodeJS.ProcessEnv }): EngineAdapter {
   const client = (cwd?: string) => new sdk.CopilotClient({ env, ...(cwd ? { workingDirectory: cwd } : {}),
@@ -40,8 +41,9 @@ export function copilotEngine({ sdk, executable, env }: { sdk: CopilotSdk; execu
         return (await runtime.listModels()).filter(model => model.policy?.state !== "disabled");
       } finally { await runtime.stop(); }
     },
-    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, getApprovalMode = () => "ask", signal, onSession, onText, onTool, onCheckpoint, ask }) {
+    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, getApprovalMode = () => "ask", signal, onSession, onText, onTool, onCheckpoint, ask, display }) {
       const toolNames = new Map<string, string>();
+      const projected = new Map<string, "command" | "mcp">(), thoughts = new Set<string>();
       const runtime = client(cwd);
       let session: CopilotSession | undefined;
       let unsubscribe: (() => void) | undefined;
@@ -52,6 +54,7 @@ export function copilotEngine({ sdk, executable, env }: { sdk: CopilotSdk; execu
         const config: CopilotSessionOptions = { model, workingDirectory: cwd, streaming: true,
           ...(reasoningEffort != null ? { reasoningEffort } : {}),
           onPermissionRequest: async (request, invocation) => {
+            if (signal.aborted) return { kind: "reject" };
             const mode = getApprovalMode();
             if (mode === "deny") return { kind: "reject" };
             // Managed human-approval requirements remain authoritative in all
@@ -60,6 +63,18 @@ export function copilotEngine({ sdk, executable, env }: { sdk: CopilotSdk; execu
               (request.managedApprovalRequired != null && request.managedApprovalRequired !== false) ||
               invocation?.promptRequest?.managedApprovalRequired === true;
             if (!managed && (mode === "auto" || (mode === "read-only" && request.kind === "read"))) return { kind: "approve-once" };
+            if (display && request.kind === "shell" && request.toolCallId && request.fullCommandText) {
+              const id = request.toolCallId;
+              if (!projected.has(id)) {
+                projected.set(id, "command"); display.commandStart({ id, command: request.fullCommandText, cwd: request.resolvedWorkingDirectory ?? cwd });
+              }
+              if (projected.get(id) === "command") {
+                const decision = await display.requestCommandApproval({ itemId: id, command: request.fullCommandText, cwd: request.resolvedWorkingDirectory ?? cwd });
+                const allowed = !signal.aborted && ["accept", "acceptForSession"].includes(decision);
+                if (!allowed) display.commandEnd({ id, status: "declined" });
+                return { kind: allowed ? "approve-once" : "reject" };
+              }
+            }
             return { kind: await approveOnce(ask,
               `GitHub Copilot CLI requests permission:\n${JSON.stringify(request)}`) ? "approve-once" : "reject" };
           },
@@ -84,15 +99,35 @@ export function copilotEngine({ sdk, executable, env }: { sdk: CopilotSdk; execu
         let checkpointed = false;
         const done = new Promise<void>((resolve, reject) => {
           unsubscribe = session!.on(event => {
-            if (event.agentId) return;
+            if (event.agentId || signal.aborted && event.type !== "session.idle") return;
             try {
+              if (display && event.type === "assistant.reasoning_delta" && event.data.reasoningId) {
+                thoughts.add(event.data.reasoningId); display.thinkingDelta(event.data.reasoningId, event.data.deltaContent);
+              }
+              if (display && event.type === "assistant.reasoning" && event.data.reasoningId) {
+                if (!thoughts.has(event.data.reasoningId) && event.data.content) display.thinkingDelta(event.data.reasoningId, event.data.content);
+                display.thinkingDone(event.data.reasoningId); thoughts.delete(event.data.reasoningId);
+              }
               if (!checkpointed && sent && event.type === "user.message" && event.id) { checkpointed = true; onCheckpoint?.(event.id); }
               if (event.type === "assistant.message_delta") { streamed = true; onText(event.data.deltaContent); }
               if (event.type === "assistant.message") finalText = event.data.content || finalText;
-              if (event.type === "tool.execution_start") { toolNames.set(event.data.toolCallId, event.data.toolName); onTool?.({ phase: "start", id: event.data.toolCallId,
-                name: event.data.toolName, input: event.data.arguments }); }
-              if (event.type === "tool.execution_complete") onTool?.({ phase: "end", id: event.data.toolCallId,
-                success: event.data.success, ...extractToolOutput(event.data.result?.content ?? event.data.error?.message, { toolName: event.data.toolName ?? toolNames.get(event.data.toolCallId), cwd }) });
+              if (event.type === "tool.execution_start") {
+                const data = event.data, input = object(data.arguments), id = data.toolCallId;
+                toolNames.set(id, data.toolName);
+                if (!projected.has(id) && display && data.shellToolInfo && typeof input.command === "string" && input.command) {
+                  projected.set(id, "command"); display.commandStart({ id, command: input.command, cwd });
+                } else if (!projected.has(id) && display && (data.mcpConfigServerName || data.mcpServerName) && data.mcpToolName) {
+                  projected.set(id, "mcp"); display.mcpStart({ id, server: data.mcpConfigServerName ?? data.mcpServerName!, tool: data.mcpToolName, arguments: data.arguments });
+                }
+                if (!projected.has(id)) onTool?.({ phase: "start", id, name: data.toolName, input: data.arguments });
+              }
+              if (event.type === "tool.execution_complete") {
+                const data = event.data, kind = projected.get(data.toolCallId);
+                const result = extractToolOutput(data.result?.content ?? data.error?.message ?? "", { toolName: data.toolName ?? toolNames.get(data.toolCallId), cwd });
+                if (kind === "command") display?.commandEnd({ id: data.toolCallId, status: data.success ? "completed" : "failed", output: result.output, exitCode: data.shellExecution?.exitCode });
+                else if (kind === "mcp") display?.mcpEnd({ id: data.toolCallId, status: data.success ? "completed" : "failed", result: { content: [{ type: "text", text: result.output }], structuredContent: data.result?.structuredContent }, errorMessage: data.error?.message });
+                else onTool?.({ phase: "end", id: data.toolCallId, success: data.success, ...result });
+              }
               if (event.type === "session.error") turnError = new Error(event.data.message || "Copilot CLI failed.");
               if (sent && event.type === "session.idle") turnError ? reject(turnError) : resolve();
             } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); turnError = error; session!.abort().catch(reject); }

@@ -1,19 +1,17 @@
 # 源码维护与发布
 
-此文件保留旧完整发行渠道的维护流程。MyCodex Adapters RC.3 的源码构建、测试与修复步骤优先见 [开发贡献指南](../CONTRIBUTING.md)。
-
 ## 取得源码
 
 ```powershell
-git clone https://github.com/nifan_microsoft/ccodex-release.git
+git clone https://github.com/funkdog/ccodex-release.git
 cd ccodex-release
 ```
 
 本仓库是增强逻辑的可维护源码，不是第三方可执行资源的镜像。
 源码包含 Copilot/Work IQ 桥接、Desktop 适配、独立安装与卸载、原生辅助组件、完整原生补丁链、测试和安装器组装代码。
-Desktop、Copilot、Node、Git、Python、文档运行时等离线二进制不提交 Git；同事直接下载安装包。
+Desktop、Copilot、Node、Git、Python、文档运行时等离线二进制由各自的安装渠道提供。
 
-当前四平台安装包：[固定 Release 下载页 (v1.2.36)](https://github.com/nifan_microsoft/ccodex-release/releases/tag/v1.2.36)。
+公开下载见 [MyCodex Adapters RC.4](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)（macOS ARM64）。旧多平台包的操作记录见 [v1.2.36 历史发行说明](RELEASE.zh-CN.md)。
 
 ## 本机开发版
 
@@ -125,7 +123,22 @@ Windows 需要匹配架构的 Visual Studio C++ 工具、Windows SDK、C# 编译
 跨平台构建模板位于 `ci/build-platform-packages.yml`，保存为源码而未自动启用。
 启用 GitHub Actions 前需审核平台资源、runner 与 workflow 权限，不会因为这次源码上传自动进行长时间构建。
 
-重构建或完整测试经仓库调度器执行：
+功能开发、修复和重构默认完成源码修改与目标平台的本机验证；正式打包、安装器验收和发布仅在用户明确要求或任务范围已约定时执行。
+Mac 本机开发使用 Node/TypeScript 与 `tools/Invoke-HeavyTask.sh`，无需 `pwsh`、Windows 构建工具、发行清单或六平台发包环境。
+`npm run typecheck`、`build`、`test:diy`（或 `node tools/typescript-task.mjs` 对应命令）自动选择当前平台的调度器。
+
+Desktop 小队界面使用新版原生分屏 Squad Studio 与内嵌里程碑卡。旧 MyCodex 抽屉、
+旧面板、`⌘⇧M` 快捷键及其页面注入与通用 DIY 请求通道已删除。
+侧栏状态徽标和子会话返回主会话导航共享侧栏已有的小队快照，不再挂载抽屉、挤压主界面或单独请求抽屉状态。
+已有配置中的 `spine.ui.rightOffset` 仅保留读取兼容性，不会恢复旧界面；后端 MCP、Studio 与卡片接口保留。
+
+重构建或完整测试经当前平台的仓库调度器执行。macOS/Linux 示例：
+
+```sh
+bash tools/Invoke-HeavyTask.sh node --test tests/source-publication-test.mjs
+```
+
+Windows 示例：
 
 ```powershell
 & .\tools\Invoke-HeavyTask.ps1 'node --test .\tests\source-publication-test.mjs'
@@ -140,9 +153,11 @@ Windows 需要匹配架构的 Visual Studio C++ 工具、Windows SDK、C# 编译
 调用时必须传 `--reuse-inventory`，避免依赖历史的一次性 stage 准备脚本。
 见 [安装器源码说明](../tools/team-release/README.md)。
 
-功能修改需要相关自动回归、完整 EXE 安装及真实 GUI/CLI 验收。
+功能修改需要相关自动回归与目标平台的 CLI/GUI 交互验证。
+正式发行还需匹配平台的安装器及真实运行验收；Windows EXE 的完整安装验证在 Windows release runner 上执行。
+`tools/Publish-Release.ps1` 通过该 runner 的 `tools/Invoke-HeavyTask.ps1` 调用，不作为 Mac 本机开发的前置步骤。
 模拟登录测试不能替代真实账户授权、付费推理或企业连接验证。
-源码和文档整理不需要重新编译已验证的 EXE，也不增加版本号。
+本机开发、源码和文档整理不自动重编已验证的安装器、不增加版本号，也不重启当前客户端。
 
 ## 当前发布与清理
 

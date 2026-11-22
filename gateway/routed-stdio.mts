@@ -23,8 +23,6 @@ export function readRoutingConnection(file: string | undefined, { isolateSpine =
   const stat = fs.lstatSync(file);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024 || (process.platform !== "win32" && (stat.mode & 0o077))) throw new Error("Invalid private gateway connection file.");
   const config = JSON.parse(fs.readFileSync(file, "utf8"));
-  if ((config.workbench !== undefined && typeof config.workbench !== "boolean") ||
-      (config.workbench === false && config.spine !== undefined)) throw new Error("Invalid workbench configuration.");
   if (!path.isAbsolute(config.home || "") || typeof config.token !== "string" || config.token.length < 16 ||
       typeof config.endpoint !== "string" || typeof config.generation !== "string") throw new Error("Invalid routing connection metadata.");
   try { validateSpineOptions(config.spine); }
@@ -96,8 +94,13 @@ export async function runRoutedStdio({ args = process.argv.slice(2), env = proce
     spineShimDirectory: config.spine?.shimDirectory,
     spineMcp: config.spine?.mcp,
     env: { ...env, ...(googleProvider ? { MYCODEX_GOOGLE_TOKEN: googleProviderToken(config.token) } : {}) } });
+  // Explicit listeners are auxiliary protocol services (including Code Mode's
+  // node_repl child), not the Desktop's primary stdio frontend. Keep routing
+  // intact without advertising their parent PID as a Desktop native host.
+  const desktopHostChannel = !args.some(arg => arg === "--listen" || arg.startsWith("--listen="));
   const ownsThread = (id: string) => readThreadOwnership(path.join(config.home, "gateway", "threads"), id);
   let host: ReturnType<typeof import("./native-host-peer.mjs").createNativeHostPeer> | undefined;
+  const pendingNativeDeletions = new Set<string>();
   const router = new AppServerRouter({ native,
     connectProvider: async id => {
       const provider = id === copilotProviderId && copilotProvider ? copilotProvider :
@@ -116,15 +119,23 @@ export async function runRoutedStdio({ args = process.argv.slice(2), env = proce
     googleProvider,
     cursorSecret: config.token + ":" + config.generation,
     ownsThread,
+    onNativeDeleted: id => {
+      if (!desktopHostChannel) return;
+      if (!host) pendingNativeDeletions.add(id);
+      else void host.deleted(id).catch(() => warn("Squad native deletion cleanup is pending; reconnect before reusing its metadata."));
+    },
     onNativeInitialized: () => {
-      if (!config.spine) return;
+      if (!config.spine || !desktopHostChannel) return;
       // Optional host imports and capability discovery must not delay the
       // native initialize response or the frontend's first ordinary request.
       void (async () => {
         const { createNativeHostPeer } = await import("./native-host-peer.mjs");
         if (router.closed) return;
-        host = createNativeHostPeer(config, native, ownsThread, warn, { runExclusive: (id, operation) => router.withNativeThread(id, operation) });
+        host = createNativeHostPeer(config, native, ownsThread, warn, { runExclusive: (id, operation) => router.withNativeThread(id, operation),
+          switchExecution: (id, model) => router.switchExecution(id, model),
+          squadRequest: (method, params) => router.squadRequest(method, params) });
         await host.start();
+        for (const id of pendingNativeDeletions) { await host.deleted(id); pendingNativeDeletions.delete(id); }
       })().catch(() => { if (!router.closed) warn("Optional native host channel is unavailable; native routing continues."); });
     },
     send: message => writeMessage(output, message),

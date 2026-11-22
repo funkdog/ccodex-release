@@ -40,13 +40,15 @@ export function codexCopilotCatalog(config: ProviderConfig, { fetchImpl = fetch 
       if (status.status !== "ok") throw new Error("Codex + Copilot 尚未登录。请先为 API bridge 完成 GitHub 登录，再刷新模型；CLI 登录不等于 API bridge 登录。");
       const response = await fetchImpl(`${base}/catalog`, { redirect: "error", signal: AbortSignal.timeout(30000) });
       if (!response.ok) throw new Error(`Copilot bridge catalog failed: HTTP ${response.status}`);
-      const catalog = await response.json() as { models: { slug: string; display_name?: string; description?: string; input_modalities?: Modality[]; supported_reasoning_levels?: { effort: string }[]; default_reasoning_level?: string }[] };
+      const catalog = await response.json() as { models: { slug: string; display_name?: string; description?: string; input_modalities?: Modality[]; supported_reasoning_levels?: { effort: string }[]; default_reasoning_level?: string; api_source?: { preferred?: boolean; label?: string } }[] };
       if (!Array.isArray(catalog.models)) throw new Error("Invalid Copilot bridge catalog.");
       return catalog.models.map(model => ({
         id: model.slug, name: model.display_name?.replaceAll("\u200b", "") || model.slug,
         description: model.description, inputModalities: model.input_modalities ?? ["text"],
         supportedReasoningEfforts: model.supported_reasoning_levels?.map(level => level.effort) ?? [],
         defaultReasoningEffort: model.default_reasoning_level,
+        ...(model.api_source?.preferred ? { preferredSource: true } : {}),
+        ...(model.api_source?.label ? { sourceLabel: model.api_source.label } : {}),
       }));
     },
     async run() { throw new Error("Codex + Copilot threads must execute in the native Codex app-server, not the CLI gateway."); },

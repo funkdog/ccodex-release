@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "scope": "Read-only re-review of the four ADR 0032 review fixes before conditional local synchronization",
+  "result": "not_passed",
+  "sourceChanged": false,
+  "baseline": {
+    "gitHead": "70e5964db80c47f61c53208661db2da777e4d9c7",
+    "branch": "codex/mycodex-app-server-design",
+    "state": "Uncommitted 0032 implementation/review changes on a shared dirty checkout; not an isolated commit.",
+    "packageVersion": "1.2.36",
+    "nativeCore": "codex-cli 0.167.0-alpha.4.1",
+    "chatInstructionSource": "Pinned official gpt-5.4 catalog template; the current native core must not be assumed to retain its personality interpolation behavior.",
+    "nativePatchSourceRevision": "25af12f7e61572b0bc18ddb1008be543b91519b0",
+    "nativePatchNote": "Repository packaging-core pin, not the source identity of the currently installed official Desktop CLI."
+  },
+  "sourceSha256": {
+    "assets/chat-instructions.md": "6efe226f0095c63f960d4b2f6761cf7b5b1c156f3784df628a597190e767512d",
+    "bridge/catalog.mjs": "ad506a7c6db8d52ce4385f36fdb42ae615576080a763ea39422f78ba212e83ab",
+    "bridge/translate.mjs": "ddbf7e85c86962375338f4fe8585e4bc49bb82e3ed36055d9234da00d1b3aaef",
+    "tests/chat-translation-test.mjs": "87e5be222f6dcde629081d1a2f649ce9ec17f92befedb5bd1efcca61c810b101",
+    "tests/display-schema-drift-test.mjs": "9767d42af7a6bf0ae1e51651de1bfdc31cc6e77cca4fc47511938b96985608e3",
+    "docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md": "23d7bb461f0c976aabac045724f6736cb63c6f5ce149ea11e03fac0217b01072",
+    "docs/architecture/evidence/2026-11-13-display-standard.json": "3826128327013ac89ef5c6bad1890ee1047c84059728c0e6a8e3c15447b7b6a2"
+  },
+  "findings": [
+    {
+      "priority": "P1",
+      "file": "bridge/catalog.mjs",
+      "line": 127,
+      "title": "Personality placeholder reaches the upstream model unchanged on the installed core",
+      "trigger": "Build a Chat catalog with current buildCatalog, start an isolated installed app-server with personality=friendly or personality=pragmatic, and capture the production bridge's outgoing Chat system message.",
+      "observed": "Both configurations complete the synthetic tool/image turn but fail personality assertions: the system message contains literal {{ personality }} and lacks the selected official style text.",
+      "impact": "The first review fix restores the placeholder and dictionary but does not achieve the promised runtime style injection. Current tests asserting presence alone give false confidence.",
+      "rootBoundary": "Current upstream ModelMessages describes instructions_template as literal text and personality selection as unsupported. Removing base_instructions only in the isolated candidate catalog also does not restore interpolation.",
+      "requiredResolution": "Use an instruction strategy compatible with the target core's capabilities and add real-core assertions that no unresolved slot is sent upstream. Do not modify the native patch chain or claim native personality support without verification.",
+      "upstreamCorroboration": {
+        "url": "https://github.com/openai/codex/blob/main/codex-rs/protocol/src/openai_models.rs",
+        "note": "Current upstream corroborates the observed runtime behavior; main is not asserted to be the exact installed binary revision."
+      }
+    }
+  ],
+  "otherReviewItems": [
+    {
+      "item": 2,
+      "result": "passed",
+      "evidence": "Streaming and non-streaming tool-before-text responses remain commentary; tool-free terminal text becomes final_answer."
+    },
+    {
+      "item": 3,
+      "result": "passed",
+      "evidence": "Code and documentation agree: opaque output is retained only in that response; encrypted reasoning history is rejected locally with unsupported_input before upstream transmission."
+    },
+    {
+      "item": 4,
+      "result": "passed",
+      "evidence": "Ajv uses dynamic import. A copied, verified checkout without node_modules skips optionally and fails explicitly in required mode."
+    }
+  ],
+  "validation": {
+    "existingRelatedSuite": {
+      "passed": 88,
+      "failed": 0,
+      "skipped": 0,
+      "requiredSchema": true
+    },
+    "additionalNativePersonalityProbe": {
+      "configurations": [
+        "friendly",
+        "pragmatic"
+      ],
+      "passed": 0,
+      "failed": 2,
+      "method": "Assert captured instructions after sending a valid synthetic response, so a failed assertion cannot trigger upstream retry timeouts.",
+      "sourceVariantChecks": [
+        "Unmodified buildCatalog: both styles fail with a literal slot.",
+        "Isolated candidate with base_instructions removed: both still fail; canonical source is unchanged."
+      ]
+    },
+    "initialProbe": {
+      "cancelled": 2,
+      "note": "Initial assertions inside the upstream responder destroyed connections and caused retry timeouts. That harness was corrected before drawing the finding."
+    },
+    "withoutNodeModules": {
+      "optional": {
+        "exitCode": 0,
+        "passed": 1,
+        "skipped": 1
+      },
+      "required": {
+        "exitCode": 1,
+        "expectedExitCode": 1,
+        "passed": 1,
+        "failed": 1,
+        "expectedDiagnostic": "Required Ajv dependency is unavailable"
+      }
+    },
+    "generatedFingerprint": {
+      "passed": true,
+      "sources": 96,
+      "outputs": 192
+    },
+    "scopedDiffWhitespace": "passed"
+  },
+  "localSynchronization": {
+    "requestedCondition": "Only after re-review passes",
+    "performed": false,
+    "reason": "Blocked by the P1 native personality finding; no launcher replacement, backend staging, retirement, activation or client restart was attempted.",
+    "sourceBinding": "The existing MyCodex launcher and active backend are directly bound to /Users/developer/AIBuild/ccodex-release; ccodex-dev sync is a Windows developer entry, not the active Mac path."
+  },
+  "protection": {
+    "files": 21,
+    "changed": [],
+    "activeLifetimesUnchanged": [
+      {
+        "pid": 69956,
+        "role": "Desktop"
+      },
+      {
+        "pid": 43509,
+        "role": "Gateway"
+      },
+      {
+        "pid": 39457,
+        "role": "API bridge"
+      },
+      {
+        "pid": 70025,
+        "role": "UI helper"
+      },
+      {
+        "pid": 57435,
+        "role": "MyCodex launcher"
+      }
+    ],
+    "versionAndNativePatchChainUnchanged": true
+  },
+  "cleanup": "Owned temporary review copy, synthetic profiles and logs are removed after collecting evidence; the reproducible procedure and results are recorded here."
+}

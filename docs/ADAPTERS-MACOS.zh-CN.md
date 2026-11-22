@@ -4,7 +4,7 @@
 
 在现有官方 ChatGPT/Codex 窗口使用自己的 CLI 和模型。默认仅使用原生 Codex，沿用官方已有的账号、Provider 与模型设置。无需配置外部 CLI，也无需向 MyCodex 填 API 地址或 Key。
 
-外部连接按需添加：Claude Code，或既有 Antigravity ACP 1.4.4（Google 订阅）运行时。此版本只接入已适配的协议，不能将任意 CLI 当作通用聊天接口。每个聊天保留自己的执行器，换 CLI 时新建聊天。工作台、Squad、雷达、日报与跨引擎接续均未启用。
+外部连接按需添加：Claude Code，或既有 Antigravity ACP 1.4.4（Google 订阅）运行时。此版本只接入已适配的协议，不能将任意 CLI 当作通用聊天接口。每个聊天保留自己的执行器，换 CLI 时新建聊天。RC.4 预打包快照中的工作台、Squad、雷达、日报与跨引擎接续均未启用。当前 `main` 已包含完整的 [MyCodex Squad V2 源码](../gateway/spine/)，使用本页安装步骤仍会得到固定的 RC.4 功能。
 
 ## 安装
 
@@ -65,6 +65,6 @@
 
 每个拟发布的外部引擎都需在专用测试聊天完成：选模型、真实发送、批准一次精确临时文件写入、拒绝另一次写入、取消生成、正常重开后续聊。还需确认原生 Codex、既有侧栏和插件可用，停用后普通客户端正常。目录读取和设置时的一次短请求不能代替桌面验收。
 
-维护者运行 `npm run test:adapters`，复用项目 TypeScript、协议、审批、恢复、浏览器和源码门禁。打包通过 `bash tools/Invoke-HeavyTask.sh node tools/package-adapters.mjs /完整路径/候选包.tar.gz`，包内包含已编译模块、文件摘要与候选状态，不含 Node、CLI、账号或依赖缓存。完整开发门禁仍为 `npm run test:diy`。
+维护者在 [RC.4 固定源码标签](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.4) 运行 `npm run test:adapters`，复用项目 TypeScript、协议、审批、恢复、浏览器和源码门禁。打包通过 `bash tools/Invoke-HeavyTask.sh node tools/package-adapters.mjs /完整路径/候选包.tar.gz`，包内包含已编译模块、文件摘要与候选状态，不含 Node、CLI、账号或依赖缓存。当前 `main` 的开发与回归门禁见 [贡献指南](../CONTRIBUTING.md)。
 
 候选包内的冻结清单保留 `rc`、`published: false` 与 `liveDesktopAcceptance: pending`；`published: false` 表示打包时的状态，实际公开状态以 GitHub Release 为准，不能将公开发布当作桌面验收通过。本渠道不覆盖旧 `v1.2.36` 的完整平台发行包。

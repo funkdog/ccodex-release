@@ -22,17 +22,8 @@ test("new drafts display saved approval defaults while creation delegates inheri
   c.remember({ id: "existing", model: "mycodex/copilot/sol", cliApprovalMode: "deny" });
   assert.equal(c.preferences("existing").cliApprovalMode, "deny");
 });
-import { buildNativeSessionsPatch, mountCurrentNativeSessions, selectHostDraftModel, selectHostSpeed, sameNativeModelSource } from "../bridge/desktop-native-composer.mjs";
+import { buildNativeSessionsPatch, mountCurrentNativeSessions, selectHostDraftModel, selectHostSpeed } from "../bridge/desktop-native-composer.mjs";
 import { currentHostContracts } from "../bridge/desktop-current-host-contract.mjs";
-import { modelExecutionIdentity } from "../bridge/desktop-execution-model.mjs";
-
-test("native provider model IDs containing slashes retain native ownership rather than becoming CLI engine IDs", () => {
-  assert.deepEqual(modelExecutionIdentity("provider/own-model"), { engine: "", source: "native", model: "provider/own-model" });
-  assert.equal(sameNativeModelSource("provider/first", "provider/second"), true);
-  assert.equal(sameNativeModelSource("provider/first", "mycodex/claude/second"), false);
-  assert.equal(sameNativeModelSource("mycodex/codex-copilot/api-aaaaaaaaaaaa--first", "mycodex/codex-copilot/api-bbbbbbbbbbbb--second"), false);
-  assert.equal(sameNativeModelSource("mycodex/codex-copilot/api-aaaaaaaaaaaa--first", "mycodex/codex-copilot/api-aaaaaaaaaaaa--second"), true);
-});
 import { inspectCurrentHost } from "../bridge/desktop-current-host.mjs";
 import { startGateway } from "../gateway/server.mjs";
 import { AppServerRouter } from "../gateway/router.mjs";
@@ -312,7 +303,7 @@ test("pinned installed modules still expose the observed native lifecycle and me
     const managerStart = initial.indexOf(rspack ? `class ${manager} ` : `${manager}=class`);
     assert.ok(managerStart >= 0, "Manager export must resolve to the manager class");
     const managerBody = initial.slice(managerStart, managerStart + 256000);
-    assert.match(managerBody, /async startConversation\(\w+,\w+\)\{return /);
+    assert.match(managerBody, /async startConversation\(\w+,\w+(?:,\w+)?\)\{return /);
     assert.ok(initial.includes("this.params.requestClient.getThreadPrewarmPolicy?.()"));
     assert.ok(managerBody.includes("setDefaultModelConfig(e,t,n){return this.defaultTurnConfig.writeModel(e,t,n)}"));
     if (rspack) {
@@ -326,7 +317,8 @@ test("pinned installed modules still expose the observed native lifecycle and me
     }
     assert.match(shared, new RegExp(`${bus}=([\\w$]+)\\.getInstance\\(\\)`));
     assert.match(shared, /dispatchMessage\(\w+,\w+\)/); assert.ok(shared.includes("dispatchHostMessage(")); assert.match(shared, /subscribe\(\w+,\w+\)/);
-    assert.match(initial, /"data-composer-input":(?:``|"")/);
+    const composer = contract.composerModule ? read(asset(contract.composerModule)) : initial;
+    assert.match(composer, /"data-composer-input":(?:``|"")/);
     assert.match(initial, /if\((?:n\.skipAutoTitleGeneration!==!0|!0!==n\.skipAutoTitleGeneration)\)return [\w$]+\(/);
     const primary = read(asset(contract.primaryModule));
     const workspace = contract.workspaceModule ? read(asset(contract.workspaceModule)) : primary;
@@ -361,14 +353,15 @@ test("hook lifecycle delegates native/remote/background creates and restores exa
 
 test("CLI creation suppresses native title inference and retains the remaining native lifecycle", async () => {
   const controller = createNativeSessionController(); controller.select("mycodex/copilot/test");
-  let titles = 0, settled = 0;
+  let titles = 0, settled = 0, released = 0;
   class Manager {
     hostId = "local";
     requestClient = { getThreadPrewarmPolicy: async () => "legacy" };
-    async startConversation(options, lifecycle) {
+    async startConversation(options, lifecycle, releaseOpening) {
       assert.equal(options.skipAutoTitleGeneration, true);
       await lifecycle.onFirstTurnReady({ conversationId: "cli" });
       await lifecycle.onSettled({ status: "created" });
+      releaseOpening?.();
       return "created";
     }
   }
@@ -376,8 +369,8 @@ test("CLI creation suppresses native title inference and retains the remaining n
   const hooks = installNativeSessionHooks({ Manager, bus, controller, eligible: () => true });
   try {
     const result = await new Manager().startConversation({ clientUserMessageId: "draft", input: [{ type: "text", text: "hello" }] },
-      { onFirstTurnReady() { titles++; }, onSettled() { settled++; } });
-    assert.equal(result, "created"); assert.equal(titles, 0); assert.equal(settled, 1);
+      { onFirstTurnReady() { titles++; }, onSettled() { settled++; } }, () => { released++; });
+    assert.equal(result, "created"); assert.equal(titles, 0); assert.equal(settled, 1); assert.equal(released, 1);
   } finally { hooks.dispose(); }
 });
 

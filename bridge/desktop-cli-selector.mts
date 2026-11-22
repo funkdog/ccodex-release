@@ -5,6 +5,12 @@ import type { UiServices, UiRequest, UiRpcResults, UiThread, MountedComponent, H
 export function createCliSelectorServices(request: UiRequest): UiServices & Required<Pick<UiServices, "refreshModels">> {
   let creating = false;
   return {
+    async switchExecution({ threadId, model, expectedModel }) {
+      const strip = (value: string) => value.replace(/^mycodex\//, "");
+      if (!/^[0-9a-f-]{36}$/.test(threadId) || !/^[a-z][a-z0-9-]*\/.+/.test(strip(model))) throw new Error("请选择有效的聊天和执行模型。");
+      const result = await request("gateway/conversation/switch", { threadId, model: strip(model), ...(expectedModel ? { expectedModel: strip(expectedModel) } : {}) });
+      return result.thread;
+    },
     async listThreads({ cursor = null } = {}) {
       const result = await request("thread/list", { cursor, limit: 30, sortKey: "updated_at", archived: false });
       return { data: result.data.map(thread => ({ id: thread.id, cwd: thread.cwd, model: thread.model,
@@ -29,6 +35,8 @@ export function createCliSelectorServices(request: UiRequest): UiServices & Requ
           ...(model.inputModalities ? { inputModalities: model.inputModalities } : {}),
           ...(model.nativeCopilot ? { nativeCopilot: true } : {}),
           ...(model.nativeProvider ? { nativeProvider: model.nativeProvider } : {}),
+          ...(model.preferredSource ? { preferredSource: true } : {}),
+          ...(model.sourceLabel ? { sourceLabel: model.sourceLabel } : {}),
           ...(model.canSwitchModel ? { canSwitchModel: true } : {}),
           ...(warnings.length ? { catalogWarning: warnings.join("\n") } : {}),
           ...(model.supportedReasoningEfforts ? { efforts: model.supportedReasoningEfforts.map(value => value.reasoningEffort),
@@ -39,7 +47,7 @@ export function createCliSelectorServices(request: UiRequest): UiServices & Requ
         cursor = result.nextCursor;
         if (models.length > 2000) throw new Error("CLI model catalog exceeds the selector limit.");
       } while (cursor);
-      return models.sort((a, b) => Number(Boolean(b.nativeCopilot && /^codex-copilot\/gpt-/i.test(b.id))) -
+      return models.sort((a, b) => Number(Boolean(b.preferredSource)) - Number(Boolean(a.preferredSource)) || Number(Boolean(b.nativeCopilot && /^codex-copilot\/gpt-/i.test(b.id))) -
         Number(Boolean(a.nativeCopilot && /^codex-copilot\/gpt-/i.test(a.id))));
     },
     async setApprovalDefault({ model, cliApprovalMode }) {

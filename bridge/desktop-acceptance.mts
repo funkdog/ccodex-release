@@ -118,7 +118,7 @@ export function seedAcceptanceFixtures(root: string, radarSchema: string) {
 export async function createAcceptanceGateway(root: string) {
   const owner = assertAcceptanceRoot(root);
   const connection: ConnectionConfig = { home: path.join(root, "profile"), endpoint: path.join(root, "gateway.sock"), token: randomUUID(), generation: "acceptance:" + owner.id,
-    frontend: "routed-stdio.mjs", engines: [], spine: { mcp: false, eventTap: true, radar: { schemaFile: path.join(root, "report.schema.json"), reportFile: path.join(root, "report.json") }, daily: { repositories: [], timezone: "Asia/Shanghai" }, ui: { rightOffset: 64 } } };
+    frontend: "routed-stdio.mjs", engines: [], spine: { mcp: false, eventTap: true, radar: { schemaFile: path.join(root, "report.schema.json"), reportFile: path.join(root, "report.json") }, daily: { repositories: [], timezone: "Asia/Shanghai" } } };
   const engine: EngineAdapter = { displayName: "MyCodex 验收（合成，无模型调用）", approvalModes: ["deny"],
     models: async () => [{ id: "fixture", name: "Fixture", supportedReasoningEfforts: ["none"], defaultReasoningEffort: "none" }],
     run: async ({ prompt, cwd, signal, onSession, onText, onTool }) => {

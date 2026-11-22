@@ -217,7 +217,7 @@ async function openResponsesWebSocket(url, payload, {
 
 export async function fetchResponsesUpstream({
   api, headers, payload, signal, preferWebSocket = false,
-  fetchImpl = globalThis.fetch, WebSocketImpl = globalThis.WebSocket,
+  fetchImpl = globalThis.fetch, WebSocketImpl = globalThis.WebSocket, redirect = "follow",
   dispatcher = globalThis[DISPATCHER_SYMBOL],
   handshakeTimeoutMs = 30000, maxBufferedBytes = MAX_BUFFERED_BYTES,
 }) {
@@ -245,7 +245,7 @@ export async function fetchResponsesUpstream({
     }
   }
   const response = await fetchImpl(`${api}/responses`, {
-    method: "POST", headers, body: payload, duplex: "half", signal,
+    method: "POST", headers, body: payload, duplex: "half", signal, redirect,
   });
   return { response, transport: "http", fallback };
 }

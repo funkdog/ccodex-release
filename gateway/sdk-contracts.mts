@@ -1,7 +1,7 @@
 /** Structural boundaries for the installed SDKs, deliberately scoped to the
  * methods/events consumed here. SDK imports remain runtime-path configurable. */
 import type { Model, Attachment } from "./contracts.mjs";
-export interface CopilotPermission { kind: string; managedApprovalRequired?: unknown }
+export interface CopilotPermission { kind: string; managedApprovalRequired?: unknown; fullCommandText?: string; toolCallId?: string; resolvedWorkingDirectory?: string }
 export interface CopilotSessionOptions {
   model: string; workingDirectory: string; streaming: boolean; reasoningEffort?: string;
   onPermissionRequest(request: CopilotPermission, invocation?: { managedSettingsEnabled?: boolean; promptRequest?: { managedApprovalRequired?: boolean } }): Promise<{ kind: "reject" | "approve-once" }>;
@@ -9,7 +9,9 @@ export interface CopilotSessionOptions {
 }
 export interface CopilotEvent {
   type: string; id?: string; agentId?: string; data: { deltaContent: string; content?: string; toolCallId: string; toolName: string;
-    arguments?: unknown; success?: boolean; result?: { content?: unknown }; error?: { message?: string }; message?: string };
+    arguments?: unknown; success?: boolean; result?: { content?: unknown; structuredContent?: unknown }; error?: { message?: string }; message?: string;
+    reasoningId?: string; shellToolInfo?: { displayCommand?: string }; shellExecution?: { exitCode: number };
+    mcpConfigServerName?: string; mcpServerName?: string; mcpToolName?: string };
 }
 export interface CopilotSession {
   sessionId: string; on(callback: (event: CopilotEvent) => void): () => void;
@@ -31,7 +33,7 @@ export interface ClaudeToolInput { questions?: ClaudeQuestion[]; [field: string]
 export interface ClaudeMessage {
   type: string; subtype?: string; session_id: string; parent_tool_use_id?: string; is_error?: boolean; errors?: string[]; result?: string;
   apiKeySource?: string;
-  event?: { type: string; delta?: { type: string; text: string } };
+  event?: { type: string; index?: number; content_block?: { type: string; thinking?: string }; delta?: { type: string; text: string; thinking?: string } };
   message?: { content?: { type: string; id: string; name: string; input: unknown; tool_use_id: string; is_error?: boolean; content?: unknown }[] };
 }
 export interface ClaudeQuery extends AsyncIterable<ClaudeMessage> {
@@ -44,8 +46,7 @@ export interface ClaudeSdk {
     persistSession?: boolean; model?: string; cwd?: string; abortController?: AbortController;
     includePartialMessages?: boolean; resume?: string; sessionId?: string;
     effort?: string;
-    tools?: string[]; maxTurns?: number;
-    canUseTool?: (name: string, input: ClaudeToolInput, options?: { signal?: AbortSignal; matchedAskRule?: unknown; defaultToNo?: boolean;
+    canUseTool?: (name: string, input: ClaudeToolInput, options?: { signal?: AbortSignal; toolUseID?: string; agentID?: string; matchedAskRule?: unknown; defaultToNo?: boolean;
       decisionReasonType?: string; serverPolicyAskOnly?: boolean }) => Promise<{ behavior: "allow" | "deny"; message?: string; updatedInput?: ClaudeToolInput }>;
   } }): ClaudeQuery;
 }

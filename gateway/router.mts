@@ -14,6 +14,7 @@ interface RouterOptions {
   onNativeClose?: () => void; discoveryTimeoutMs?: number; modelDiscoveryTimeoutMs?: number; copilotProvider?: ProviderConfig; googleProvider?: GoogleConfig;
   onNativeEvent?: (event: NativeTraceEvent) => void | Promise<void>;
   onNativeInitialized?: () => void;
+  onNativeDeleted?: (id: string) => void;
 }
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -81,6 +82,12 @@ export class AppServerRouter {
   providerLoaded = new Map<RpcPeer, Set<string>>();
   private onNativeEvent?: RouterOptions["onNativeEvent"];
   private onNativeInitialized?: RouterOptions["onNativeInitialized"];
+  private onNativeDeleted?: RouterOptions["onNativeDeleted"];
+  private activateNativeHost() {
+    if (this.closed || !this.initialization || !this.onNativeInitialized) return;
+    const callback = this.onNativeInitialized; this.onNativeInitialized = undefined;
+    try { callback(); } catch { this.warn("Optional native host channel failed; protocol unaffected."); }
+  }
   private nativeMutations = new Map<string, number>();
   private backgroundMutations = new Map<string, Promise<void>>();
   /** Coordinate only mutations crossing this frontend. Other native runtimes
@@ -93,9 +100,10 @@ export class AppServerRouter {
     try { return await operation(); }
     finally { this.backgroundMutations.delete(threadId); release(); }
   }
-  constructor({ native, connectGateway, connectProvider, ownsThread, cursorSecret, send, warn = () => {}, onNativeClose = () => {}, discoveryTimeoutMs = 1500, modelDiscoveryTimeoutMs = 45000, copilotProvider, googleProvider, onNativeEvent, onNativeInitialized }: RouterOptions) {
+  constructor({ native, connectGateway, connectProvider, ownsThread, cursorSecret, send, warn = () => {}, onNativeClose = () => {}, discoveryTimeoutMs = 1500, modelDiscoveryTimeoutMs = 45000, copilotProvider, googleProvider, onNativeEvent, onNativeInitialized, onNativeDeleted }: RouterOptions) {
     this.onNativeEvent = onNativeEvent;
     this.onNativeInitialized = onNativeInitialized;
+    this.onNativeDeleted = onNativeDeleted;
     this.native = native; this.connectGateway = connectGateway; this.connectProvider = connectProvider; this.ownsThread = ownsThread;
     this.send = send; this.warn = warn; this.onNativeClose = onNativeClose;
     this.nativeProviders = [
@@ -122,6 +130,9 @@ export class AppServerRouter {
         if (event && !this.ownsThread(event.threadId)) await this.onNativeEvent?.(event);
       } catch { this.warn("Native event tap failed; protocol unaffected."); }
     });
+  }
+  async switchExecution(threadId: string, model: string, expectedModel?: string): Promise<AppPayload> {
+    throw invalid("会话创建后执行引擎和模型来源已固定；更换引擎请新建会话。");
   }
   nativeResult<T>(value: T): T {
     if (!value || typeof value !== "object") return value;
@@ -181,6 +192,7 @@ export class AppServerRouter {
         const id = message.params?.threadId ?? message.params?.thread?.id;
         if (id && this.ownsThread(id)) { this.warn("Native/gateway thread identity collision; notification withheld."); return; }
         this.tap(message.method ?? "", message.params);
+        if (message.method === "thread/deleted" && id) this.onNativeDeleted?.(id);
       }
       this.send(origin === "gateway" ? { ...message, params: fromGateway(message.method, message.params) }
         : { ...message, params: this.nativeResult(message.params) });
@@ -266,10 +278,7 @@ export class AppServerRouter {
       if (providers.length > 1 || owner && providers.length) throw invalid("One notification cannot mix thread providers.");
       const peer = owner ? await this.gatewayPeer() : providers.length ? await this.providerPeer(providers[0]) : this.native;
       peer.notify(owner ? toGateway(message) : message);
-      if (message.method === "initialized" && this.initialization && this.onNativeInitialized) {
-        const callback = this.onNativeInitialized; this.onNativeInitialized = undefined;
-        try { callback(); } catch { this.warn("Optional native host channel failed; protocol unaffected."); }
-      }
+      if (message.method === "initialized") this.activateNativeHost();
       return;
     }
     if (!(typeof message.id === "string" || Number.isSafeInteger(message.id)) || this.incoming.has(message.id!)) throw invalid("Duplicate or invalid client request ID.");
@@ -282,7 +291,16 @@ export class AppServerRouter {
         }
         await Promise.all(mutations.map(id => this.backgroundMutations.get(id)));
       }
-      const response = await this.route(message); if (!response.error) this.tap(message.method!, message.params, response.result); if (!this.closed) this.send(response);
+      const response = await this.route(message); if (!response.error) {
+        this.tap(message.method!, message.params, response.result);
+        if (message.method === "thread/delete" && message.params?.threadId && !this.ownsThread(message.params.threadId)) this.onNativeDeleted?.(message.params.threadId);
+      } if (!this.closed) {
+        this.send(response);
+        // Some Desktop versions send no optional initialized notification.
+        // Start after delivering the successful native reply, without delaying
+        // initialization or replaying it when a later notification arrives.
+        if (message.method === "initialize" && !response.error) this.activateNativeHost();
+      }
     }
     catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); if (!this.closed) this.send({ id: message.id, ...(message.jsonrpc ? { jsonrpc: message.jsonrpc } : {}),
       error: error instanceof RpcFailure ? error.rpc : { code: -32000, message: error.message } }); }
@@ -301,6 +319,10 @@ export class AppServerRouter {
       return response; // Native identity, auth and home are never synthesized.
     }
     if (!this.initialization) throw invalid("Initialize the native connection first.");
+    if (method === "thread/execution/switch") {
+      if (Object.keys(params).some(key => !["threadId", "model", "expectedModel"].includes(key)) || typeof params.threadId !== "string" || typeof params.model !== "string") throw invalid("Invalid execution switch.");
+      return { id: message.id, result: await this.switchExecution(params.threadId, params.model, typeof params.expectedModel === "string" ? params.expectedModel : undefined) };
+    }
     if (["model/list", "thread/list", "thread/search", "thread/loaded/list"].includes(method)) return this.list(message);
     if (method.startsWith("config/") && method !== "config/read" && hasExternalSetting(params)) {
       const draft = method === "config/batchWrite" ? await this.draftModelSettings(message) : null;
@@ -318,6 +340,11 @@ export class AppServerRouter {
     const model = params.model ?? params.collaborationMode?.settings?.model;
     const external = externalModel(model);
     const own = owners.some(Boolean);
+    if (own && [model, params.collaborationMode?.settings?.model].some(value => typeof value === "string" && this.nativeProviders.some(provider => value.startsWith(provider.prefix)))) {
+      const owner = this.ownsThread(params.threadId ?? "");
+      if (!owner || typeof owner !== "object" || !("executionHandoff" in owner) || !owner.executionHandoff)
+        throw invalid("Switch to the Codex runtime through the explicit execution-switch action first.");
+    }
     // A resumed native-provider turn can arrive without a model. Recover its
     // saved provider from thread metadata, never from the process default.
     if ((method.startsWith("thread/") || method.startsWith("turn/")) &&
@@ -331,10 +358,10 @@ export class AppServerRouter {
     }
     const sourceProvider = this.providerThreads.get(params.threadId ?? "");
     const modeModel = params.collaborationMode?.settings?.model;
-    const nativeProvider = this.nativeProviders.find(p => (typeof model === "string" && model.startsWith(p.prefix)) ||
+    const nativeProvider = !own ? this.nativeProviders.find(p => (typeof model === "string" && model.startsWith(p.prefix)) ||
       (typeof modeModel === "string" && modeModel.startsWith(p.prefix))) ??
-      (method === "thread/fork" || ids.length && (model == null || model === sourceProvider?.model)
-        ? sourceProvider?.provider : undefined);
+      (method === "thread/fork" || ids.length && (model == null || typeof model === "string" && !external)
+        ? sourceProvider?.provider : undefined) : undefined;
     if (nativeProvider) {
       if (externalModel(model) && typeof model === "string" && !model.startsWith(nativeProvider.prefix))
         throw invalid("A native provider request cannot mix a CLI engine model with its collaboration mode.");
@@ -347,12 +374,17 @@ export class AppServerRouter {
       if (method === "thread/fork" && params.path) throw invalid("Provider forks must use their resolved source thread, not a rollout path.");
       if (method === "thread/fork" && params.modelProvider != null && params.modelProvider !== nativeProvider.id)
         throw invalid("A fork must retain its source model provider.");
+      if (method !== "thread/start" && params.modelProvider != null && params.modelProvider !== nativeProvider.id)
+        throw invalid("会话创建后执行引擎已固定；更换引擎请新建会话。");
       const query = structuredClone(params);
       const modelMethod = ["thread/start", "thread/resume", "thread/fork", "thread/settings/update", "turn/start", "turn/addUserMessage"].includes(method);
       if (modelMethod) {
         const qualified = [model, modeModel].find(value => typeof value === "string" && value.startsWith(nativeProvider.prefix));
-        query.model = qualified?.slice(nativeProvider.prefix.length) ?? sourceProvider?.model ?? null;
+        query.model = qualified?.slice(nativeProvider.prefix.length) ?? (typeof model === "string" && !external ? model : sourceProvider?.model ?? null);
         if (!query.model) throw invalid("Choose a provider model.");
+        const source = (value: string) => /^api-([a-f0-9]{12})--/.exec(value)?.[1] ?? "default";
+        if (method !== "thread/start" && sourceProvider?.model && source(query.model) !== source(sourceProvider.model))
+          throw invalid("会话创建后模型来源已固定；更换来源请新建会话。");
         if (query.collaborationMode?.settings) query.collaborationMode.settings.model = query.model;
       }
       if (["thread/start", "thread/resume", "thread/fork"].includes(method)) {
@@ -405,6 +437,14 @@ export class AppServerRouter {
     const response = await this.native.call(message);
     if (response.result?.thread?.id && this.ownsThread(response.result.thread.id)) throw invalid("Native/gateway thread identity collision; no thread was reassigned.");
     return response.error ? response : { ...response, result: this.nativeResult(response.result) };
+  }
+  async squadRequest(method: string, params: Record<string, unknown>) {
+    if (!["thread/list", "thread/loaded/list", "thread/turns/list", "model/list", "thread/read", "thread/resume", "thread/start", "turn/start"].includes(method)) throw invalid("Unsupported Squad native operation.");
+    const response = await this.route({ id: `squad:${randomUUID()}`, method, params });
+    if (response.error) throw new RpcFailure(response.error);
+    if (method === "thread/loaded/list" && Array.isArray(response.result?.data)) return { ...response.result,
+      data: [...new Set([...response.result.data, ...[...this.providerLoaded.values()].flatMap(ids => [...ids])])] };
+    return response.result;
   }
   /** The Desktop's host-RPC manager bypasses renderer prototype hooks. Its
    * exact default-model write shape has a native okOverridden response branch
@@ -471,9 +511,13 @@ export class AppServerRouter {
     const validateNativePage = (result: AppPayload | undefined): Page<AppListRow> => {
       if (!Array.isArray(result?.data)) throw new Error("Native catalog returned no data array.");
       if (method === "model/list" && result.data.some(model => externalModel(threadRow(model)?.model) || externalModel(threadRow(model)?.id))) throw invalid("A native model uses the reserved mycodex/ namespace.");
-      const ids = method === "model/list" ? [] : result.data.map(row => typeof row === "string" ? row : threadRow(row)!.id);
+      const data = method === "model/list" ? result.data : result.data.filter(row => {
+        const owner = this.ownsThread(typeof row === "string" ? row : threadRow(row)!.id);
+        return !(owner && typeof owner === "object" && "executionHandoff" in owner && owner.executionHandoff);
+      });
+      const ids = method === "model/list" ? [] : data.map(row => typeof row === "string" ? row : threadRow(row)!.id);
       if (ids.some(id => this.ownsThread(id))) throw invalid("Native/gateway thread identity collision in history.");
-      return this.nativeResult(result) as Page<AppListRow>;
+      return this.nativeResult({ ...result, data }) as Page<AppListRow>;
     };
     const nativeFetch = (next: AppParams) => this.native.request(method, nativeQuery(next), { timeoutMs: 15000 }).then(validateNativePage);
     const gatewayFetch = async (next: AppParams): Promise<Page<AppListRow>> => {

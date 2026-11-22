@@ -124,7 +124,7 @@ export async function ensureBridge({ verbose = false, refreshIdle = false, prese
     // Desktop readiness and applying proxy repairs have different lifetimes.
     // Reuse only the selected owned, compatible instance; never claim that its
     // code was upgraded or interrupt ongoing requests/background jobs.
-    if (preserveRunning) {
+    if (preserveRunning && !refreshIdle) {
       assertReusableBridge(existing);
       process.stdout.write("Existing compatible Copilot API bridge preserved; update pending.\n");
       return;
@@ -138,7 +138,13 @@ export async function ensureBridge({ verbose = false, refreshIdle = false, prese
     }
     const { stopBridge } = await import("./control.mjs");
     try { await stopBridge({ quiet: true, expectedInstance: existing }); }
-    catch (error) { throw new Error(`Copilot API bridge 安全升级未完成：${error.message}`); }
+    catch (error) {
+      if (preserveRunning && /is busy/.test(error.message)) {
+        assertReusableBridge(existing);
+        process.stdout.write("Existing compatible Copilot API bridge preserved; update pending.\n"); return;
+      }
+      throw new Error(`Copilot API bridge 安全升级未完成：${error.message}`);
+    }
   }
   if (lastProbe?.kind === "mismatch") {
     throw new Error(bridgeMismatchMessage(lastProbe, PORT, EXPECTED_BRIDGE));

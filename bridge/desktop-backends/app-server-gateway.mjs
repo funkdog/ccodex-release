@@ -36,7 +36,7 @@ const write = (file, value) => {
 export function isAdditiveCliConfiguration(previous, next) {
   if (!Array.isArray(previous?.engines) || !Array.isArray(next?.engines) || !previous.engines.length ||
       next.engines.length <= previous.engines.length || next.engines.length > 32 ||
-      previous.defaultEngine !== next.defaultEngine || previous.workbench !== next.workbench || !isDeepStrictEqual(previous.spine ?? null, next.spine ?? null)) return false;
+      previous.defaultEngine !== next.defaultEngine || !isDeepStrictEqual(previous.spine ?? null, next.spine ?? null)) return false;
   const ids = next.engines.map(engine => engine?.id);
   if (ids.some(id => typeof id !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(id)) || new Set(ids).size !== ids.length) return false;
   if (!previous.engines.every(engine => isDeepStrictEqual(engine, next.engines.find(item => item.id === engine.id)))) return false;
@@ -58,7 +58,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
   const endpoint = path.join(socketDirectory, "s");
   const frontend = nativeCli ? "routed-stdio.mjs" : "stdio.mjs";
   const runtimeHash = createHash("sha256").update(process.execPath);
-  for (const source of desktopExtensionFiles(root).filter(file => file.startsWith("gateway/")))
+  for (const source of desktopExtensionFiles(root).filter(file => file.startsWith("gateway/") || file.startsWith("bridge/diy/")))
     runtimeHash.update(source).update("\0").update(fs.readFileSync(path.join(root, source))).update("\0");
   const runtimeGeneration = runtimeHash.digest("hex");
   function sameRoute(current) {
@@ -121,7 +121,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
       // its shared catalog. Finish discovery before the native picker can cache
       // a partial cold response on the first window.
       const result = await peer.request("model/list", { limit: 1000 }, { timeoutMs: 45000 });
-      if (!Array.isArray(result.data) || (!result.data.length && selection.gateway.workbench !== false)) throw new Error("No engine models are available.");
+      if (!Array.isArray(result.data) || !result.data.length) throw new Error("No engine models are available.");
       if (result.warnings?.length) console.error(`MyCodex model catalog: ${result.warnings.join("; ")}`);
     } catch (error) {
       throw new Error(`MyCodex 模型目录尚未就绪：${error.message}。尚未启动或重启 ChatGPT；可稍后重试 MyCodex。`);
@@ -159,7 +159,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
       assertNativeProtocol(nativeCli);
     }
     // Resolve actual local SDKs without starting a CLI, requesting login or inference.
-    await createEngines(selection.gateway.engines, { env: cliEnvironment(inherited), requireSelection: selection.gateway.workbench === false });
+    await createEngines(selection.gateway.engines, { env: cliEnvironment(inherited) });
     for (const dir of [directory, socketDirectory]) {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       const stat = fs.lstatSync(dir);
@@ -211,8 +211,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
     const config = { home, endpoint, token: preserveConnectionToken ? previous.token : randomUUID(),
       generation: preserveConnectionToken ? previous.generation : selection.generation, configGeneration: selection.generation, runtimeGeneration, frontend,
       ...(nativeCli ? { nativeCli } : {}), engines: selection.gateway.engines, defaultEngine: selection.gateway.defaultEngine,
-      ...(selection.gateway.spine ? { spine: selection.gateway.spine } : {}),
-      ...(selection.gateway.workbench !== undefined ? { workbench: selection.gateway.workbench } : {}) };
+      ...(selection.gateway.spine ? { spine: selection.gateway.spine } : {}) };
     write(file, config);
     return { config, running: false };
   }
@@ -230,7 +229,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
       const provider = selection.gateway.engines.find(engine => engine.adapter === "codex-copilot");
       if (provider) {
         try {
-          const ensured = await runFile(process.execPath, [path.join(root, "bridge", "ensure.mjs"), "--preserve-running"], {
+          const ensured = await runFile(process.execPath, [path.join(root, "bridge", "ensure.mjs"), "--preserve-running", "--refresh-idle"], {
             cwd: root, timeout: 60000,
             env: { ...cliEnvironment(options.inherited), CODEX_COPILOT_HOME: provider.bridgeHome,
               CODEX_COPILOT_BRIDGE_PORT: String(provider.bridgePort) },

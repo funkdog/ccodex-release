@@ -119,7 +119,7 @@ node tools/probe-desktop-app-server.mjs \
 | Claude Agent SDK | 官方文档确认 TypeScript SDK 通过平台可选依赖携带 Claude Code；npm 当次 `latest` 为 `0.3.312`，含 darwin-arm64 包 | 可以准备 SDK/运行时；真实授权另验，不因缺全局 `claude` 命令暂停开发 |
 | GitHub Copilot SDK | 官方文档确认 Node SDK 携带 CLI 运行时；npm 当次 `latest` 为 `1.0.28`，含 darwin-arm64 包 | 通过适配器调用真实 Copilot Agent；不再增加一层宿主 Codex 模型推理 |
 | 原生 CLI 安装渠道 | Claude Code 与 Copilot CLI 都有官方原生安装方式；当次 npm 版本分别为 `2.1.312`、`1.0.105` | 若选择复用用户现有 CLI，可配置其绝对路径；不强制全局安装 |
-| 原仓库离线资源 | 使用已配置的 Git 凭据成功读取 `VincentVanNF/ccodex-release` 的 `v1.2.36` Release；包含 macOS ARM64 包（345,342,989 字节）、其他平台包和 `SHA256SUMS.txt` | 旧 runtime 有获取来源；尚未下载、校验或证明与本次源码兼容 |
+| 原仓库离线资源 | 使用已配置的 Git 凭据成功读取 历史 v1.2.36 安装资源；包含 macOS ARM64 包（345,342,989 字节）、其他平台包和 `SHA256SUMS.txt` | 旧 runtime 有获取来源；尚未下载、校验或证明与本次源码兼容 |
 | 运行账户 | Git 仓库读取已可用；尚未验证 Claude 运行授权及 Copilot 模型调用权限 | Git 仓库权限不等于 Copilot Requests 权限；Gemini 必须以目标账号实时模型目录为准 |
 | 完整发布 | `Publish-Release.ps1` 还检查历史 manifest、准入证据、Windows C# 编译器及平台资源 | 这是发行验收条件，不阻塞 R1/R2 实现和隔离测试 |
 
@@ -135,5 +135,5 @@ Claude 原生 CLI 的订阅登录与 Agent SDK 面向产品的认证要求应分
 - [GitHub Copilot SDK](https://github.com/github/copilot-sdk)
 - [GitHub Copilot CLI 安装](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli)
 - [GitHub Copilot CLI 认证](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli)
-- [私有仓库 v1.2.36 Release](https://github.com/VincentVanNF/ccodex-release/releases/tag/v1.2.36)
+- [v1.2.36 历史发行说明](../RELEASE.zh-CN.md)
 - [PowerShell macOS 安装](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-macos)

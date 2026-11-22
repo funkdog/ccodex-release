@@ -6,7 +6,7 @@ import { readProcessIdentity, sameProcessLifetime } from "./desktop-process.mjs"
 type Identity = { pid: number; platform: string; executable: string; lifetime: string };
 type Receipt = { identity: Identity; sourceGeneration: string; helperIdentity?: Identity | null };
 export type UiHealthState = "pending" | "ready" | "retrying" | "unavailable";
-export interface UiComponentHealth { nativeSessions: string; workbench: string }
+export interface UiComponentHealth { nativeSessions: string; squads: string }
 interface Health { schemaVersion: 1; sourceGeneration: string; app: Identity; helper: Identity;
   state: UiHealthState; updatedAt: string; since: string; components?: UiComponentHealth }
 const states = new Set(["pending", "ready", "retrying", "unavailable"]);

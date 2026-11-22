@@ -155,6 +155,10 @@ test("opt-in bridge refresh preserves a busy old process, then upgrades it witho
     assert.match(preserved.output, /update pending/);
     assert.equal((await bridgeStatus(port, value => value.pid === old.pid)).activeRequests, 1,
       "Desktop readiness must preserve the compatible in-flight API bridge instead of requiring its upgrade");
+    const idlePreferred = await ensure(["--preserve-running", "--refresh-idle"]);
+    assert.equal(idlePreferred.code, 0, idlePreferred.output);
+    assert.match(idlePreferred.output, /update pending/);
+    assert.equal((await bridgeStatus(port, value => value.pid === old.pid)).activeRequests, 1);
     const recordFile = path.join(home, `bridge-${port}.json`), recordText = fs.readFileSync(recordFile, "utf8");
     const record = JSON.parse(recordText);
     fs.writeFileSync(recordFile, JSON.stringify({ ...record, runtime: { ...record.runtime, instanceId: "another-instance" } }), { mode: 0o600 });
@@ -162,7 +166,7 @@ test("opt-in bridge refresh preserves a busy old process, then upgrades it witho
     finally { fs.writeFileSync(recordFile, recordText, { mode: 0o600 }); }
     release(); assert.equal((await pending).status, 200);
     const ordinary = await ensure([]); assert.equal(ordinary.code, 1); assert.match(ordinary.output, /running older or different code/);
-    const upgraded = await ensure(["--refresh-idle"]); assert.equal(upgraded.code, 0, upgraded.output);
+    const upgraded = await ensure(["--preserve-running", "--refresh-idle"]); assert.equal(upgraded.code, 0, upgraded.output);
     const after = await bridgeStatus(port, value => value.runtime.sourceGeneration === bridgeSourceGeneration());
     assert.notEqual(after.pid, old.pid); assert.notEqual(after.runtime.instanceId, before.runtime.instanceId);
     assert.equal(old.exitCode, 0);

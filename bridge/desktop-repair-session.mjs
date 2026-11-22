@@ -48,8 +48,7 @@ export async function queueDesktopRepairSession({ root, home, application, categ
     fs.writeFileSync(promptFile, prompt + "\n", { flag: "wx", mode: 0o600 });
     input = fs.openSync(promptFile, "r"); output = fs.openSync(logFile, "wx", 0o600);
     const args = ["exec", "--json", "-C", root, "-c", 'model_provider="openai"',
-      "--sandbox", clean ? "workspace-write" : "read-only",
-      ...(clean ? ["--worktree", "--approve-for-me"] : []), "-"];
+      ...(clean ? ["--worktree", "--approve-for-me"] : ["--sandbox", "read-only"]), "-"];
     child = run(host.nativeCli, args, { cwd: root, env: nativeEnvironment(env),
       detached: true, stdio: [input, output, output] });
     await new Promise((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });

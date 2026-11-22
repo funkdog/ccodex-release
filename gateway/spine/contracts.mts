@@ -14,6 +14,8 @@ export interface CommandSpec { executable: string; args: string[]; cwd?: string;
 export interface RadarOptions { schemaFile: string; reportFile?: string; archiveDatabase?: string; loadCommand?: CommandSpec; refreshCommand?: CommandSpec; archive?: { executable: string; script: string; dataHome?: string } }
 export interface KnowledgeOptions { vaultRoot?: string }
 export interface DailyOptions { repositories?: string[]; timezone?: string; distillCommand?: CommandSpec }
-export interface SpineRuntimeOptions { mcp?: boolean; shimDirectory?: string; eventTap?: boolean; radar?: RadarOptions; daily?: DailyOptions; knowledge?: KnowledgeOptions; ui?: { rightOffset?: number } }
+export interface SpineRuntimeOptions { mcp?: boolean; shimDirectory?: string; eventTap?: boolean; radar?: RadarOptions; daily?: DailyOptions; knowledge?: KnowledgeOptions;
+  /** @deprecated Accepted for existing configuration files; no drawer UI is mounted. */
+  ui?: { rightOffset?: number } }
 export interface NativeTraceEvent { method: string; threadId: string; at: number; title?: string; intent?: string; cwd?: string; model?: string; provider?: string; turnId?: string; status?: string }
 export interface TraceThread { threadId: string; engine: string; title: string; intent: string; cwd: string; model: string; updatedAt: number; lastTurnAt?: number; lastTurnId?: string; status: string; archived: boolean; deleted: boolean }

@@ -25,25 +25,25 @@ test("selectPlatformAsset resolves the right package for all four maintained pla
   const assets = [
     {
       name: "CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
-      browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
+      browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
       size: 1024,
       digest: "sha256:" + "a".repeat(64),
     },
     {
       name: "CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
-      browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
+      browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
       size: 2048,
       digest: "sha256:" + "b".repeat(64),
     },
     {
       name: "CCodex-1.2.36-macOS-Universal.tar.gz",
-      browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-macOS-Universal.tar.gz",
+      browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-macOS-Universal.tar.gz",
       size: 3072,
       digest: "sha256:" + "c".repeat(64),
     },
     {
       name: "CCodex-1.2.36-Linux-x64.tar.gz",
-      browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Linux-x64.tar.gz",
+      browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Linux-x64.tar.gz",
       size: 4096,
       digest: "sha256:" + "d".repeat(64),
     },
@@ -77,12 +77,12 @@ test("checkAndCacheReleaseUpdate caches release metadata and showReleaseUpdateNo
   const state = await checkAndCacheReleaseUpdate({
     root,
     home,
-    repo: "nifan_microsoft/ccodex-release",
+    repo: "funkdog/ccodex-release",
     now: () => now,
     request: async () => new Response(JSON.stringify({
       tag_name: "v1.2.36",
       name: "CCodex v1.2.36",
-      html_url: "https://github.com/nifan_microsoft/ccodex-release/releases/tag/v1.2.36",
+      html_url: "https://github.com/funkdog/ccodex-release/releases/tag/v1.2.36",
       published_at: "2026-10-14T11:30:00Z",
       draft: false,
       prerelease: false,
@@ -90,25 +90,25 @@ test("checkAndCacheReleaseUpdate caches release metadata and showReleaseUpdateNo
       assets: [
         {
           name: "CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
-          browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
+          browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-ARM64-Setup.exe",
           size: 12345,
           digest: "sha256:" + "e".repeat(64),
         },
         {
           name: "CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
-          browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
+          browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Desktop-26.1007.9446.0-Windows-X64-Setup.exe",
           size: 12345,
           digest: "sha256:" + "f".repeat(64),
         },
         {
           name: "CCodex-1.2.36-macOS-Universal.tar.gz",
-          browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-macOS-Universal.tar.gz",
+          browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-macOS-Universal.tar.gz",
           size: 12345,
           digest: "sha256:" + "1".repeat(64),
         },
         {
           name: "CCodex-1.2.36-Linux-x64.tar.gz",
-          browser_download_url: "https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Linux-x64.tar.gz",
+          browser_download_url: "https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/CCodex-1.2.36-Linux-x64.tar.gz",
           size: 12345,
           digest: "sha256:" + "2".repeat(64),
         },
@@ -149,19 +149,19 @@ test("installRepositoryReleaseUpdate verifies SHA256 digest before executing ins
     : process.platform === "darwin"
       ? "CCodex-1.2.36-macOS-Universal.tar.gz"
       : "CCodex-1.2.36-Linux-x64.tar.gz";
-  const assetUrl = `https://github.com/nifan_microsoft/ccodex-release/releases/download/v1.2.36/${assetName}`;
+  const assetUrl = `https://github.com/funkdog/ccodex-release/releases/download/v1.2.36/${assetName}`;
 
   const executed = [];
   const result = await installRepositoryReleaseUpdate({
     root,
     home,
-    repo: "nifan_microsoft/ccodex-release",
+    repo: "funkdog/ccodex-release",
     request: async url => {
       if (url === assetUrl) return new Response(payload, { status: 200 });
       return new Response(JSON.stringify({
         tag_name: "v1.2.36",
         name: "CCodex v1.2.36",
-        html_url: "https://github.com/nifan_microsoft/ccodex-release/releases/tag/v1.2.36",
+        html_url: "https://github.com/funkdog/ccodex-release/releases/tag/v1.2.36",
         published_at: "2026-10-14T11:30:00Z",
         draft: false,
         prerelease: false,
@@ -194,12 +194,19 @@ test("Desktop release hot-update patch is pure ASCII, idempotent, and disposes c
   assert.match(source, /ccodex release-update/);
 });
 
-test("Cross-platform CLI and Desktop launchers include node-pty prebuilds, cli-session routing, and catalog hot-reload", async () => {
-  const repoRoot = path.resolve(import.meta.dirname, "..");
-  for (const plat of ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64"]) {
-    const dir = path.join(repoRoot, "bin", "node-pty", "prebuilds", plat);
-    assert.equal(fs.existsSync(dir), true, `Missing node-pty prebuild for ${plat}`);
-  }
+const repoRoot = path.resolve(import.meta.dirname, "..");
+const ptyRoot = process.env.MYCODEX_TEST_NODE_PTY_ROOT || path.join(repoRoot, "bin", "node-pty");
+
+test("A supplied node-pty payload contains prebuilds for all six targets",
+  { skip: !process.env.MYCODEX_TEST_NODE_PTY_ROOT && !fs.existsSync(ptyRoot) ? "requires a node-pty payload" : false }, () => {
+    for (const target of ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64"]) {
+      const dir = path.join(ptyRoot, "prebuilds", target);
+      const binaries = fs.existsSync(dir) ? fs.readdirSync(dir).filter(name => name.endsWith(".node")) : [];
+      assert.ok(binaries.length, `Missing node-pty prebuild for ${target}`);
+    }
+  });
+
+test("CLI and Desktop launchers retain cli-session routing and catalog hot-reload", async () => {
   const unixCli = fs.readFileSync(path.join(repoRoot, "platforms", "unix", "bin", "codex-copilot"), "utf8");
   assert.match(unixCli, /bridge\/cli-session\.mjs/);
   const { cliSessionEnvironment } = await import("../bridge/cli-session.mjs");
@@ -210,3 +217,4 @@ test("Cross-platform CLI and Desktop launchers include node-pty prebuilds, cli-s
   const nativeContextSource = fs.readFileSync(path.join(repoRoot, "bridge", "desktop-native-context.mjs"), "utf8");
   assert.match(nativeContextSource, /previous\.setGroups\(groups\)/);
 });
+

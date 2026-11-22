@@ -1,9 +1,13 @@
 /** Shared contracts. External JSON is decoded at the transport/SDK boundary;
  * opaque tool input stays unknown and is never executed by this layer. */
+import type { DisplaySink, StoredDisplayRecord } from "./display-contracts.mjs";
+export type { DisplaySink, StoredDisplayRecord } from "./display-contracts.mjs";
 export type ApprovalMode = "ask" | "read-only" | "auto" | "deny";
 export type Modality = "text" | "image";
 export interface Model {
   id: string; name?: string; description?: string; inputModalities?: Modality[];
+  preferredSource?: boolean;
+  sourceLabel?: string;
   supportedReasoningEfforts?: string[]; defaultReasoningEffort?: string;
   capabilities?: { supports?: { vision?: boolean } }; policy?: { state?: string };
 }
@@ -27,7 +31,7 @@ export interface RunContext {
   onTool?: (event: ToolEvent) => void; ask: Ask; getApprovalMode?: () => ApprovalMode;
   onImage?: (image: EngineImage) => void;
   onCheckpoint?: (eventId: string) => void;
-  verification?: boolean;
+  display?: DisplaySink;
 }
 export interface ForkContext { nativeSessionId: string; cwd: string; beforeEventId?: string }
 export interface DeleteContext { nativeSessionId: string; cwd: string }
@@ -43,7 +47,7 @@ export interface EngineAdapter {
 }
 export interface ProviderConfig { bridgePort: number; bridgeHome: string }
 export interface GoogleConfig { bridgePort: number; cliHome: string; sdkPath: string }
-export type EngineConfig = { id: string; enabledModels?: string[] } & (
+export type EngineConfig = { id: string } & (
   { adapter: "antigravity-acp"; executable: string; harnessPath: string; cliHome: string } |
   { adapter: "gemini-cli"; executable: string; cliHome: string } |
   ({ adapter: "codex-gemini" } & GoogleConfig) |
@@ -100,7 +104,7 @@ export interface ToolItem {
 export interface ImageGenerationThreadItem { id: string; type: "imageGeneration"; status: "completed"; savedPath: string; result: string }
 export type ThreadItem = { id: string; type: "userMessage"; content: UserInput[] }
   | { id: string; type: "agentMessage"; text: string; phase: string } | ToolItem | ImageGenerationThreadItem;
-export interface Turn { id: string; status: string; error: TurnError | null; items: ThreadItem[]; nativeStartEventId?: string }
+export interface Turn { id: string; status: string; error: TurnError | null; items: (ThreadItem | StoredDisplayRecord)[]; nativeStartEventId?: string }
 export interface StoredThread {
   schemaVersion: 1; id: string; engineId: string; engineAdapter: string; nativeSessionId: string | null;
   model: string; modelProvider: string; cwd: string; cliVersion: string; createdAt: number; updatedAt: number;
@@ -110,12 +114,17 @@ export interface StoredThread {
   approvalPolicy: string; sessionId?: string; daybreakEnabled?: boolean;
   forkedFromId?: string | null; section?: { id: string; name: string } | null; sectionEnteredAt?: number | null;
   sectionOrder?: number;
+  executionHandoff?: boolean;
+  handoffPending?: boolean;
+  executionOrigins?: { engineId: string; engineAdapter: string; nativeSessionId: string | null; model: string }[];
 }
 /** A deleted ID retains routing ownership, never its title, messages or tools. */
 export interface ThreadTombstone {
   schemaVersion: 1; id: string; engineId: string; engineAdapter: string; deleted: true;
   deletedAt: number; cleanup: "pending" | "complete" | "unsupported";
   nativeSessionId?: string; cwd?: string;
+  executionHandoff?: boolean;
+  executionCleanup?: { engineId: string; engineAdapter: string; nativeSessionId: string; cwd: string }[];
 }
 export interface GatewayParams extends AppParams {
   threadId: string; turnId?: string; model?: string | null; cwd?: string;
@@ -127,16 +136,16 @@ export interface GatewayParams extends AppParams {
   disabledPluginIds?: string[];
   lastTurnId?: string | null; beforeTurnId?: string | null; excludeTurns?: boolean;
   beforeThreadId?: string | null;
+  expectedModel?: string;
 }
 export interface GatewayConnection {
-  readonly role?: "default" | "native-trace" | "native-host";
+  readonly role?: "default" | "native-trace" | "native-host" | "squad-worker";
   readonly inFlight?: number;
   initialized: boolean; send(message: unknown): void;
   request(method: string, params: unknown, signal?: AbortSignal): Promise<Answers>;
 }
 export interface ConnectionConfig {
   home: string; endpoint: string; token: string; generation: string; configGeneration?: string; frontend?: string; engines?: EngineConfig[];
-  workbench?: boolean;
   spine?: import("./spine/contracts.mjs").SpineRuntimeOptions;
 }
 export interface AcpOption { id: string; category: string; type: string; currentValue?: string; options?: AcpChoice[] }
@@ -147,10 +156,14 @@ export interface AcpResult {
   sessionId: string; configOptions?: AcpOption[]; stopReason?: string;
   models?: { availableModels?: { modelId: string; name: string; description?: string }[] };
 }
+export interface AcpUpdate {
+  sessionUpdate: string; content?: AcpContent | AcpContent[]; toolCallId: string; title?: string; rawInput?: unknown; rawOutput?: unknown; status: string;
+  kind?: string; locations?: { path: string; line?: number }[]; entries?: { content: string; status: string; priority?: string }[];
+}
 export interface AcpParams {
-  sessionId?: string; update?: { sessionUpdate: string; content?: AcpContent | AcpContent[]; toolCallId: string; title?: string; rawInput?: unknown; rawOutput?: unknown; status: string };
+  sessionId?: string; update?: AcpUpdate;
   options?: { name: string; kind: string; optionId: string }[];
-  toolCall?: { toolCallId?: string; title?: string; content?: { type: string; content?: { type: string; text: string } }[] };
+  toolCall?: { toolCallId?: string; title?: string; kind?: string; rawInput?: unknown; locations?: { path: string }[]; content?: AcpContent[] };
   [field: string]: unknown;
 }
 export interface AcpContent { type: string; text?: string; data?: string; mimeType?: string; content?: AcpContent; [field: string]: unknown }

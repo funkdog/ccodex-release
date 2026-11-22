@@ -6,7 +6,7 @@ import test from "node:test";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "ccodex-request-status-"));
 process.env.CODEX_COPILOT_HOME = home;
-const { startRequestAudit, THREAD_STATUS_DIR } = await import("../bridge/request-audit.mjs");
+const { startRequestAudit, THREAD_STATUS_DIR, STREAM_FILE } = await import("../bridge/request-audit.mjs");
 const read = (thread) => JSON.parse(fs.readFileSync(path.join(THREAD_STATUS_DIR, `${thread}.json`), "utf8"));
 const begin = (threadId, requestedModel = "gpt-test") => startRequestAudit({
   threadId,
@@ -57,6 +57,29 @@ test("untrusted thread identifiers cannot create paths outside the status direct
   }
   assert.deepEqual(fs.readdirSync(THREAD_STATUS_DIR), before);
   assert.equal(fs.existsSync(path.join(home, "escape.json")), false);
+});
+
+test("stream diagnostics are readable during an active request, correlate events and redact payloads", async () => {
+  const audit = begin("thread-stream-trace");
+  try {
+    audit.trace("upstream.chunk", { bytes: 200, content: "PRIVATE_TRACE_TEXT", authorization: "PRIVATE_TRACE_AUTH" });
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    const active = fs.readFileSync(STREAM_FILE, "utf8").trim().split("\n").map(JSON.parse).filter(row => row.id === audit.id);
+    assert.equal(active.length, 1);
+    assert.equal(active[0].event, "upstream.chunk");
+    assert.equal(active[0].threadId, "thread-stream-trace");
+    assert.equal(active[0].bytes, 200);
+    assert.equal(read("thread-stream-trace").status, "started");
+    audit.trace("downstream.event", { type: "response.output_text.delta", bytes: 150 });
+    audit.complete({ usage: { output_tokens: 12, output_tokens_details: { reasoning_tokens: 8 } } });
+    const raw = fs.readFileSync(STREAM_FILE, "utf8");
+    const completed = raw.trim().split("\n").map(JSON.parse).filter(row => row.id === audit.id);
+    assert.deepEqual(completed.map(row => row.sequence), [0, 1, 2]);
+    assert.equal(completed.at(-1).event, "request.complete");
+    assert.equal(completed.at(-1).usage.output_tokens_details.reasoning_tokens, 8);
+    assert.ok(completed.at(-1).elapsedMs >= active[0].elapsedMs);
+    assert.doesNotMatch(raw, /PRIVATE_TRACE_TEXT|PRIVATE_TRACE_AUTH|private fixture prompt/);
+  } finally { audit.complete(); }
 });
 
 test.after(() => fs.rmSync(home, { recursive: true, force: true }));

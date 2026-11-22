@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import http from "node:http";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import test from "node:test";
 import { buildCatalog } from "../bridge/catalog.mjs";
 import { createResponsesWriter } from "../bridge/translate.mjs";
@@ -16,6 +16,12 @@ test("installed Codex exec creates a persistent repair-style thread through an i
   const profile = path.join(root, "profile"), workspace = path.join(root, "workspace"), bridgeHome = path.join(root, "bridge");
   for (const directory of [profile, workspace, bridgeHome]) fs.mkdirSync(directory, { mode: 0o700 });
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  execFileSync("git", ["init", "-q"], { cwd: workspace });
+  execFileSync("git", ["config", "user.email", "fixture@example.test"], { cwd: workspace });
+  execFileSync("git", ["config", "user.name", "Fixture"], { cwd: workspace });
+  fs.writeFileSync(path.join(workspace, "README.md"), "fixture\n", { mode: 0o600 });
+  execFileSync("git", ["add", "README.md"], { cwd: workspace });
+  execFileSync("git", ["commit", "-qm", "fixture"], { cwd: workspace });
   fs.writeFileSync(path.join(profile, "config.toml"), 'cli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n[analytics]\nenabled = false\n', { mode: 0o600 });
   const model = "mycodex-repair-fixture";
   const catalog = buildCatalog([{ id: model, name: "Repair fixture", vendor: "OpenAI", model_picker_enabled: true,
@@ -34,21 +40,24 @@ test("installed Codex exec creates a persistent repair-style thread through an i
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   t.after(() => new Promise(resolve => server.close(resolve)));
   const config = { bridgeHome, bridgePort: server.address().port };
-  const args = ["exec", "--json", "--skip-git-repo-check", "-C", workspace,
-    ...copilotProviderArguments(config), "-c", `model_provider=${copilotProviderId}`,
-    "-c", `model_catalog_json=${JSON.stringify(copilotProviderConfig(config).model_catalog_json)}`,
-    "-m", model, "--sandbox", "read-only", "fixture"];
-  const child = spawn(executable, args, { cwd: workspace,
-    env: { HOME: root, CODEX_HOME: profile, PATH: process.env.PATH }, stdio: ["ignore", "pipe", "pipe"] });
-  let stdout = "", stderr = "";
-  child.stdout.on("data", data => { stdout += data; }); child.stderr.on("data", data => { stderr += data; });
-  const timer = setTimeout(() => child.kill("SIGKILL"), 10000);
-  const code = await new Promise((resolve, reject) => { child.once("exit", resolve); child.once("error", reject); });
-  clearTimeout(timer);
-  assert.equal(code, 0, stderr.slice(0, 1000));
-  const events = stdout.split("\n").filter(Boolean).map(line => JSON.parse(line));
-  const started = events.find(event => event.type === "thread.started");
-  assert.match(started?.thread_id ?? "", /^[a-zA-Z0-9_-]{8,128}$/);
-  assert.ok(events.some(event => event.type === "turn.completed"));
+  for (const modeArgs of [["--sandbox", "read-only"], ["--worktree", "--approve-for-me"]]) {
+    const args = ["exec", "--json", "-C", workspace,
+      ...copilotProviderArguments(config), "-c", `model_provider=${copilotProviderId}`,
+      "-c", `model_catalog_json=${JSON.stringify(copilotProviderConfig(config).model_catalog_json)}`,
+      "-m", model, ...modeArgs, "-"];
+    const child = spawn(executable, args, { cwd: workspace,
+      env: { HOME: root, CODEX_HOME: profile, PATH: process.env.PATH }, stdio: ["pipe", "pipe", "pipe"] });
+    child.stdin.end("fixture\n");
+    let stdout = "", stderr = "";
+    child.stdout.on("data", data => { stdout += data; }); child.stderr.on("data", data => { stderr += data; });
+    const timer = setTimeout(() => child.kill("SIGKILL"), 10000);
+    const code = await new Promise((resolve, reject) => { child.once("exit", resolve); child.once("error", reject); });
+    clearTimeout(timer);
+    assert.equal(code, 0, `${modeArgs.join(" ")}: ${stderr.slice(0, 1000)}`);
+    const events = stdout.split("\n").filter(Boolean).map(line => JSON.parse(line));
+    const started = events.find(event => event.type === "thread.started");
+    assert.match(started?.thread_id ?? "", /^[a-zA-Z0-9_-]{8,128}$/);
+    assert.ok(events.some(event => event.type === "turn.completed"));
+  }
   assert.ok(fs.readdirSync(profile).some(name => name === "sessions" || name === "session_index.jsonl"));
 });

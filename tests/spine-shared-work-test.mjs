@@ -8,7 +8,6 @@ import { startGateway } from "../gateway/server.mjs";
 import { connectGateway, writeMessage } from "../gateway/ipc.mjs";
 import { RpcPeer } from "../gateway/rpc-peer.mjs";
 import { WorkService } from "../gateway/spine/work-service.mjs";
-import { pathToFileURL } from "node:url";
 
 function fixture(t) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "mc-shared-work-"));
@@ -119,73 +118,4 @@ test("general and code work share an identity namespace without overwriting each
   service.upsertSharedWork(draft());
   assert.throws(() => service.upsertWorkItem({ ...code, id: "work-flow" }), /kind cannot change/);
   assert.equal(service.readWorkContext({ id: "work-flow" }).workItem.userIntent, draft().userIntent);
-});
-
-test("companion workbench shows actual work, preserves browsing and drafts, and restores archived goals without synthetic squad progress", { timeout: 30000 }, async () => {
-  const runtime = process.env.MYCODEX_TEST_PLAYWRIGHT ?? path.resolve(path.dirname(process.execPath), "../node_modules/playwright/index.mjs");
-  const { chromium } = await import(pathToFileURL(runtime).href);
-  const browser = await chromium.launch({ executablePath: process.env.MYCODEX_TEST_BROWSER ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
-  try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-    const errors = []; page.on("pageerror", error => errors.push(error.message));
-    const files = new Set(["bridge/diy/drawer.mjs", "bridge/diy/workbench.mjs", "bridge/diy/work-panel.mjs", "bridge/diy/radar-panel.mjs", "bridge/diy/daily-panel.mjs"]);
-    const root = path.resolve(import.meta.dirname, "..");
-    await page.route("http://127.0.0.1/**", route => {
-      const relative = new URL(route.request().url()).pathname.slice("/__compiled/".length);
-      return files.has(relative) ? route.fulfill({ contentType: "text/javascript", body: fs.readFileSync(path.join(root, relative), "utf8") }) : route.fulfill({ contentType: "text/html", body: "<main><h1>隔离工作台组件验收</h1><div contenteditable='true' role='textbox'>原有草稿</div></main>" });
-    });
-    await page.goto("http://127.0.0.1/");
-    await page.evaluate(async () => {
-      const { mountWorkbench } = await import("/__compiled/bridge/diy/workbench.mjs");
-      globalThis.goals = [{ id: "goal-current", title: "协同体验迭代", summary: "共同依据与持续推进", status: "active", revision: 1 }, { id: "goal-draft", title: "分享内容讨论", summary: "确定听众需求", status: "active", revision: 1 }, { id: "goal-old", title: "旧小队验收样例", summary: "测试", status: "archived", revision: 2 }];
-      const work = { kind: "general", id: "work-current", goalId: "goal-current", title: "入口动线与共享上下文", revision: 2, status: "in_progress", userIntent: "在小鼠头持续推进工作", outcome: "", owner: "", progress: "登记已完成，正在走查", nextStep: { kind: "discussion", owner: "用户与小鼠头", description: "确认入口与接续体验" }, decision: null, expectedOutput: "两段场景走查", doneCriteria: ["实际看到记录并可接续"], openQuestions: ["入口是否自然？"], context: [{ id: "basis", kind: "agreement", title: "本轮产品约定", summary: "聊天与工作台共用依据", state: "adopted", reference: "fixture:user-adopted" }, { id: "candidate", kind: "result", title: "动线方案 <script>", summary: "需要实际走查", state: "candidate", reference: "fixture:proposal" }], supervisorThreadId: null };
-      globalThis.records = [work, { ...work, id: "work-draft", goalId: "goal-draft", title: "确定分享重点", status: "draft", nextStep: null, expectedOutput: null, context: [], doneCriteria: [], openQuestions: [] }, { ...work, id: "work-old", goalId: "goal-old" }];
-      globalThis.calls = []; globalThis.routes = []; globalThis.draftText = "原有草稿";
-      const services = { async request(method, params) {
-        globalThis.calls.push([method, params]);
-        if (method === "diy/work/list") return { goals: globalThis.goals, items: [], activeWorkItemId: null };
-        if (method === "diy/work/shared_list") return { items: globalThis.records, nextOffset: null };
-        if (method === "diy/radar/list") return { unreadHighCount: 0 };
-        if (method === "diy/work/record") { const record = globalThis.records.find(item => item.id === params.id); if (record.revision !== params.expectedRevision) throw new Error("revision conflict"); Object.assign(record, params, { revision: record.revision + 1 }); return { workItem: record }; }
-        if (method === "diy/goals/upsert") { const goal = globalThis.goals.find(item => item.id === params.id); if (goal.revision !== params.expectedRevision) throw new Error("revision conflict"); Object.assign(goal, params, { revision: goal.revision + 1 }); return { goal }; }
-        throw new Error("Unsupported fixture method");
-      }, subscribe() { return () => {}; } };
-      const hostActions = { async openThread(id) { globalThis.routes.push(id); }, async injectText(text) { globalThis.draftText += "\n" + text; }, async prefillDraft() { throw new Error("Never replace the current draft"); }, async copyText() {} };
-      globalThis.drawer = mountWorkbench({ document, container: document.body, services, hostActions }); globalThis.drawer.open();
-    });
-    const panel = page.locator('[data-mycodex-drawer] .mc-companion');
-    await panel.waitFor();
-    assert.equal(await page.locator('[data-mycodex-drawer] .panel').evaluate(node => node.scrollTop), 0);
-    assert.equal(await panel.locator('.mc-companion-work-list').count(), 0, "a single work does not repeat the goal switcher");
-    assert.equal(await panel.locator('.mc-companion-goals [data-goal]').count(), 2);
-    assert.match(await panel.innerText(), /两段场景走查/);
-    assert.doesNotMatch(await panel.innerText(), /0\/0|分步工作项|0 名队员|通用工作 \(/);
-    await panel.locator('[data-goal="goal-draft"]').click();
-    assert.deepEqual(await page.evaluate(() => globalThis.routes), []);
-    assert.equal(await page.evaluate(() => globalThis.draftText), "原有草稿");
-    await panel.getByRole("button", { name: "继续讨论", exact: true }).click();
-    await page.waitForFunction(() => globalThis.draftText.includes("work-draft"));
-    assert.match(await page.evaluate(() => globalThis.draftText), /^原有草稿\n/);
-    await panel.locator('[data-goal="goal-current"]').click();
-    assert.match(await panel.locator('.mc-companion-focus').innerText(), /确定分享重点/);
-    await panel.getByRole("button", { name: "成果与依据", exact: true }).click();
-    assert.match(await panel.innerText(), /尚未采纳/);
-    await panel.getByRole("button", { name: "用于当前工作", exact: true }).click();
-    await page.waitForFunction(() => globalThis.records[0].revision === 3);
-    const adopted = await page.evaluate(() => globalThis.records[0]);
-    assert.equal(adopted.context[1].state, "adopted"); assert.equal(adopted.progress, "登记已完成，正在走查");
-    await page.evaluate(() => { globalThis.drawer.close(); globalThis.drawer.open(); });
-    await panel.waitFor(); assert.equal(await panel.locator('[data-goal="goal-current"]').getAttribute('aria-pressed'), 'true');
-    assert.match(await panel.locator('.mc-companion-focus').innerText(), /确定分享重点/);
-    await panel.getByRole("button", { name: "协作", exact: true }).click();
-    assert.match(await panel.innerText(), /尚未绑定小队/);
-    assert.deepEqual(await page.evaluate(() => globalThis.calls.filter(([method]) => /dispatch|handoff|integrate/.test(method))), []);
-    await panel.locator('summary').click();
-    await panel.getByRole("button", { name: "恢复到工作目标", exact: true }).click();
-    await page.waitForFunction(() => globalThis.goals[2].status === "active");
-    assert.equal(await panel.locator('.mc-companion-goals [data-goal]').count(), 3);
-    const restore = await page.evaluate(() => globalThis.calls.find(([method]) => method === "diy/goals/upsert"));
-    assert.deepEqual(restore[1], { id: "goal-old", expectedRevision: 2, status: "active" });
-    assert.deepEqual(errors, []);
-  } finally { await browser.close(); }
 });

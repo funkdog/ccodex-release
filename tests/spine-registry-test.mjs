@@ -32,8 +32,8 @@ test("Spine schema and logs recover without modifying standard thread state", as
   assert.equal((await recovered.dispatch("diy/spine/status", {}, context())).schemaVersion, 1);
   assert.deepEqual(fs.readdirSync(path.join(home, "gateway")).sort(), ["spillover", "spine"]);
 });
-test("UI tunnel permits generic diy namespace while bounding UTF8, depth, keys and method shape", () => {
-  assert.equal(parseGatewayUiRequest(JSON.stringify({ id: "1", method: "diy/spine/status", params: {} })).method, "diy/spine/status");
+test("renderer tunnel rejects retired DIY calls while bounding UTF8, depth, keys and method shape", () => {
+  assert.throws(() => parseGatewayUiRequest(JSON.stringify({ id: "1", method: "diy/spine/status", params: {} })), /unapproved/);
   for (const method of ["thread/delete", "diy/../exec", "diy/x/y/z", "diy/exec"]) assert.throws(() => parseGatewayUiRequest(JSON.stringify({ id: "1", method, params: {} })));
   assert.throws(() => parseGatewayUiRequest(JSON.stringify({ id: "1", method: "diy/x/y", params: { text: "中".repeat(12000) } })), /limit/);
   assert.throws(() => parseGatewayUiRequest('{"id":"1","method":"diy/x/y","params":{"__proto__":{}}}'), /Unsafe/);

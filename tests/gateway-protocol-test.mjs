@@ -47,6 +47,84 @@ async function fixture(t, run, { model = { id: "fixture" }, models = [model], ap
     restart: async () => { for (const socket of sockets) socket.destroy(); await server.close(); server = await startGateway(config); return server; } };
 }
 
+test("display facts use one public projection across completion, restart and history views", async t => {
+  const f = await fixture(t, async ({ onText, display }) => {
+    onText("before"); display.thinkingDelta("r", "check"); display.thinkingDone("r");
+    display.commandStart({ id: "c", command: "pwd", cwd: f.home });
+    display.commandOutputDelta("c", "output"); display.commandEnd({ id: "c", status: "completed" });
+    display.planUpdate({ steps: [{ step: "check", status: "completed" }] }); onText("answer");
+  });
+  let a = await f.connect();
+  const { thread } = await a.request("thread/start", { cwd: f.home });
+  await a.request("turn/start", { threadId: thread.id, input: [{ type: "text", text: "test" }] });
+  await Promise.all([...f.server.protocol.active.values()].map(value => value.done));
+  const read = (await a.request("thread/read", { threadId: thread.id })).thread.turns[0];
+  assert.deepEqual(read.items.map(item => item.type), ["userMessage", "agentMessage", "reasoning", "commandExecution", "plan", "agentMessage"]);
+  assert.deepEqual(a.events.find(event => event.method === "turn/completed").params.turn, read);
+  const stored = f.server.protocol.store.get(thread.id).turns[0];
+  assert.equal(stored.items[2].type, "reasoningRecord"); assert.equal(stored.items[3].type, "commandRecord");
+  await f.restart(); a = await f.connect();
+  const full = (await a.request("thread/turns/list", { threadId: thread.id, itemsView: "full" })).data[0];
+  assert.deepEqual(full.items, read.items);
+  const summary = (await a.request("thread/turns/list", { threadId: thread.id, itemsView: "summary" })).data[0];
+  assert.deepEqual(summary.items.map(i => i.type), ["userMessage", "agentMessage", "agentMessage"]);
+  const unloaded = (await a.request("thread/turns/list", { threadId: thread.id, itemsView: "notLoaded" })).data[0];
+  assert.deepEqual(unloaded.items, []);
+  const items = (await a.request("thread/items/list", { threadId: thread.id })).data.map(entry => entry.item);
+  assert.deepEqual(items, read.items);
+});
+
+test("CLI text segments bracket tools in live events and persisted history", async t => {
+  const f = await fixture(t, async ({ onText, onTool }) => {
+    onText("before");
+    onTool({ phase: "start", id: "tool", name: "inspect", input: {} });
+    onTool({ phase: "end", id: "tool", success: true, output: "ok" });
+    onText("after");
+  });
+  let a = await f.connect();
+  const { thread } = await a.request("thread/start", { cwd: f.home });
+  await a.request("turn/start", { threadId: thread.id, input: [{ type: "text", text: "test" }] });
+  await Promise.all([...f.server.protocol.active.values()].map(value => value.done));
+  // Flush notifications through the same socket before inspecting them.
+  await a.request("thread/read", { threadId: thread.id });
+  const items = a.events.filter(e => e.method === "item/completed").map(e => e.params.item);
+  assert.deepEqual(items.map(i => i.type), ["agentMessage", "dynamicToolCall", "agentMessage"]);
+  assert.deepEqual(items.filter(i => i.type === "agentMessage").map(i => [i.text, i.phase]), [["before", "commentary"], ["after", "final_answer"]]);
+  assert.notEqual(items[0].id, items[2].id);
+  await f.restart(); a = await f.connect();
+  const saved = (await a.request("thread/read", { threadId: thread.id })).thread.turns[0].items;
+  assert.deepEqual(saved.slice(1), items);
+});
+
+for (const failure of ["exception", "byte-limit"]) test(`CLI partial text closes as commentary on ${failure}`, async t => {
+  const f = await fixture(t, async ({ onText }) => {
+    onText("partial");
+    if (failure === "byte-limit") onText("中".repeat(350000));
+    else throw new Error("fixture failure");
+  });
+  const a = await f.connect();
+  const { thread } = await a.request("thread/start", { cwd: f.home });
+  await a.request("turn/start", { threadId: thread.id, input: [{ type: "text", text: "test" }] });
+  await Promise.all([...f.server.protocol.active.values()].map(value => value.done));
+  const turn = (await a.request("thread/read", { threadId: thread.id })).thread.turns[0];
+  assert.equal(turn.status, "failed");
+  assert.equal(turn.items.at(-1).text, "partial");
+  assert.equal(turn.items.at(-1).phase, "commentary");
+});
+
+test("tool-only CLI turn creates no empty final message", async t => {
+  const f = await fixture(t, async ({ onTool }) => {
+    onTool({ phase: "start", id: "tool", name: "inspect", input: {} });
+  });
+  const a = await f.connect();
+  const { thread } = await a.request("thread/start", { cwd: f.home });
+  await a.request("turn/start", { threadId: thread.id, input: [{ type: "text", text: "test" }] });
+  await Promise.all([...f.server.protocol.active.values()].map(value => value.done));
+  const turn = (await a.request("thread/read", { threadId: thread.id })).thread.turns[0];
+  assert.equal(turn.items.some(i => i.type === "agentMessage"), false);
+  assert.equal(turn.items.at(-1).status, "failed");
+});
+
 test("text-only CLI input remains readable by Desktop after persistence and restart", async t => {
   const prompts = [];
   const f = await fixture(t, async ({ prompt, onText }) => { prompts.push(prompt); onText("saved reply"); });

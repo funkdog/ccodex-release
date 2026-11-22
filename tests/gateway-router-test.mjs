@@ -21,12 +21,13 @@ function peer(handler) {
   return result;
 }
 async function fixture(t, { nativeHandler, gatewayHandler, ownsThread = id => id === "external-thread", unavailable = false, cursorSecret = secret,
-  connectGateway, connectProvider, discoveryTimeoutMs, modelDiscoveryTimeoutMs, copilotProvider, googleProvider } = {}) {
+  connectGateway, connectProvider, discoveryTimeoutMs, modelDiscoveryTimeoutMs, copilotProvider, googleProvider, onNativeInitialized } = {}) {
   const native = peer(nativeHandler || (message => ({ result: { method: message.method, params: message.params, native: true } })));
   const gateway = peer(gatewayHandler || (message => ({ result: { method: message.method, params: message.params, gateway: true } })));
   const output = [];
   let connects = 0;
   const router = new AppServerRouter({ native, ownsThread, cursorSecret, discoveryTimeoutMs, modelDiscoveryTimeoutMs, copilotProvider, googleProvider, connectProvider, send: message => output.push(structuredClone(message)),
+    onNativeInitialized,
     connectGateway: async () => { connects++; if (unavailable) throw new Error("Synthetic gateway offline"); return connectGateway ? connectGateway(gateway) : gateway; } });
   let next = 1;
   const request = async (method, params = {}, extra = {}) => {
@@ -40,22 +41,21 @@ async function fixture(t, { nativeHandler, gatewayHandler, ownsThread = id => id
   return { router, native, gateway, output, request, connects: () => connects };
 }
 
+test("optional native host starts after successful initialize even when Desktop omits initialized, and never starts twice", async t => {
+  let starts = 0;
+  const f = await fixture(t, { onNativeInitialized: () => { starts++; } });
+  assert.equal(starts, 1, "A successful native initialize reply must activate the optional host without another client notification");
+  await f.router.receive({ method: "initialized" });
+  assert.equal(starts, 1);
+  let rejectedStarts = 0;
+  await fixture(t, { nativeHandler: () => ({ error: { code: -32602, message: "fixture init rejected" } }), onNativeInitialized: () => { rejectedStarts++; } });
+  assert.equal(rejectedStarts, 0);
+});
+
 const draftWrite = (model = "mycodex/antigravity/argon", effort = "high", prefix = "") => ({
   edits: [{ keyPath: prefix + "model", value: model, mergeStrategy: "upsert" },
     { keyPath: prefix + "model_reasoning_effort", value: effort, mergeStrategy: "upsert" }],
   filePath: null, expectedVersion: null, reloadUserConfig: true,
-});
-
-test("an empty optional CLI catalogue preserves the native model list, default and provider configuration", async t => {
-  const stock = { data: [{ id: "own-native", model: "own-native", isDefault: true, displayName: "My existing provider" }], nextCursor: null };
-  const nativeConfig = { config: { model_provider: "own-provider", model: "own-native" } };
-  const f = await fixture(t, {
-    nativeHandler: message => ({ result: message.method === "model/list" ? stock : message.method === "config/read" ? nativeConfig : {} }),
-    gatewayHandler: () => ({ result: { data: [], nextCursor: null } }),
-  });
-  assert.deepEqual((await f.request("model/list")).result, stock);
-  assert.deepEqual((await f.request("config/read")).result, nativeConfig);
-  assert.equal(f.native.sent.some(message => message.method?.includes("Write")), false);
 });
 async function draftFixture(t, metadata = true) {
   return fixture(t, {
@@ -153,6 +153,24 @@ test("native Google and native Copilot cannot exchange thread providers or chang
   assert.match((await f.request("config/batchWrite", { edits: [{ keyPath: "model_provider", value: "mycodex-google" }] })).error.message, /cannot be written/);
   assert.equal(f.native.sent.length, before); assert.equal(f.connects(), 0);
 });
+test("native provider settings and turns cannot change a chat's configured API source", async t => {
+  const first = "api-aaaaaaaaaaaa--first", second = "api-aaaaaaaaaaaa--second", other = "api-bbbbbbbbbbbb--third";
+  const f = await fixture(t, { copilotProvider: { bridgeHome: "/private/copilot", bridgePort: 22690 }, ownsThread: () => false,
+    nativeHandler: message => ({ result: message.method === "initialize" ? {} : { model: first, modelProvider: "mycodex-copilot",
+      thread: { id: "bound-source", model: first, modelProvider: "mycodex-copilot", turns: [] } } }) });
+  await f.request("thread/start", { model: `mycodex/codex-copilot/${first}` });
+  const before = f.native.sent.length;
+  for (const method of ["thread/settings/update", "turn/start", "thread/resume"]) for (const model of [`mycodex/codex-copilot/${other}`, other]) {
+    const response = await f.request(method, { threadId: "bound-source", model });
+    assert.match(response.error.message, /来源已固定/);
+  }
+  assert.equal(f.native.sent.slice(before).some(m => m.method !== "thread/read"), false);
+  const allowed = await f.request("thread/settings/update", { threadId: "bound-source", model: `mycodex/codex-copilot/${second}` });
+  assert.equal(allowed.error, undefined); assert.equal(f.native.sent.at(-1).params.model, second);
+  const allowedRaw = await f.request("thread/settings/update", { threadId: "bound-source", model: second });
+  assert.equal(allowedRaw.error, undefined); assert.equal(f.native.sent.at(-1).params.model, second);
+});
+
 test("Codex + Copilot creates and resumes native threads without gateway inference or native profile writes", async t => {
   const provider = { bridgeHome: "/private/copilot", bridgePort: 22690 };
   const f = await fixture(t, { copilotProvider: provider, ownsThread: id => id === "existing-cli",

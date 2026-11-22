@@ -10,8 +10,8 @@ import { editSettings, readSetting } from "../../tools/config-document.mjs";
 import { initializeCliSettings, surfaceConfigFile } from "../../bridge/surface-settings.mjs";
 import { DEFAULT_CONTEXT_SUFFIX, LONG_CONTEXT_SERVICE_TIER, LONG_CONTEXT_SUFFIX, plainName } from "../../bridge/catalog.mjs";
 import { sanitizeResponsesBody } from "../../bridge/request-sanitize.mjs";
-import { buildChatRequest, createResponsesWriter, readSse, sendJson } from "../../bridge/translate.mjs";
-import { forwardResponsesStream, ResponsesStreamError } from "../../bridge/responses-stream.mjs";
+import { buildChatRequest, createResponsesWriter, limitChatImages, omitHistoricalInlineChatImages, readSse, sendJson } from "../../bridge/translate.mjs";
+import { forwardResponsesStream, ResponsesStreamError, startResponsesHeartbeat } from "../../bridge/responses-stream.mjs";
 import { fetchResponsesUpstream } from "../../bridge/upstream-responses.mjs";
 import { encodeResponseEvent, failedResponseEvent, isContextWindowError, normalizeResponsesError, normalizeResponsesErrorEvent } from "../../bridge/responses-errors.mjs";
 import { isRetryableCopilotForbidden, isRetryableUpstreamError, isRetryableUpstreamStatus, waitForCopilotForbiddenRetry, waitForRetry } from "../../bridge/upstream-retry.mjs";
@@ -69,7 +69,7 @@ function memoryIdentityStore(packageRoot) {
 
 // Execute the real request handlers without a disk-backed profile or paid inference.
 export async function memoryResponsesBridge(responder, {
-  route = "/responses", packageRoot = root, heartbeatMs = 10, model: modelOverride,
+  route = "/responses", packageRoot = root, heartbeatMs = 10, chatIdleTimeoutMs = 300000, model: modelOverride,
 } = {}) {
   const requests = [];
   const audits = [];
@@ -91,16 +91,16 @@ export async function memoryResponsesBridge(responder, {
   const upstreamPort = await listen(upstream);
   const identities = memoryIdentityStore(packageRoot);
   const bindings = {
-    ...identities, AbortController, Buffer, fetch,
+    ...identities, AbortController, AbortSignal, Buffer, fetch, createHash,
     CODEX_COPILOT_HOME: "memory-profile", COPILOT_API: `http://127.0.0.1:${upstreamPort}`,
     copilotApiFor: async () => `http://127.0.0.1:${upstreamPort}`,
-    SSE_HEARTBEAT_MS: heartbeatMs, TRANSIENT_FORBIDDEN_MAX_ATTEMPTS: 10,
+    SSE_HEARTBEAT_MS: heartbeatMs, CHAT_STREAM_IDLE_TIMEOUT_MS: chatIdleTimeoutMs, TRANSIENT_FORBIDDEN_MAX_ATTEMPTS: 10,
     state: { login: "synthetic-account" }, ensureAuth: async () => "synthetic-token",
     copilotHeaders: (_token, headers) => ({ ...headers, "content-type": "application/json" }),
     recoverSameAccountCredential: async () => null, activateRecoveredCredential() {},
     observeQuotaHeaders() {}, log: message => logs.push(message),
-    sanitizeResponsesBody, buildChatRequest, createResponsesWriter, readSse, sendJson,
-    forwardResponsesStream, ResponsesStreamError, fetchResponsesUpstream,
+    sanitizeResponsesBody, buildChatRequest, createResponsesWriter, limitChatImages, omitHistoricalInlineChatImages, readSse, sendJson,
+    forwardResponsesStream, ResponsesStreamError, startResponsesHeartbeat, fetchResponsesUpstream,
     encodeResponseEvent, failedResponseEvent, isContextWindowError, normalizeResponsesError,
     normalizeResponsesErrorEvent, isRetryableCopilotForbidden, isRetryableUpstreamError,
     isRetryableUpstreamStatus, waitForCopilotForbiddenRetry, waitForRetry,
@@ -228,7 +228,7 @@ export function encodeEvents(events) {
 }
 
 export async function responsesBridge(home, t, responder, {
-  env: extraEnv = {}, route = "/responses", packageRoot = root, websocketResponder,
+  env: extraEnv = {}, route = "/responses", packageRoot = root, websocketResponder, vision = false,
 } = {}) {
   const requests = [];
   const activeResponses = new Set();
@@ -240,7 +240,7 @@ export async function responsesBridge(home, t, responder, {
           id: "synthetic-model", name: "Synthetic", vendor: "OpenAI",
           model_picker_enabled: true,
           supported_endpoints: websocketResponder ? [route, "ws:/responses"] : [route],
-          capabilities: { type: "chat", supports: { reasoning_effort: ["low"] },
+          capabilities: { type: "chat", supports: { reasoning_effort: ["low"], ...(vision ? { vision: true } : {}) },
             limits: { max_prompt_tokens: 100000, max_output_tokens: 10000 } },
         }] }));
         return;

@@ -66,7 +66,7 @@
 
 ## 5. 仓库 Release 新版本热更新提醒与一键安装（CLI + Desktop）
 
-- **CLI 热提醒与一键升级**：启动 `ccodex` 时后台静默检测企业仓库 `nifan_microsoft/ccodex-release` 的最新 Release；发现新版本时在终端顶部弹出醒目通知横幅，用户只需执行 `ccodex release-update`（或 `ccodex release-update --check`）即可自动下载当前平台安装包、校验 SHA-256 并完成原地升级（完整保留已有登录凭据与历史会话）。
+- **CLI 热提醒与一键升级**：启动 `ccodex` 时后台检查已配置发行仓库的最新正式 Release，当前源码默认使用公开仓库 `funkdog/ccodex-release`。发现新版本时，终端顶部显示通知。用 `ccodex release-update --check` 查看更新，或运行 `ccodex release-update` 下载对应平台包、校验 SHA-256 并原地升级，保留登录凭据和历史会话。
 - **Desktop 悬浮热通知卡片**：Desktop 右下角实时挂载新版本热提醒卡片（Toast），展示最新版本号与更新摘要，支持点击 **立即下载并安装更新** 一键触发后台 SHA-256 校验安装，或一键复制 `ccodex release-update` 命令。
 
 # Codex (Copilot) 1.2.35

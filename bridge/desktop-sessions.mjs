@@ -1,4 +1,279 @@
 import { buildDesktopSessionLocalePatch } from "./desktop-session-locale.mjs";
+import { loadSquads, loadV2SquadSummaries } from "../gateway/spine/squad-lite.mjs";
+import { mountSquadReturnAnchor } from "./desktop-squad-navigation.mjs";
+import { readNativeComposerRoute } from "./desktop-native-composer.mjs";
+import { desktopPickerBinding } from "./desktop-model-controls.mjs";
+import { currentHostContracts } from "./desktop-current-host-contract.mjs";
+
+/** Read the sidecar in the same profile as the session source. Absence from a
+ * partial Recent page is never evidence that an anchor was archived. */
+export async function loadDesktopSquads(dataDir, listThreads) {
+  const store = await loadSquads(dataDir);
+  const squads = [...Object.values(store.squads), ...loadV2SquadSummaries(dataDir).filter(s => !Object.hasOwn(store.squads, s.id))];
+  if (!squads.length) return { squads: [], threads: [] };
+  const wanted = new Set(squads.flatMap(squad => squad.members.map(member => member.threadId.toLowerCase())));
+  const threads = new Map(), cursors = new Set();
+  let cursor = null;
+  do {
+    if (cursors.has(cursor) || cursors.size >= 100) throw new Error("Squad session pagination did not complete.");
+    cursors.add(cursor);
+    const page = await listThreads(cursor);
+    if (!Array.isArray(page.data) || !(page.nextCursor === null || typeof page.nextCursor === "string"))
+      throw new Error("Invalid squad session page.");
+    for (const thread of page.data) {
+      const id = thread.id?.toLowerCase();
+      if (wanted.has(id) && thread.archived !== true && thread.remote !== true) {
+        // Ownership/inUse protects history operations; it is not a turn status.
+        const status = thread.status || { type: "idle" };
+        threads.set(id, { id, title: thread.name || thread.title || thread.preview || "", status });
+      }
+    }
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return { squads: squads.filter(squad => threads.has(squad.anchorThreadId.toLowerCase())), threads: [...threads.values()] };
+}
+
+export function buildDesktopSquadsPatch(binding = "__codexCopilotSessionRequest",
+  responseEvent = "codex-copilot-session-response", gateway = false) {
+  return `(()=>{const desktopPickerBinding=${desktopPickerBinding.toString()};const routeReader=${readNativeComposerRoute.toString()};const mountReturnAnchor=()=>(${mountSquadReturnAnchor.toString()})({window:globalThis,contracts:${JSON.stringify(currentHostContracts)},routeReader});return (${installDesktopSquads.toString()})(${JSON.stringify(binding)},${JSON.stringify(responseEvent)},${gateway},mountReturnAnchor);})()`;
+}
+
+/** Annotate native sidebar rows in place and preserve their navigation handlers. */
+export function installDesktopSquads(binding, responseEvent, gateway, mountReturnAnchor = () => null) {
+  if (typeof document === "undefined" || !document.body || !document.head) return "unavailable";
+  const previous = globalThis.__codexCopilotSquadsV1;
+  if (previous?.revision === 6 && previous.binding === binding && previous.responseEvent === responseEvent) {
+    previous.refresh(); return "active";
+  }
+  previous?.dispose?.();
+  const navigation = gateway ? mountReturnAnchor() : null;
+  const style = document.createElement("style"); style.id = "codex-copilot-squad-style";
+  style.textContent = [
+    ".app-shell-left-panel [data-ccodex-squad-source=true]{display:none!important}",
+    ".app-shell-left-panel [data-app-action-sidebar-thread-row][data-ccodex-squad-badge]{position:relative;padding-inline-end:var(--ccodex-badge-space,68px)!important}",
+    '.app-shell-left-panel [data-app-action-sidebar-thread-row]:is([data-ccodex-squad-badge^="@"],[data-ccodex-squad-badge^="⚠ @"]){--ccodex-badge-space:104px}',
+    '.app-shell-left-panel [data-app-action-sidebar-thread-row][data-ccodex-squad-badge]::after{content:attr(data-ccodex-squad-badge);position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);display:block;box-sizing:border-box;max-inline-size:calc(var(--ccodex-badge-space,68px) - 10px);height:16px;padding:0 6px;border-radius:9999px;font:500 10px/14px "SF Mono","JetBrains Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;border:1px solid light-dark(#d8d5ce,#2e3440);background:light-dark(#f3f2ee,#1d212a);color:light-dark(#4a4f57,#abb3c2)}',
+    '.app-shell-left-panel [data-app-action-sidebar-thread-row][data-ccodex-squad-tone=running]::after{border-color:light-dark(#bbd8f2,rgba(84,166,235,.35));background:light-dark(#e9f3fb,rgba(84,166,235,.14));color:light-dark(#165b91,#7ec0f5)}',
+    '.app-shell-left-panel [data-app-action-sidebar-thread-row][data-ccodex-squad-tone=settled]::after{border-color:light-dark(#b7e1ca,rgba(71,184,129,.35));background:light-dark(#eaf6f0,rgba(71,184,129,.14));color:light-dark(#16653e,#73d1a1)}',
+    '.app-shell-left-panel [data-app-action-sidebar-thread-row][data-ccodex-squad-tone=attention]::after{border-color:light-dark(#ecc996,rgba(229,153,62,.4));background:light-dark(#fdf4e7,rgba(229,153,62,.16));color:light-dark(#8d4d08,#f2b56b)}',
+  ].join("");
+  const pending = new Map(), owned = new Set(), badged = new Set();
+  const uuidRe = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+  const localRouteRe = /^\/local\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/i;
+  let snapshot = { squads: [], threads: [] }, disposed = false, loading = false, scheduled = false, sequence = 0, error = null;
+  function resolveRowThreadId(row) {
+    const raw = row.getAttribute("data-app-action-sidebar-thread-id") || "";
+    const stripped = raw.replace(/^local:/i, "");
+    if (uuidRe.test(stripped)) return stripped.toLowerCase();
+    if (!/^(?:local:)?client-new-thread:/i.test(raw)) return stripped ? stripped.toLowerCase() : null;
+    const draftUuid = stripped.replace(/^client-new-thread:/i, "").toLowerCase();
+    const pickId = value => {
+      if (typeof value !== "string") return null;
+      const candidate = value.replace(/^local:/i, "");
+      if (uuidRe.test(candidate) && candidate.toLowerCase() !== draftUuid) return candidate.toLowerCase();
+      const routeHit = localRouteRe.exec(value);
+      if (routeHit && routeHit[1].toLowerCase() !== draftUuid) return routeHit[1].toLowerCase();
+      return null;
+    };
+    const inspectProps = props => {
+      if (!props || typeof props !== "object") return null;
+      for (const item of [
+        props.conversationId, props.threadId, props.id,
+        props.thread?.id, props.thread?.conversationId,
+        props.conversation?.id, props.item?.id, props.item?.threadId,
+        props.to, props.href,
+      ]) {
+        const found = pickId(item);
+        if (found) return found;
+      }
+      return null;
+    };
+    let el = row;
+    for (let depth = 0; el && depth < 6; depth++, el = el.parentElement) {
+      const keys = Object.keys(el);
+      const propsKey = keys.find(k => k.startsWith("__reactProps$"));
+      if (propsKey) {
+        const direct = inspectProps(el[propsKey]);
+        if (direct) return direct;
+      }
+      const fiberKey = keys.find(k => k.startsWith("__reactFiber$"));
+      const start = fiberKey ? el[fiberKey] : null;
+      if (start) {
+        const queue = [start];
+        const seen = new Set();
+        while (queue.length && seen.size < 48) {
+          const fiber = queue.shift();
+          if (!fiber || seen.has(fiber)) continue;
+          seen.add(fiber);
+          const found = inspectProps(fiber.memoizedProps) || pickId(fiber.key);
+          if (found) return found;
+          if (fiber.alternate) queue.push(fiber.alternate);
+          if (fiber.return) queue.push(fiber.return);
+          if (fiber.child) queue.push(fiber.child);
+          if (fiber.sibling && seen.size < 24) queue.push(fiber.sibling);
+        }
+        break;
+      }
+    }
+    return stripped.toLowerCase();
+  }
+  function computeAnchorBadges() {
+    const threadMap = new Map(
+      (snapshot.threads || [])
+        .filter(t => typeof t?.id === "string")
+        .map(t => [t.id.toLowerCase(), t]),
+    );
+    const badges = new Map();
+    for (const squad of snapshot.squads) {
+      if (!squad || squad.status === "closed" || typeof squad.anchorThreadId !== "string") continue;
+      const workers = (squad.members || []).filter(m => m && m.role === "worker" && typeof m.threadId === "string");
+      let attention = (squad.ledger?.hopPausedForHuman || squad.missingReports?.length) ? 1 : 0;
+      let running = 0;
+      let done = 0;
+      for (const w of workers) {
+        const wid = w.threadId.toLowerCase();
+        const state = squad.memberStates?.[w.threadId] ?? squad.memberStates?.[wid];
+        const status = threadMap.get(wid)?.status;
+        const statusType = String(status?.type || "");
+        const flags = Array.isArray(status?.activeFlags) ? status.activeFlags : [];
+        if (
+          state === "attention" ||
+          ["needs_attention", "error", "systemError", "failed", "waitingOnApproval", "waitingOnUserInput"].includes(statusType) ||
+          flags.some(f => f === "waitingOnApproval" || f === "waitingOnUserInput")
+        ) {
+          attention++;
+        } else if (state === "running" || ["active", "running", "inProgress"].includes(statusType)) {
+          running++;
+        } else if (state === "done" || statusType === "completed") {
+          done++;
+        }
+      }
+      const parts = [];
+      if (attention > 0) parts.push("\u26a0" + attention);
+      if (running > 0) parts.push("\u27f3" + running);
+      if (done > 0) parts.push("\u2713" + done);
+      const text = parts.length ? parts.slice(0, 2).join(" \u00b7 ") : "\u2726" + workers.length;
+      const tone = attention > 0 ? "attention" : running > 0 ? "running" : done > 0 ? "settled" : "neutral";
+      badges.set(squad.anchorThreadId.toLowerCase(), { text, tone });
+    }
+    return badges;
+  }
+  function refresh() {
+    if (disposed) return;
+    navigation?.update(snapshot);
+    const activeSquads = snapshot.squads.filter(s => s && s.status !== "closed");
+    const systemWaits = new Set((snapshot.threads || []).filter(t =>
+      [t.status?.type, ...(Array.isArray(t.status?.activeFlags) ? t.status.activeFlags : [])].some(flag => ["waitingOnApproval", "waitingOnUserInput"].includes(flag))
+    ).map(t => String(t.id).toLowerCase()));
+    const hidden = new Set(), badges = computeAnchorBadges();
+    for (const squad of activeSquads) {
+      for (const member of squad.members || []) {
+        if (member?.role !== "worker" || typeof member.threadId !== "string") continue;
+        const id = member.threadId.toLowerCase();
+        const waiting = systemWaits.has(id);
+        if (!waiting && member.sidebarHidden !== false) {
+          hidden.add(id);
+          continue;
+        }
+        const handle = typeof member.shortName === "string" ? member.shortName.trim().replace(/^@+/, "") : "";
+        if (handle && !badges.has(id)) {
+          badges.set(id, { text: waiting ? "⚠ @" + handle : "@" + handle, tone: waiting ? "attention" : "neutral" });
+        }
+      }
+    }
+    const nextOwned = new Set(), nextBadged = new Set();
+    for (const row of document.querySelectorAll(".app-shell-left-panel [data-app-action-sidebar-thread-row]")) {
+      if (row.getAttribute("data-app-action-sidebar-thread-host-id") !== "local") continue;
+      const id = resolveRowThreadId(row);
+      if (!id) continue;
+      if (hidden.has(id)) {
+        if (row.getAttribute("data-ccodex-squad-source") !== "true") row.setAttribute("data-ccodex-squad-source", "true");
+        nextOwned.add(row);
+        continue;
+      }
+      const badge = badges.get(id);
+      if (badge) {
+        if (row.getAttribute("data-ccodex-squad-badge") !== badge.text) row.setAttribute("data-ccodex-squad-badge", badge.text);
+        if (row.getAttribute("data-ccodex-squad-tone") !== badge.tone) row.setAttribute("data-ccodex-squad-tone", badge.tone);
+        nextBadged.add(row);
+      }
+    }
+    for (const row of owned) if (!nextOwned.has(row)) row.removeAttribute("data-ccodex-squad-source");
+    owned.clear(); for (const row of nextOwned) owned.add(row);
+    for (const row of badged) if (!nextBadged.has(row)) {
+      row.removeAttribute("data-ccodex-squad-badge");
+      row.removeAttribute("data-ccodex-squad-tone");
+    }
+    badged.clear(); for (const row of nextBadged) badged.add(row);
+  }
+  function schedule() {
+    if (scheduled || disposed) return;
+    scheduled = true; queueMicrotask(() => { scheduled = false; refresh(); });
+  }
+  const response = event => {
+    const reply = event.detail, request = pending.get(reply?.id);
+    if (!request) return;
+    pending.delete(reply.id); clearTimeout(request.timer);
+    if (gateway ? !reply.error : reply.ok) request.resolve(gateway ? reply.result : reply.body);
+    else request.reject(new Error(reply.error || "Squad list unavailable."));
+  };
+  async function load() {
+    if (loading || disposed || typeof globalThis[binding] !== "function") return;
+    loading = true;
+    try {
+      const value = await new Promise((resolve, reject) => {
+        const id = "sq-" + crypto.randomUUID();
+        // Legacy session binding requires a UUID request ID.
+        const requestId = gateway ? id : id.slice(3);
+        const timer = setTimeout(() => { pending.delete(requestId); reject(new Error("Squad list timed out.")); }, 15000);
+        pending.set(requestId, { resolve, reject, timer });
+        try { globalThis[binding](JSON.stringify(gateway ? { id: requestId, method: "listSquads", params: {} }
+          : { id: requestId, operation: "squads", args: {} })); }
+        catch (cause) { pending.delete(requestId); clearTimeout(timer); reject(cause); }
+      });
+      if (disposed) return;
+      if (!Array.isArray(value?.squads) || !Array.isArray(value?.threads)) throw new Error("Invalid squad snapshot.");
+      snapshot = value; error = null; sequence++; refresh();
+    } catch (cause) {
+      if (!disposed) { error = String(cause.message); snapshot = { squads: [], threads: [] }; refresh(); }
+    } finally { loading = false; }
+  }
+  const observer = new MutationObserver(schedule);
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
+    attributeFilter: ["data-app-action-sidebar-thread-id", "data-app-action-sidebar-thread-host-id",
+      "data-app-action-sidebar-thread-active", "data-ccodex-history-removed", "data-theme", "hidden", "style"] });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
+  const media = matchMedia("(prefers-color-scheme: dark)"); media.addEventListener("change", schedule);
+  const activity = event => { if (event.detail?.kind === "squad") void load(); };
+  globalThis.addEventListener(responseEvent + "_activity", activity);
+  const interval = setInterval(() => { if (!document.hidden) void load(); }, 5000);
+  globalThis.addEventListener(responseEvent, response);
+  globalThis.addEventListener("codex-copilot-sessions-changed", load);
+  document.head.append(style);
+  globalThis.__codexCopilotSquadsV1 = { revision: 6, binding, responseEvent, refresh, reload: load,
+    inspect: () => ({ groups: 0, loading, sequence, error, collapsed: [] }),
+    dispose() {
+      if (disposed) return;
+      disposed = true; observer.disconnect(); clearInterval(interval);
+      globalThis.removeEventListener(responseEvent, response);
+      globalThis.removeEventListener(responseEvent + "_activity", activity);
+      globalThis.removeEventListener("codex-copilot-sessions-changed", load);
+      navigation?.dispose();
+      media.removeEventListener("change", schedule);
+      for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error("Squad UI closed.")); }
+      pending.clear();
+      for (const row of owned) row.removeAttribute("data-ccodex-squad-source");
+      for (const row of badged) {
+        row.removeAttribute("data-ccodex-squad-badge");
+        row.removeAttribute("data-ccodex-squad-tone");
+      }
+      owned.clear(); badged.clear();
+      style.remove(); delete globalThis.__codexCopilotSquadsV1;
+    },
+  };
+  void load();
+  return "active";
+}
 
 /** Runtime-only UI using the existing Desktop theme and a private CDP binding. */
 export function buildDesktopSessionsPatch() {
@@ -11,6 +286,7 @@ export function buildDesktopSessionsPatch() {
     const state = (${installDesktopSessions.toString()})();
     (${installDesktopSessionSelectionAppearance.toString()})();
     ${buildDesktopSessionLocalePatch()};
+    ${buildDesktopSquadsPatch()};
     return state;
   })()`;
 }

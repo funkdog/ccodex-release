@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
@@ -26,8 +26,16 @@ import { CopilotAccountCache, fetchCopilotAccount } from "./copilot-account.mjs"
 import { buildCatalog, fetchCopilotModels, resolveModelSelection, routeFor } from "./catalog.mjs";
 import { CATALOG_FILE, catalogFilesHealthy, readCatalogGeneration, writeCatalogSnapshot } from "./catalog-store.mjs";
 import { chooseConfiguredModel } from "./model-selection.mjs";
+import { refreshModels } from "./model-refresh.mjs";
 import { sanitizeResponsesBody } from "./request-sanitize.mjs";
-import { buildChatRequest, createResponsesWriter, readSse, sendJson } from "./translate.mjs";
+import {
+  buildChatRequest,
+  createResponsesWriter,
+  limitChatImages,
+  omitHistoricalInlineChatImages,
+  readSse,
+  sendJson,
+} from "./translate.mjs";
 import {
   isRetryableCopilotForbidden,
   isRetryableUpstreamError,
@@ -39,7 +47,7 @@ import { startNetworkMonitor } from "./network-state.mjs";
 import { readLatestRequestAudit, startRequestAudit } from "./request-audit.mjs";
 import { ResponseIdentityError, ResponseIdentityStore } from "./response-identity.mjs";
 import { CREDITS_RULES, creditsView } from "./copilot-credits.mjs";
-import { forwardResponsesStream, ResponsesStreamError } from "./responses-stream.mjs";
+import { forwardResponsesStream, ResponsesStreamError, startResponsesHeartbeat } from "./responses-stream.mjs";
 import { fetchResponsesUpstream } from "./upstream-responses.mjs";
 import {
   encodeResponseEvent,
@@ -51,6 +59,8 @@ import {
 import { bridgeSourceGeneration } from "./runtime-generation.mjs";
 import { selectedBridgePort } from "./port-selection.mjs";
 import { SessionManagement, sessionRequestAuthorized } from "./session-management.mjs";
+import { ModelSources } from "./model-sources.mjs";
+import { createModelSourcesHandler } from "./model-sources-http.mjs";
 import { observeCliRequest } from "./cli-session-ownership.mjs";
 import {
   checkAndCacheReleaseUpdate,
@@ -72,6 +82,9 @@ const TRANSIENT_FORBIDDEN_MAX_ATTEMPTS = 10;
 const configuredHeartbeatMs = Number(process.env.CODEX_COPILOT_SSE_HEARTBEAT_MS || 30000);
 const SSE_HEARTBEAT_MS = Number.isSafeInteger(configuredHeartbeatMs) &&
   configuredHeartbeatMs > 0 && configuredHeartbeatMs <= 300000 ? configuredHeartbeatMs : 30000;
+const configuredChatIdleMs = Number(process.env.CODEX_COPILOT_CHAT_STREAM_IDLE_TIMEOUT_MS || 300000);
+const CHAT_STREAM_IDLE_TIMEOUT_MS = Number.isSafeInteger(configuredChatIdleMs) &&
+  configuredChatIdleMs > 0 && configuredChatIdleMs <= 2147483647 ? configuredChatIdleMs : 300000;
 const RUNTIME = Object.freeze({
   sourceGeneration: bridgeSourceGeneration(),
   responsesItemIdentity: 1,
@@ -98,6 +111,17 @@ const RUNTIME = Object.freeze({
 const CONTROL_TOKEN = randomBytes(32).toString("base64url");
 let activeRequests = 0;
 const sessionManagement = new SessionManagement({ home: CODEX_COPILOT_HOME });
+const modelSources = new ModelSources(CODEX_COPILOT_HOME);
+const sourceManager = createModelSourcesHandler({ sources: modelSources, port: PORT,
+  onChange: async () => {
+    const list = modelSources.merge(state.models);
+    writeCatalogSnapshot(buildCatalog(list)); lastCatalogSignature = catalogSignature(list);
+  },
+  lastRequest: () => {
+    const audit = readLatestRequestAudit(); if (!audit) return null;
+    const source = modelSources.models().find(model => model.id === audit.requestedModel)?.api_source;
+    return { source: source?.label || "GitHub Copilot", model: audit.upstreamModel || audit.requestedModel || "未知" };
+  } });
 
 fs.mkdirSync(CODEX_COPILOT_HOME, { recursive: true });
 
@@ -297,24 +321,7 @@ function activateRecoveredCredential(record) {
 }
 
 async function models({ force = false } = {}) {
-  let token = await ensureAuth();
-  if (force || Date.now() - state.modelsAt > 5 * 60 * 1000 || state.models.length === 0) {
-    try {
-      state.models = await fetchCopilotModels(token, {
-        force: true,
-        login: state.login,
-      });
-    } catch (error) {
-      log(`model refresh failed with current credential: ${error.message}; resolving credential again`);
-      token = await ensureAuth({ force: true });
-      state.models = await fetchCopilotModels(token, {
-        force: true,
-        login: state.login,
-      });
-    }
-    state.modelsAt = Date.now();
-  }
-  return state.models;
+  return refreshModels({ state, ensureAuth, fetchModels: fetchCopilotModels, sources: modelSources, log }, { force });
 }
 
     function publicAccountState() {
@@ -559,9 +566,10 @@ async function proxyResponses(req, res, request, model) {
 async function proxyResponsesRequest(req, res, request, signal, progress, model) {
   const requestStartedAt = Date.now();
   signal.throwIfAborted();
-  let token = await ensureAuth();
+  const source = model?.sourceCredential;
+  let token = source?.apiKey ?? await ensureAuth();
   const identities = new ResponseIdentityStore({
-    home: CODEX_COPILOT_HOME, provider: COPILOT_API, account: state.login || token,
+    home: CODEX_COPILOT_HOME, provider: source?.baseUrl ?? COPILOT_API, account: source?.id ?? state.login ?? token,
   });
   const streaming = request.stream !== false;
   let effectiveRequest;
@@ -591,13 +599,15 @@ async function proxyResponsesRequest(req, res, request, signal, progress, model)
     let upstream;
     try {
       progress.attempts += 1;
-      const api = await copilotApiFor(token, { signal });
+      const api = source?.baseUrl ?? await copilotApiFor(token, { signal });
       progress.upstreamApi = api;
       const result = await fetchResponsesUpstream({
         api,
-        headers: copilotHeaders(token, { accept: streaming ? "text/event-stream" : "application/json" }),
+        headers: source ? { authorization: `Bearer ${token}`, "content-type": "application/json", accept: streaming ? "text/event-stream" : "application/json" }
+          : copilotHeaders(token, { accept: streaming ? "text/event-stream" : "application/json" }),
         payload,
         signal,
+        redirect: source ? "error" : "follow",
         // Sanitization removes provider IDs; keep legacy continuations off a new socket.
         preferWebSocket: effectiveRequest.previous_response_id == null &&
           model?.supported_endpoints?.includes("ws:/responses") === true,
@@ -654,7 +664,7 @@ async function proxyResponsesRequest(req, res, request, signal, progress, model)
         activateRecoveredCredential(recoveredRecord);
         recoveredRecord = null;
       }
-      observeQuotaHeaders(upstream.headers, token);
+      if (!source) observeQuotaHeaders(upstream.headers, token);
       if (!res.headersSent) {
         res.writeHead(upstream.status, {
           "content-type": upstream.headers.get("content-type") || (streaming ? "text/event-stream" : "application/json"),
@@ -766,21 +776,37 @@ async function proxyResponsesRequest(req, res, request, signal, progress, model)
       return;
     }
 
-    const detail = await upstream.text();
+    const detail = source ? [token, encodeURIComponent(token), JSON.stringify(token).slice(1, -1)].reduce((text, secret) => text.split(secret).join("[redacted]"), await upstream.text()) : await upstream.text();
     let parsed = null;
     try {
       parsed = JSON.parse(detail);
     } catch {
       /* keep raw text */
     }
-    if (upstream.status === 400 && isContextWindowError(parsed?.error)) {
-      const error = normalizeResponsesError(parsed.error);
+    const rawProviderError = parsed?.error && typeof parsed.error === "object" && !Array.isArray(parsed.error)
+      ? parsed.error
+      : null;
+    const candidateContextError = rawProviderError
+      ? (upstream.status === 413 && !isContextWindowError(rawProviderError)
+          ? { ...rawProviderError, code: "payload_too_large" }
+          : rawProviderError)
+      : (upstream.status === 413
+          ? {
+              code: "payload_too_large",
+              type: "invalid_request_error",
+              param: null,
+              message: `GitHub Copilot: ${detail.slice(0, 600) || "Request Entity Too Large"}`,
+            }
+          : null);
+    if ((upstream.status === 400 || upstream.status === 413) && isContextWindowError(candidateContextError)) {
+      const error = normalizeResponsesError(candidateContextError);
+      const upstreamCode = rawProviderError?.code || (upstream.status === 413 ? "payload_too_large" : error.code);
       request._audit?.complete({
         status: "error", httpStatus: upstream.status, attempts: progress.attempts,
         reasoningCheckpoints: 0,
         providerRequestId: upstream.headers.get("x-github-request-id"),
         serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
-        error: { kind: "upstream", code: error.code, upstreamCode: parsed.error.code },
+        error: { kind: "upstream", code: error.code, upstreamCode },
       });
       log(`responses context_exceeded model=${request.model} status=${upstream.status} bytes=${payloadBytes}`);
       if (streaming) {
@@ -798,9 +824,9 @@ async function proxyResponsesRequest(req, res, request, signal, progress, model)
       }
       return;
     }
-    const retryableForbidden = isRetryableCopilotForbidden(upstream.status, detail);
+    const retryableForbidden = !source && isRetryableCopilotForbidden(upstream.status, detail);
     if (retryableForbidden) maxAttempts = TRANSIENT_FORBIDDEN_MAX_ATTEMPTS;
-    if (upstream.status === 401 || upstream.status === 403) {
+    if (!source && (upstream.status === 401 || upstream.status === 403)) {
       const fallback =
         attempt + 1 < maxAttempts
           ? await recoverSameAccountCredential(token)
@@ -889,7 +915,8 @@ async function proxyChat(req, res, request, model) {
 
 async function proxyChatRequest(req, res, request, model, signal) {
   signal.throwIfAborted();
-  let token = await ensureAuth();
+  const source = model?.sourceCredential;
+  let token = source?.apiKey ?? await ensureAuth();
   const streaming = request.stream !== false;
   const { _audit, ...wireRequest } = request;
   let body;
@@ -907,25 +934,54 @@ async function proxyChatRequest(req, res, request, model, signal) {
     apiError(res, status, error.message, code);
     return;
   }
-  const writer = createResponsesWriter(res, wireRequest, toolKinds, { streaming, onLog: (m) => log(`chat ${request.model} ${m}`) });
-  const payload = JSON.stringify(body);
-  const payloadBytes = Buffer.byteLength(payload);
+  const progress = { upstreamChunks: 0, upstreamBytes: 0, lastUpstreamAt: null,
+    upstreamEvents: 0, toolArgumentBytes: 0,
+    downstreamEvents: 0, downstreamHeartbeats: 0, lastDownstreamAt: null };
+  const textBytes = value => typeof value === "string" ? Buffer.byteLength(value) : 0;
+  const recordDownstream = () => {
+    progress.downstreamEvents += 1;
+    progress.lastDownstreamAt = new Date().toISOString();
+  };
+  const writer = createResponsesWriter(res, wireRequest, toolKinds, {
+    streaming, onLog: (m) => log(`chat ${request.model} ${m}`),
+    onEvent(type, metadata) {
+      recordDownstream();
+      request._audit?.trace?.("downstream.event", { type, ...metadata });
+    },
+  });
+  let payload = JSON.stringify(body);
+  let payloadBytes = Buffer.byteLength(payload);
+  request._audit?.trace?.("request.serialized", {
+    bytes: payloadBytes, payloadSha256: createHash("sha256").update(payload).digest("hex"),
+    effort: body.reasoning_effort || null, outputLimit: body.max_tokens || null,
+  });
   let maxAttempts = 3;
   let recoveredRecord = null;
+  let historicalImagesOmitted = false;
+  let imageCountLimited = false;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     signal.throwIfAborted();
     const startedAt = Date.now();
+    const upstreamController = new AbortController();
+    const upstreamSignal = AbortSignal.any([signal, upstreamController.signal]);
     let upstream;
+    request._audit?.trace?.("upstream.request", { attempt: attempt + 1 });
     try {
-      const api = await copilotApiFor(token, { signal });
+      const api = source?.baseUrl ?? await copilotApiFor(token, { signal });
       upstream = await fetch(`${api}/chat/completions`, {
         method: "POST",
-        headers: copilotHeaders(token, { accept: streaming ? "text/event-stream" : "application/json" }),
+        headers: source ? { authorization: `Bearer ${token}`, "content-type": "application/json", accept: streaming ? "text/event-stream" : "application/json" }
+          : copilotHeaders(token, { accept: streaming ? "text/event-stream" : "application/json" }),
         body: payload,
         duplex: "half",
-        signal,
+        signal: upstreamSignal,
+        redirect: source ? "error" : "follow",
       });
+      request._audit?.trace?.("upstream.headers", { attempt: attempt + 1, status: upstream.status,
+        headersMs: Date.now() - startedAt,
+        providerRequestId: upstream.headers.get("x-github-request-id"),
+        serviceRequestId: upstream.headers.get("x-copilot-service-request-id") });
     } catch (error) {
       if (signal.aborted) throw error;
       if (attempt + 1 < maxAttempts && isRetryableUpstreamError(error)) {
@@ -945,7 +1001,7 @@ async function proxyChatRequest(req, res, request, model, signal) {
     }
 
     if (!upstream.ok) {
-      const detail = await upstream.text();
+      const detail = source ? [token, encodeURIComponent(token), JSON.stringify(token).slice(1, -1)].reduce((text, secret) => text.split(secret).join("[redacted]"), await upstream.text()) : await upstream.text();
       let message = detail.slice(0, 600);
       let providerError = null;
       try {
@@ -957,9 +1013,49 @@ async function proxyChatRequest(req, res, request, model, signal) {
       } catch {
         /* raw */
       }
-      const retryableForbidden = isRetryableCopilotForbidden(upstream.status, detail);
+      if (upstream.status === 413 && !historicalImagesOmitted) {
+        const trimmed = omitHistoricalInlineChatImages(body);
+        if (trimmed) {
+          historicalImagesOmitted = true;
+          const previousBytes = payloadBytes;
+          body = trimmed.body;
+          payload = JSON.stringify(body);
+          payloadBytes = Buffer.byteLength(payload);
+          if (attempt + 1 >= maxAttempts) maxAttempts = attempt + 2;
+          request._audit?.trace?.("request.omitted_historical_images", {
+            omitted: trimmed.omitted, previousBytes, bytes: payloadBytes,
+          });
+          log(
+            `chat retry model=${request.model} status=413 ` +
+            `omitted_historical_images=${trimmed.omitted} bytes=${previousBytes}->${payloadBytes} ` +
+            `elapsed_ms=${Date.now() - startedAt}`,
+          );
+          continue;
+        }
+      }
+      if ((upstream.status === 400 || upstream.status === 413) && !imageCountLimited) {
+        const limited = limitChatImages(body, message, model);
+        if (limited) {
+          imageCountLimited = true;
+          const previousBytes = payloadBytes;
+          body = limited.body;
+          payload = JSON.stringify(body);
+          payloadBytes = Buffer.byteLength(payload);
+          if (attempt + 1 >= maxAttempts) maxAttempts = attempt + 2;
+          request._audit?.trace?.("request.limited_images", {
+            omitted: limited.omitted, kept: limited.kept, previousBytes, bytes: payloadBytes,
+          });
+          log(
+            `chat retry model=${request.model} status=${upstream.status} ` +
+            `omitted_excess_images=${limited.omitted} kept_images=${limited.kept} ` +
+            `bytes=${previousBytes}->${payloadBytes} elapsed_ms=${Date.now() - startedAt}`,
+          );
+          continue;
+        }
+      }
+      const retryableForbidden = !source && isRetryableCopilotForbidden(upstream.status, detail);
       if (retryableForbidden) maxAttempts = TRANSIENT_FORBIDDEN_MAX_ATTEMPTS;
-      if ((upstream.status === 401 || upstream.status === 403) && attempt + 1 < maxAttempts) {
+      if (!source && (upstream.status === 401 || upstream.status === 403) && attempt + 1 < maxAttempts) {
         const fallback = await recoverSameAccountCredential(token);
         if (fallback) {
           recoveredRecord = fallback;
@@ -988,6 +1084,16 @@ async function proxyChatRequest(req, res, request, model, signal) {
         `chat error model=${request.model} status=${upstream.status} ` +
         `bytes=${payloadBytes} elapsed_ms=${Date.now() - startedAt}`,
       );
+      const upstreamCode = providerError?.code || (upstream.status === 413 ? "payload_too_large" : null);
+      const failureError = providerError
+        ? (upstream.status === 413 && !isContextWindowError(providerError)
+            ? { ...providerError, code: "payload_too_large" }
+            : providerError)
+        : `GitHub Copilot: ${message || "Request Entity Too Large"}`;
+      const failureCode = upstream.status === 413 ? "payload_too_large" : "upstream_error";
+      const normalizedCode = upstream.status === 413
+        ? "context_length_exceeded"
+        : (normalizeResponsesError(providerError)?.code || "upstream_error");
       request._audit?.complete({
         status: "error",
         httpStatus: upstream.status,
@@ -996,11 +1102,11 @@ async function proxyChatRequest(req, res, request, model, signal) {
         attempts: attempt + 1,
         error: {
           kind: "upstream",
-          code: normalizeResponsesError(providerError)?.code || "upstream_error",
-          upstreamCode: providerError?.code || null,
+          code: normalizedCode,
+          upstreamCode,
         },
       });
-      writer.fail(providerError || `GitHub Copilot: ${message}`, upstream.status);
+      writer.fail(failureError, upstream.status, failureCode);
       return;
     }
 
@@ -1026,9 +1132,9 @@ async function proxyChatRequest(req, res, request, model, signal) {
           usage: writer.currentUsage(),
           httpStatus: upstream.status,
           attempts: attempt + 1,
-          error: { kind: "stream", message: error.message },
+          error: { kind: "stream", code: error.code || "upstream_error", message: error.message },
         });
-        writer.fail(`GitHub Copilot response error: ${error.message}`);
+        writer.fail(`GitHub Copilot response error: ${error.message}`, 502, error.code || "upstream_error");
         return;
       }
       request._audit?.complete({
@@ -1046,11 +1152,47 @@ async function proxyChatRequest(req, res, request, model, signal) {
     let done = false;
     let streamError = null;
     let streamOutcome = null;
+    let idleTimer;
+    const resetIdleDeadline = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => upstreamController.abort(Object.assign(
+        new Error(`Chat upstream sent no data for ${CHAT_STREAM_IDLE_TIMEOUT_MS} ms.`),
+        { code: "upstream_stream_idle_timeout" },
+      )), CHAT_STREAM_IDLE_TIMEOUT_MS);
+      idleTimer.unref?.();
+    };
+    // Custom tool arguments need decoding and normalization before publication.
+    // Keep the native stream alive while buffering, but bound genuine upstream silence.
+    writer.start();
+    const stopHeartbeat = startResponsesHeartbeat(res, {
+      heartbeatMs: SSE_HEARTBEAT_MS, signal, canWrite: () => !done,
+      onHeartbeat() {
+        progress.downstreamHeartbeats += 1;
+        recordDownstream();
+        request._audit?.trace?.("downstream.heartbeat", { queuedBytes: res.writableLength || 0 });
+      },
+    });
+    resetIdleDeadline();
     try {
       await readSse(
         upstream.body,
         (_name, chunk) => {
           if (done) return false;
+          progress.upstreamEvents += 1;
+          const delta = chunk?.choices?.[0]?.delta || {};
+          request._audit?.trace?.("upstream.frame", {
+            textBytes: textBytes(delta.content), textParts: Array.isArray(delta.content) ? delta.content.length : 0,
+            reasoningTextBytes: textBytes(delta.reasoning_text || delta.reasoning_content),
+            opaqueBytes: textBytes(delta.reasoning_opaque),
+            hasOpaque: delta.reasoning_opaque != null,
+            toolCalls: delta.tool_calls?.length || 0,
+            argumentBytes: (delta.tool_calls || []).reduce((bytes, call) => bytes + textBytes(call.function?.arguments), 0),
+            finishReason: chunk?.choices?.[0]?.finish_reason || null, usage: chunk?.usage || null,
+            hasError: Boolean(chunk?.error),
+          });
+          for (const call of chunk?.choices?.[0]?.delta?.tool_calls || []) {
+            progress.toolArgumentBytes += textBytes(call.function?.arguments);
+          }
           if (chunk?.error) {
             const error = normalizeResponsesError(chunk.error);
             streamError = {
@@ -1065,22 +1207,42 @@ async function proxyChatRequest(req, res, request, model, signal) {
         },
         () => {
           if (!done) {
+            request._audit?.trace?.("upstream.done");
             done = true;
             streamOutcome = writer.finish();
           }
-        }
+        },
+        { onChunk(chunk) {
+          request._audit?.trace?.("upstream.chunk", { bytes: chunk.byteLength });
+          progress.upstreamChunks += 1;
+          progress.upstreamBytes += chunk.byteLength;
+          progress.lastUpstreamAt = new Date().toISOString();
+          resetIdleDeadline();
+        } },
       );
     } catch (error) {
-      if (signal.aborted) throw error;
+      if (signal.aborted) {
+        request._audit?.complete({ ...progress, status: "cancelled",
+          httpStatus: upstream.status, attempts: attempt + 1,
+          error: { kind: "stream", message: signal.reason?.message || error.message } });
+        throw error;
+      }
+      const failure = upstreamController.signal.aborted ? upstreamController.signal.reason : error;
+      const code = failure.code || "upstream_stream_incomplete";
+      writer.fail(`GitHub Copilot stream error: ${failure.message}`, 502, code);
       request._audit?.complete({
+        ...progress,
         status: "error",
         providerRequestId: upstream.headers.get("x-github-request-id"),
         serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
         usage: writer.currentUsage(),
-        error: { kind: "stream", message: error.message },
+        httpStatus: upstream.status, attempts: attempt + 1,
+        error: { kind: "stream", code, message: failure.message },
       });
-      writer.fail(`GitHub Copilot stream error: ${error.message}`);
       return;
+    } finally {
+      clearTimeout(idleTimer);
+      stopHeartbeat();
     }
     if (streamError || !done) {
       const error = streamError || { kind: "stream", code: "upstream_stream_incomplete" };
@@ -1089,6 +1251,7 @@ async function proxyChatRequest(req, res, request, model, signal) {
         502, error.code,
       );
       request._audit?.complete({
+        ...progress,
         status: streamError ? "error" : "incomplete",
         providerRequestId: upstream.headers.get("x-github-request-id"),
         serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
@@ -1098,6 +1261,7 @@ async function proxyChatRequest(req, res, request, model, signal) {
       return;
     }
     request._audit?.complete({
+      ...progress,
       status: streamOutcome?.status === "incomplete" ? "incomplete" : "complete",
       providerRequestId: upstream.headers.get("x-github-request-id"),
       serviceRequestId: upstream.headers.get("x-copilot-service-request-id"),
@@ -1178,7 +1342,7 @@ function catalogIsHealthy(list) {
  */
 async function refreshCatalog({ maxAgeMs = 0 } = {}) {
   if (maxAgeMs > 0 && state.models.length > 0 && Date.now() - state.modelsAt < maxAgeMs) {
-    const list = state.models;
+    const list = modelSources.merge(state.models);
     if (catalogSignature(list) === lastCatalogSignature && catalogIsHealthy(list)) {
       return { models: buildCatalog(list).models.length, refreshed: false };
     }
@@ -1194,7 +1358,6 @@ async function refreshCatalog({ maxAgeMs = 0 } = {}) {
  */
 async function syncCatalog() {
   try {
-    await ensureAuth();
     const list = await models({ force: true });
     const signature = catalogSignature(list);
 
@@ -1222,6 +1385,7 @@ async function syncCatalog() {
 }
 
 async function handle(req, res) {
+  if (await sourceManager(req, res)) return;
   const url = new URL(req.url, `http://${req.headers.host || `${HOST_URL}:${PORT}`}`);
   const route = url.pathname.replace(/^\/v1(?=\/|$)/, "") || "/";
   if (route === "/responses" || route === "/chat/completions") observeCliRequest(CODEX_COPILOT_HOME, req.headers);
@@ -1362,7 +1526,7 @@ async function handle(req, res) {
       auth = { error: error.message };
     }
     sendJson(res, 200, {
-      status: state.token ? "ok" : "unauthenticated",
+      status: state.token || modelSources.models().length ? "ok" : "unauthenticated",
       bridge: "codex-copilot",
       pid: process.pid,
       runtime: RUNTIME,
@@ -1502,10 +1666,15 @@ async function handle(req, res) {
     `content_length=${req.headers["content-length"] || "chunked"}`,
   );
 
-  const list = await models();
+  const sourceModels = modelSources.models();
+  const list = resolveModelSelection(sourceModels, request.model, request.service_tier) ? sourceModels : await models();
 
   const selection = resolveModelSelection(list, request.model, request.service_tier);
   if (!selection) {
+    if (state.modelRefreshError) {
+      apiError(res, 503, `Copilot model catalogue refresh failed: ${state.modelRefreshError.message}. Retry when connectivity is restored; the request was not routed to an API source.`, "copilot_catalog_unavailable");
+      return;
+    }
     apiError(
       res,
       400,
@@ -1524,22 +1693,24 @@ async function handle(req, res) {
       : contextMetadata.default_prompt_tokens || limits.max_prompt_tokens || null;
   const audit = startRequestAudit({
     surface: String(req.headers["x-codex-copilot-surface"] || "codex"),
-    account: state.login,
-    accountGeneration: readAccountGeneration(),
+    account: selection.model.api_source ? `api:${selection.model.api_source.id}` : state.login,
+    accountGeneration: selection.model.api_source ? null : readAccountGeneration(),
     threadId: req.headers["thread-id"] || null,
     requestedModel: request.model,
-    upstreamModel: selection.model.id,
+    upstreamModel: selection.model.api_source?.model || selection.model.id,
     contextTier: selection.contextTier,
     effectiveContextWindow,
     endpoint: route2 === "responses" ? "/responses" : "/chat/completions",
     request,
   });
-  const upstreamRequest = { ...request, model: selection.model.id, _audit: audit };
+  const sourceModel = selection.model.api_source;
+  const selectedModel = sourceModel ? { ...selection.model, sourceCredential: modelSources.source(sourceModel.id) } : selection.model;
+  const upstreamRequest = { ...request, model: sourceModel?.model || selection.model.id, _audit: audit };
   log(
     `request model=${request.model} upstream=${selection.model.id} context=${selection.contextTier}`
   );
-  if (route2 === "responses") await proxyResponses(req, res, upstreamRequest, selection.model);
-  else if (route2 === "chat") await proxyChat(req, res, upstreamRequest, selection.model);
+  if (route2 === "responses") await proxyResponses(req, res, upstreamRequest, selectedModel);
+  else if (route2 === "chat") await proxyChat(req, res, upstreamRequest, selectedModel);
   else apiError(res, 400, `Model '${request.model}' cannot be driven by Codex`, "model_not_supported");
 }
 
@@ -1651,7 +1822,8 @@ async function main() {
     }
     handle(req, res).catch((error) => {
       log(`request_error ${error.stack || error.message}`);
-      apiError(res, 500, error.message, "bridge_error");
+      apiError(res, error.diagnostic ? 503 : 500, error.message,
+        error.diagnostic ? "copilot_catalog_unavailable" : "bridge_error");
     });
   });
   server.keepAliveTimeout = 120_000;

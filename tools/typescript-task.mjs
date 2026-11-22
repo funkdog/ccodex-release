@@ -3,9 +3,10 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { assertTypeScriptBuild } from "./typescript-state.mjs";
 const root = path.resolve(import.meta.dirname, ".."), mode = process.argv[2];
-const tests = ["spine-sources", "desktop-acceptance", "gateway-media", "spine-p2", "spine-p2-ui", "spine-native-tap", "spine-compressor", "spine-registry", "spine-mcp", "spine-drawer", "desktop-protected-start", "gateway-session-management", "session-contract", "typescript-build", "antigravity", "gemini-cli", "google-provider", "desktop-mode", "desktop-native-session", "desktop-cli-selector", "gateway-engines", "gateway-router", "gateway-protocol", "gateway-routed-stdio", "gateway-backend-stage", "copilot-provider", "copilot-provider-native", "desktop-current-host", "desktop-shortcut", "desktop-extension-files", "source-publication", "desktop-launch", "desktop-process"].map(name => `tests/${name}-test.mjs`);
+const tests = ["spine-sources", "desktop-acceptance", "gateway-media", "spine-p2", "spine-native-tap", "spine-compressor", "spine-registry", "spine-mcp", "desktop-protected-start", "gateway-session-management", "session-contract", "typescript-build", "antigravity", "gemini-cli", "google-provider", "desktop-mode", "desktop-native-session", "desktop-cli-selector", "gateway-engines", "gateway-router", "gateway-protocol", "gateway-routed-stdio", "gateway-backend-stage", "copilot-provider", "copilot-provider-native", "desktop-current-host", "desktop-shortcut", "desktop-extension-files", "source-publication", "desktop-launch", "desktop-process"].map(name => `tests/${name}-test.mjs`);
 tests.push("tests/desktop-status-test.mjs");
 tests.push("tests/desktop-upgrade-continuity-test.mjs");
+tests.push("tests/desktop-repair-session-test.mjs", "tests/desktop-repair-exec-live-test.mjs");
 tests.push("tests/desktop-host-draft-test.mjs");
 tests.push("tests/spine-p3-isolation-test.mjs", "tests/spine-p3-host-test.mjs");
 tests.push("tests/spine-p3-dispatch-test.mjs");
@@ -15,14 +16,18 @@ tests.push("tests/spine-work-cli-test.mjs");
 tests.push("tests/claude-api-test.mjs");
 tests.push("tests/claude-native-test.mjs");
 tests.push("tests/desktop-host-cache-test.mjs");
-tests.push("tests/adapters-only-test.mjs", "tests/configure-adapters-test.mjs", "tests/adapter-connection-test.mjs", "tests/package-adapters-test.mjs", "tests/execution-picker-browser-test.mjs");
-tests.push("tests/chat-translation-test.mjs", "tests/tool-translation-test.mjs", "tests/tool-translation-native-test.mjs");
-const adapterTests = ["adapters-only", "configure-adapters", "adapter-connection", "package-adapters", "typescript-build", "source-publication",
-  "desktop-mode", "desktop-native-session", "execution-picker-browser", "desktop-cli-selector", "desktop-host-cache", "desktop-host-draft", "desktop-current-host",
-  "desktop-shortcut", "desktop-process", "desktop-protected-start", "desktop-status", "desktop-upgrade-continuity", "desktop-extension-files", "desktop-launch",
-  "gateway-media", "gateway-session-management", "session-contract", "gateway-engines", "gateway-router", "gateway-protocol", "gateway-routed-stdio", "gateway-backend-stage",
-  "antigravity", "gemini-cli", "claude-api", "claude-native", "copilot-provider", "copilot-provider-native",
-  "chat-translation", "tool-translation", "tool-translation-native", "google-provider"].map(name => `tests/${name}-test.mjs`);
+tests.push("tests/squad-lite-test.mjs", "tests/desktop-squad-test.mjs");
+tests.push("tests/squad-relay-test.mjs");
+tests.push("tests/squad-service-test.mjs", "tests/desktop-squad-navigation-test.mjs");
+tests.push("tests/squad-native-test.mjs", "tests/squad-native-live-test.mjs");
+tests.push("tests/squad-lifecycle-test.mjs", "tests/squad-ledger-test.mjs", "tests/squad-wait-test.mjs");
+tests.push("tests/squad-protocol-test.mjs", "tests/translate-protocol-test.mjs", "tests/squad-v2-ui-test.mjs", "tests/squad-v2-adversarial-test.mjs");
+tests.push("tests/model-sources-test.mjs", "tests/model-sources-ui-test.mjs", "tests/conversation-switch-test.mjs",
+  "tests/codex-conversation-test.mjs", "tests/conversation-switch-native-test.mjs", "tests/chat-translation-test.mjs");
+tests.push("tests/execution-picker-browser-test.mjs");
+tests.push("tests/tool-translation-test.mjs", "tests/tool-translation-native-test.mjs");
+tests.push("tests/chat-stream-recovery-test.mjs", "tests/chat-stream-native-test.mjs", "tests/model-refresh-test.mjs");
+tests.push("tests/display-projector-test.mjs", "tests/display-adapters-test.mjs", "tests/display-schema-drift-test.mjs");
 function heavy(args) {
   let program, command;
   if (process.platform === "win32") {
@@ -39,7 +44,6 @@ async function run() {
   if (mode === "check") { console.log(JSON.stringify(assertTypeScriptBuild(root))); return; }
   if (mode === "build" || mode === "typecheck") { await heavy(["tools/typescript-build.mjs", mode]); return; }
   if (mode === "test") { await heavy(["tools/typescript-build.mjs", "build"]); await heavy(["--test", "--test-concurrency=6", ...tests]); await heavy(["--experimental-vm-modules", "tools/Check-PackageModules.mjs"]); return; }
-  if (mode === "test-adapters") { await heavy(["tools/typescript-build.mjs", "build"]); await heavy(["--test", "--test-concurrency=2", ...adapterTests]); await heavy(["--experimental-vm-modules", "tools/Check-PackageModules.mjs"]); return; }
   if (mode !== "watch") throw new Error("Expected build, typecheck, watch, test or check.");
   // Release the global lock between rebuilds. A persistent compiler watch
   // must not monopolize it and block another authorized build/test task.

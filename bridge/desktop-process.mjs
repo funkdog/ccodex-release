@@ -195,7 +195,11 @@ export function readProcessIdentity(pid, {
 }
 
 export function sameProcessLifetime(first, second) {
-  const normalized = (value, platform) => platform === "win32" ? value.toLowerCase() : value;
+  const normalized = (value, platform) => {
+    if (platform === "win32") return value.toLowerCase();
+    if (platform === "darwin") return value.replace(/(\/\.cache\/codex-runtimes\/codex-primary-runtime)\.previous(?=\/)/, "$1");
+    return value;
+  };
   return !!first && !!second && first.pid === second.pid &&
     first.platform === second.platform && first.lifetime === second.lifetime &&
     typeof first.lifetime === "string" && !!first.lifetime &&

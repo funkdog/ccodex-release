@@ -6,7 +6,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { claudeCodeEngine } from "./claude-code.mjs";
 import { copilotEngine } from "./github-copilot.mjs";
-import { codexCopilotCatalog, codexCopilotEngineId } from "../copilot-provider.mjs";
+import { codexCopilotCatalog, codexCopilotEngineId, copilotProviderArguments, copilotProviderId } from "../copilot-provider.mjs";
+import { codexNativeExecution } from "./codex-native.mjs";
 import { geminiCliEngine } from "./gemini-cli.mjs";
 import { codexGoogleEngine } from "../google-provider.mjs";
 import { antigravityEngine } from "./antigravity.mjs";
@@ -23,15 +24,9 @@ export function cliEnvironment(inherited = process.env) {
   return env;
 }
 
-export async function createEngines(configs: EngineConfig[], { env = cliEnvironment(), requireSelection = false } = {}) {
+export async function createEngines(configs: EngineConfig[], { env = cliEnvironment(), nativeCli, home }: { env?: NodeJS.ProcessEnv; nativeCli?: string; home?: string } = {}) {
   const engines = new Map<string, EngineAdapter>();
   for (const config of configs) {
-    if (requireSelection && !config.enabledModels?.length) {
-      if (engines.has(config.id)) throw new Error("Duplicate gateway engine ID.");
-      engines.set(config.id, { adapter: config.adapter, displayName: config.id, models: async () => [],
-        run: async () => { throw new Error("This CLI has no enabled model. Configure and verify a model first."); } });
-      continue;
-    }
     if (config.adapter === "antigravity-acp") {
       if (engines.has(config.id)) throw new Error("Duplicate Antigravity engine ID.");
       for (const field of ["executable", "harnessPath"] as const)
@@ -50,7 +45,9 @@ export async function createEngines(configs: EngineConfig[], { env = cliEnvironm
     }
     if (config.adapter === "codex-copilot") {
       if (config.id !== codexCopilotEngineId || engines.has(config.id)) throw new Error("Codex + Copilot must use its reserved engine ID.");
-      engines.set(config.id, codexCopilotCatalog(config));
+      engines.set(config.id, { ...codexCopilotCatalog(config), ...(nativeCli && home ? codexNativeExecution({ executable: nativeCli,
+        home: path.join(home, "gateway", "native-execution", config.id), env,
+        args: [...copilotProviderArguments(config), "-c", `model_provider=${JSON.stringify(copilotProviderId)}`, "-c", `model_catalog_json=${JSON.stringify(path.join(config.bridgeHome, "models.json"))}`] }) : {}) });
       continue;
     }
     const definition = definitions.get(config.adapter);
@@ -64,18 +61,6 @@ export async function createEngines(configs: EngineConfig[], { env = cliEnvironm
     if (config.adapter === "claude-code" && typeof sdk.query !== "function") throw new Error("The configured Claude Agent SDK has no query contract.");
     engines.set(config.id, { adapter: config.adapter, ...(config.adapter === "claude-code" && config.initialApprovalMode ? { initialApprovalMode: config.initialApprovalMode } : {}), ...(config.adapter === "claude-code" ? claudeCodeEngine({ sdk: sdk as ClaudeSdk, executable: config.executable, env,
       ...(config.cliHome ? { credentialProfile: config.cliHome, environment: () => claudeApiEnvironment(config.cliHome!, env) } : {}) }) : copilotEngine({ sdk: sdk as CopilotSdk, executable: config.executable, env })) });
-  }
-  for (const config of configs) {
-    if (!requireSelection && config.enabledModels === undefined) continue;
-    const selected = new Set(config.enabledModels ?? []);
-    const engine = engines.get(config.id)!;
-    const filtered: EngineAdapter = Object.create(engine);
-    filtered.models = async () => selected.size ? (await engine.models()).filter(model => selected.has(model.id)) : [];
-    filtered.run = context => {
-      if (!selected.has(context.model)) return Promise.reject(new Error("This model is not enabled for the selected CLI."));
-      return engine.run(context);
-    };
-    engines.set(config.id, filtered);
   }
   return engines;
 }

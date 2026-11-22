@@ -795,6 +795,53 @@ test(`${label} ${route}: context overflow recovers even when its first compactio
   }
 });
 
+test(`${label} ${route}: plain-text HTTP 413 activates native compaction recovery without reconnect loops`, {
+  skip: !core,
+}, async t => {
+  const home = createProfile(t);
+  const compactMarker = "SYNTHETIC_413_COMPACTION_MARKER";
+  let compacted = false;
+  let compactionAttempts = 0;
+  const reject413 = res => res.writeHead(413, { "content-type": "text/plain" })
+    .end("Request Entity Too Large");
+  const bridge = await responsesBridge(home, t, async (_req, res, body) => {
+    const input = route === "/responses" ? body.input : body.messages;
+    if (JSON.stringify(input).includes(compactMarker)) {
+      compactionAttempts += 1;
+      if (compactionAttempts === 1) { reject413(res); return; }
+      compacted = true;
+      res.writeHead(200, { "content-type": "text/event-stream" })
+        .end(recoveryStream(route, "resp_413_summary", "SYNTHETIC_413_SUMMARY"));
+    } else if (!compacted) {
+      reject413(res);
+    } else {
+      res.writeHead(200, { "content-type": "text/event-stream" })
+        .end(recoveryStream(route, "resp_413_recovered", "SYNTHETIC_413_RECOVERED"));
+    }
+  }, { route });
+  const config = path.join(home, "config.toml");
+  fs.writeFileSync(config, [
+    `compact_prompt = "${compactMarker}"`,
+    "model_context_window = 100000",
+    fs.readFileSync(config, "utf8").replace("http://127.0.0.1:1", bridge.url),
+  ].join("\n"));
+  const rpc = await appServer(core, home, t);
+  try {
+    const threadId = await initializeRecoveryThread(rpc, home);
+    const failed = await recoveryTurn(rpc, threadId, "SYNTHETIC_413_TASK");
+    assert.equal(failed.status, "failed");
+    assert.equal(failed.error.codexErrorInfo, "contextWindowExceeded");
+    assert.equal(bridge.requests.length, 1, "HTTP 413 must not trigger 5 reconnect retries");
+    const recovered = await recoveryTurn(rpc, threadId, "SYNTHETIC_413_CONTINUE");
+    assert.equal(recovered.status, "completed", JSON.stringify(recovered));
+    assert.equal(compacted, true);
+    assert.equal(compactionAttempts, 2);
+  } finally {
+    await rpc.close();
+    await bridge.close();
+  }
+});
+
 test(`${label} ${route}: native automatic compaction runs before the next sampling request at its token threshold`, {
   skip: !core,
 }, async t => {

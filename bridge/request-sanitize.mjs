@@ -73,6 +73,25 @@ export function sanitizeResponsesBody(request) {
         ? { ...item, tools: sanitizeTools(item.tools) }
         : item,
     );
+    if (/(?:^|[\/._-])gemini(?:[\/._-]|$)/i.test(String(body.model || ""))) {
+      const pending = new Set();
+      let lastRole = null;
+      for (const item of body.input) {
+        if (!item || typeof item !== "object") continue;
+        if (["function_call", "custom_tool_call"].includes(item.type) && (item.call_id || item.id)) {
+          pending.add(item.call_id || item.id);
+          lastRole = "assistant";
+        } else if (["function_call_output", "custom_tool_call_output"].includes(item.type)) {
+          pending.delete(item.call_id || item.id);
+          lastRole = "tool";
+        } else if (item.role === "assistant" || item.role === "user") {
+          lastRole = item.role;
+        }
+      }
+      if (lastRole === "assistant" && pending.size === 0) {
+        body.input = [...body.input, { type: "message", role: "user", content: [{ type: "input_text", text: "Continue." }] }];
+      }
+    }
   }
   return body;
 }

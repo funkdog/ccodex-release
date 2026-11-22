@@ -11,7 +11,7 @@ export class ResponsesStreamError extends Error {
   }
 }
 
-export async function* readSseFrames(source, maxFrameLength = 64 * 1024 * 1024) {
+export async function* readSseFrames(source, maxFrameLength = 64 * 1024 * 1024, onChunk = () => {}) {
   const decoder = new TextDecoder();
   let buffer = "";
   let scan = 0;
@@ -37,6 +37,7 @@ export async function* readSseFrames(source, maxFrameLength = 64 * 1024 * 1024) 
     if (buffer.length > maxFrameLength) throw new Error("Responses SSE frame exceeds the streaming limit.");
   };
   for await (const chunk of source) {
+    onChunk(chunk);
     buffer += decoder.decode(chunk, { stream: true });
     yield* extract(false);
   }
@@ -77,12 +78,13 @@ export async function* normalizeResponsesStream(source, {
 }
 
 export function startResponsesHeartbeat(destination, {
-  heartbeatMs = 30000, signal, canWrite = () => true,
+  heartbeatMs = 30000, signal, canWrite = () => true, onHeartbeat = () => {},
 } = {}) {
   const timer = Number.isSafeInteger(heartbeatMs) && heartbeatMs > 0 ? setInterval(() => {
     if (canWrite() && !signal?.aborted &&
         !destination.destroyed && !destination.writableEnded && !destination.writableNeedDrain) {
       destination.write(HEARTBEAT);
+      onHeartbeat();
     }
   }, heartbeatMs) : null;
   timer?.unref?.();

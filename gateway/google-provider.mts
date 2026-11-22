@@ -11,6 +11,7 @@ import { buildCatalog } from "../bridge/catalog.mjs";
 import { buildChatRequest, createResponsesWriter, sendJson } from "../bridge/translate.mjs";
 import { cliInput } from "./input.mjs";
 import { startGeminiPeer, assertGeminiAccount } from "./engines/gemini-cli.mjs";
+import { createGoogleChunkTranslator } from "./google-translation.mjs";
 
 export const googleProviderId = "mycodex-google";
 export const codexGooglePrefix = "mycodex/codex-gemini/";
@@ -145,29 +146,11 @@ export function codexGoogleEngine(config: GoogleConfig, { operation = googleMode
           for await (const chunk of req) { bytes += chunk.length; if (bytes > 16 * 1024 * 1024) throw new Error("Native model request exceeds 16 MiB."); chunks.push(chunk); }
           const input = JSON.parse(Buffer.concat(chunks).toString()) as NativeModelRequest;
           if (!(await catalog()).some(m => m.id === input.model)) throw new Error("Google model unavailable in this account; no fallback.");
-          const mapped = buildGoogleRequest(input, signatures); let toolIndex = 0, emitted = false, finishReason: string | undefined;
+          const mapped = buildGoogleRequest(input, signatures);
           writer = createResponsesWriter(res, input, mapped.toolKinds, { streaming: input.stream !== false });
-          const seen = new Set();
-          await operation(config, "generate", mapped.request, { signal: controller.signal, onChunk: chunk => {
-            for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-              if (part.thought) continue;
-              if (part.text) { writer!.pushChunk({ choices: [{ delta: { content: part.text } }] }); emitted = true; }
-              if (part.functionCall) {
-                const name = mapped.names.get(part.functionCall.name);
-                if (!name) throw new Error("Google returned an undeclared tool; it was not exposed to Codex.");
-                const id = part.functionCall.id || `google_${randomUUID()}`;
-                if (seen.has(id)) throw new Error("Google returned a duplicate tool call identity."); seen.add(id);
-                signatures.put(id, { model: input.model, name, thoughtSignature: part.thoughtSignature ?? null });
-                writer!.pushChunk({ choices: [{ delta: { tool_calls: [{ index: toolIndex++, id, type: "function",
-                  function: { name, arguments: JSON.stringify(part.functionCall.args ?? {}) } }] } }] }); emitted = true;
-              }
-            }
-            finishReason = chunk.candidates?.[0]?.finishReason ?? finishReason;
-            if (chunk.usageMetadata) writer!.pushChunk({ usage: { prompt_tokens: chunk.usageMetadata.promptTokenCount,
-              completion_tokens: chunk.usageMetadata.candidatesTokenCount, total_tokens: chunk.usageMetadata.totalTokenCount } });
-          } });
-          if (!emitted || finishReason !== "STOP") throw new Error(`Google model did not complete successfully (${finishReason || "missing terminal status"}).`);
-          writer.finish();
+          const translation = createGoogleChunkTranslator(writer, mapped.names, signatures, input.model);
+          await operation(config, "generate", mapped.request, { signal: controller.signal, onChunk: chunk => translation.push(chunk) });
+          translation.finish();
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); if (!res.destroyed) { if (writer) writer.fail(error.message); else sendJson(res, 400, { error: { message: error.message } }); } }
         finally { active--; }
       });

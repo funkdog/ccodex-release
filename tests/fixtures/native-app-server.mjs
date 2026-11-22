@@ -18,6 +18,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
   const message = JSON.parse(line);
   if (!Object.hasOwn(message, "id") || !message.method) continue;
   if (message.method === "initialize") write({ id: message.id, result: { userAgent: "native-fixture", codexHome: process.env.CODEX_HOME } });
+  else if (message.method === "account/read") write({ id: message.id, result: { account: { type: "chatgpt", email: "native-fixture@example.test" } } });
   else if (message.method === "model/list") write({ id: message.id, result: { data: [{ id: "native-model", model: "native-model", isDefault: true }], nextCursor: null } });
   else if (message.method === "thread/list") write({ id: message.id, result: { data: [], nextCursor: null } });
   else if (message.method === "fixture/crash") process.exit(7);

@@ -71,7 +71,7 @@ test("existing native peer reads explicit targets and bounded turn results; it c
   assert.equal(first.text + second.text, "a".repeat(8191) + "🐾tail"); assert.equal(second.nextOffset, null);
   assert.equal((await ui.request("diy/host/status", {})).bindings[0].capabilities.readResult, true);
   assert.doesNotMatch(first.text + second.text, /not-an-assistant-result/);
-  await assert.rejects(ui.request("diy/host/read", { ref: { ...ref, runtimeId: randomUUID() } }), /unavailable/);
+  assert.equal((await ui.request("diy/host/read", { ref: { ...ref, runtimeId: randomUUID() } })).ref.threadId, target);
   await assert.rejects(ui.request("diy/host/read", { ref: { ...ref, accountId: "0".repeat(64) } }), /unavailable/);
   await assert.rejects(ui.request("diy/host/read", { ref, model: "override" }), /parameters/);
   await assert.rejects(ui.request("diy/host/send", { ref, input: "not-sent" }), /unavailable/);
@@ -100,7 +100,7 @@ test("host and trace identities cannot impersonate UI or each other; UI cannot r
   assert.equal((await host.request("gateway/host/register", registration)).registered, true);
   await assert.rejects(host.request("gateway/host/register", registration), /Duplicate/);
 });
-test("a slow host has a bounded read budget and shutdown/disconnect never selects another runtime", async () => {
+test("a slow host queues within its bounded concurrency/queue budget and shutdown/disconnect never selects another runtime", async () => {
   const broker = new HostThreadBroker(), runtimeId = randomUUID(), hostId = "local:" + "a".repeat(32), accountId = "b".repeat(64);
   let calls = 0;
   const connection = { role: "native-host", initialized: true, request: (_method, _params, signal) => {
@@ -109,9 +109,9 @@ test("a slow host has a bounded read budget and shutdown/disconnect never select
   } };
   broker.register({ runtimeId, hostId, accountId, accountVerified: true }, connection);
   const ref = { runtimeId, hostId, accountId, threadId: randomUUID() }, controller = new AbortController();
-  const reads = Array.from({ length: 8 }, () => broker.read(ref, controller.signal));
-  await assert.rejects(broker.read(ref), /budget exhausted/); assert.equal(calls, 8);
-  controller.abort(); await Promise.all(reads.map(read => assert.rejects(read, /cancelled/)));
+  const reads = Array.from({ length: 68 }, () => broker.read(ref, controller.signal));
+  await assert.rejects(broker.read(ref), /queue is full/); assert.equal(calls, 4);
+  controller.abort(new Error("cancelled")); await Promise.all(reads.map(read => assert.rejects(read, /cancelled/)));
   broker.disconnect(connection); await assert.rejects(broker.read(ref), /unavailable/);
 });
 test("installed native runtime delivers to its bound thread, recovers a lost local receipt and exposes the result through MCP", { timeout: 20000 }, async t => {
@@ -133,7 +133,7 @@ test("installed native runtime delivers to its bound thread, recovers a lost loc
   });
   await new Promise(resolve => provider.listen(0, "127.0.0.1", resolve));
   f.cleanup(() => new Promise(resolve => provider.close(resolve)));
-  fs.writeFileSync(path.join(profile, "config.toml"), `model = "p3-offline-fixture"\nmodel_provider = "p3-offline"\ncli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n[model_providers.p3-offline]\nname = "P3 offline fixture"\nbase_url = "http://127.0.0.1:${provider.address().port}"\nwire_api = "responses"\nrequires_openai_auth = false\nsupports_websockets = false\n`);
+  fs.writeFileSync(path.join(profile, "config.toml"), `model = "p3-offline-fixture"\nmodel_provider = "p3-offline"\ncli_auth_credentials_store = "file"\ncheck_for_update_on_startup = false\n[features]\nplugins = false\nremote_plugin = false\napps = false\n[model_providers.p3-offline]\nname = "P3 offline fixture"\nbase_url = "http://127.0.0.1:${provider.address().port}"\nwire_api = "responses"\nrequires_openai_auth = false\nsupports_websockets = false\n`);
   const child = spawn(process.execPath, [path.resolve(import.meta.dirname, "../gateway/routed-stdio.mjs"), "app-server"], { cwd: f.home, env: { PATH: process.env.PATH, HOME: f.home, CODEX_HOME: profile, CCODEX_NATIVE_CLI: executable, CCODEX_GATEWAY_CONNECTION: f.file }, stdio: ["pipe", "pipe", "pipe"] });
   let stderr = ""; child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-8192); });
   const native = new RpcPeer(message => writeMessage(child.stdin, message));
@@ -196,7 +196,7 @@ test("installed native runtime delivers to its bound thread, recovers a lost loc
   // Restart only the owned gateway. The same native child keeps its execution
   // and runtime receipt map; a fresh gateway must query that original receipt.
   await f.restart();
-  await mcpExited;
+  assert.equal(mcpChild.exitCode, null, "Gateway replacement must preserve the stdio MCP process.");
   const reconnectedUi = await f.connect();
   const rebound = await until(() => reconnectedUi.request("diy/host/status", {}), value => value.bindings.length === 1);
   assert.equal(rebound.bindings[0].runtimeId, binding.runtimeId);
@@ -212,7 +212,7 @@ test("installed native runtime delivers to its bound thread, recovers a lost loc
   assert.equal(requests, 2, "One manual fixture turn and one continuation; receipt recovery must not replay inference");
   assert.ok(JSON.stringify(providerInputs[1]).includes(authority.instructions));
   assert.equal((await reconnectedUi.request("diy/reactions/get", { id: queued.id })).state, "settled");
-  ({ mcpChild, mcpPeer, mcpExited } = await connectMcp());
+  // Reuse the same MCP child: its next tool call reconnects to the new gateway.
   const mcpReaction = await mcpPeer.request("tools/call", { name: "mycodex.reaction_get", arguments: { id: queued.id } });
   assert.equal(mcpReaction.isError, false); assert.equal(JSON.parse(mcpReaction.content[0].text).outcome.turnId, acceptedTurnId);
   await assert.rejects(mcpPeer.request("tools/call", { name: "mycodex.host_deliver", arguments: { ref, message: "not authorized" } }), /Unknown tool/);
@@ -238,6 +238,9 @@ test("native routing survives invalid Spine configuration and frontend optional 
   for (const failedModule of ["configuration", "trace-peer", "native-config", "native-host-peer", "delayed-host-import"]) {
     const f = await fixture(t);
     const profile = path.join(f.home, "profile"); fs.mkdirSync(profile, { mode: 0o700 });
+    // Keep native plugin auto-clones out of this isolated transport test; their
+    // background git children can outlive the app-server profile teardown.
+    fs.writeFileSync(path.join(profile, "config.toml"), '[features]\nplugins = false\nremote_plugin = false\napps = false\n');
     const loader = path.join(f.home, "failure-hook.mjs");
     if (failedModule === "delayed-host-import") {
       fs.writeFileSync(loader, "import { register } from 'node:module'; register(new URL('./slow-loader.mjs', import.meta.url));");
@@ -267,4 +270,35 @@ test("native routing survives invalid Spine configuration and frontend optional 
     }
     child.stdin.end(); assert.equal(await exited, 0, `${failedModule}: ${stderr}`);
   }
+});
+
+
+test("stale host reads prefer a uniquely connected Desktop PID and keep live runtimes, accounts and receipts pinned", async () => {
+  const desktopPids = new Set([9001]), broker = new HostThreadBroker(() => desktopPids);
+  const hostId = "local:" + "a".repeat(32), accountId = "b".repeat(64), threadId = randomUUID(), called = [];
+  const bind = (pid, account = accountId) => {
+    const runtimeId = randomUUID();
+    const connection = { role: "native-host", initialized: true, request: async (method, params) => {
+      called.push([runtimeId, method, params.ref.threadId]);
+      if (method === "mycodex/host/squad") return { thread: { id: threadId, cwd: "/tmp", status: { type: "idle" }, hostRef: params.ref } };
+      if (method === "mycodex/host/read") return { ref: params.ref, observedAt: new Date().toISOString(), title: "Exact thread", cwd: "/tmp", status: "idle", archived: false };
+      throw new Error("Unexpected mutation or receipt reroute");
+    } };
+    broker.register({ runtimeId, hostId, accountId: account, accountVerified: true, canSquad: true, frontendPid: pid }, connection);
+    return { runtimeId, connection };
+  };
+  const auxiliary = bind(9002), desktop = bind(9001), otherAccount = bind(9001, "c".repeat(64));
+  const stale = { hostId, accountId, runtimeId: randomUUID(), threadId };
+  assert.equal((await broker.resolveSquad(stale)).hostRef.runtimeId, desktop.runtimeId);
+  assert.equal((await broker.read(stale)).ref.runtimeId, desktop.runtimeId);
+  assert.ok(called.every(call => call[0] === desktop.runtimeId));
+  assert.equal((await broker.resolveSquad({ ...stale, runtimeId: auxiliary.runtimeId })).hostRef.runtimeId, auxiliary.runtimeId, "a still-live bound runtime is not silently replaced");
+  assert.throws(() => broker.squadBinding({ ...stale, runtimeId: otherAccount.runtimeId }), /matching|account|binding/i, 'navigation cannot use a live runtime belonging to another account');
+  const duplicate = bind(9001);
+  await assert.rejects(broker.resolveSquad(stale), /unavailable|ambiguous/);
+  await assert.rejects(broker.read(stale), /unavailable|ambiguous/);
+  await assert.rejects(broker.receipt(stale, "a".repeat(64)), /unavailable/);
+  broker.disconnect(duplicate.connection); broker.disconnect(desktop.connection); broker.disconnect(auxiliary.connection);
+  await assert.rejects(broker.resolveSquad(stale), /unavailable|account/);
+  assert.ok(!called.some(call => call[0] === otherAccount.runtimeId), "reconnect never crosses an account boundary");
 });

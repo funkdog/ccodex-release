@@ -33,6 +33,7 @@ function usage() {
       "  status             Show the account and Copilot entitlement in use",
       "  account switch     Sign in with a different GitHub account",
       "  models             List the Copilot models exposed to Codex",
+      "  sources            Open local model sources and key switching",
       "  use <model> [eff] [context]",
       "                     Make a model, reasoning effort and context tier the default",
       "  context [tier]     Show or change the current default/long_context tier",
@@ -318,6 +319,12 @@ function exportBundle() {
 
 async function main() {
   const command = process.argv[2] || "status";
+
+  if (command === "sources") {
+    const { launchModelSources } = await import("./model-sources-launch.mjs");
+    await openSystemBrowser(await launchModelSources(CODEX_COPILOT_HOME, BRIDGE_PORT));
+    return;
+  }
 
   if (command === "sessions") {
     const { runSessions } = await import("./sessions-cli.mjs");

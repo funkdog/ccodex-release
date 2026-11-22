@@ -16,6 +16,9 @@ export interface HostThreadCapabilities {
   requestIdempotency: boolean; receiptLookup: boolean; safeDuringRun: boolean; openTarget: boolean;
 }
 export interface HostBinding {
+  squad?: boolean;
+  frontendPid?: number;
+  executionSwitch?: boolean;
   hostId: string; accountId: string; accountVerified: boolean; runtimeId: string;
   capabilities: HostThreadCapabilities;
 }

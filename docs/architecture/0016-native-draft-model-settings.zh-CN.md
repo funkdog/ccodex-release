@@ -53,7 +53,7 @@
 
 ## 捕获实际双目录参数后的修正
 
-用户再次反馈相同错误。新网关的有界日志捕获到实际 `thread/start`：cwd 为 MyCodex 仓库，runtimeWorkspaceRoots 同时包含 MyCodex 与 Ainvest-Terminal-Cloud。此前按空数组推断本次请求是误判；已有空列表兼容属于独立边界修复，不能证明这个双目录请求可用。
+用户再次反馈相同错误。新网关的有界日志捕获到实际 `thread/start`：cwd 为 MyCodex 仓库，runtimeWorkspaceRoots 同时包含 MyCodex 与 External-Service-Repo。此前按空数组推断本次请求是误判；已有空列表兼容属于独立边界修复，不能证明这个双目录请求可用。
 
 在完全访问模式下，这个字段是宿主目录上下文，不是 CLI 执行目录覆盖或 OS 沙箱。移除“必须至多一个根”的限制，继续校验全部条目为绝对路径，并按真实路径确认至少一个可用根包含已选 cwd。无关或已不存在的其他项目提示不改变 cwd；不把它们注册为额外 CLI 项目，不修改工具审批。真正改变已存 cwd、缺少包含 cwd 的根、相对或无效路径、其他权限档位仍拒绝。
 
@@ -65,13 +65,13 @@
 
 用户随后明确确认收到回复。只读核对两条已完成的 Antigravity 测试聊天，模型均为 gemini-4-argon、推理 high、cwd 均为本仓库，回复包含预期 MYCODEX_OK；其中一条策略 ask、另一条 auto。没有通过此次验收改写策略。
 
-用户追问为什么只选择 MyCodex 却携带两个根目录。只读检查原生 `.codex-global-state.json` 的 local-projects，发现 MyCodex 项目 0a506a2c-780e-43c0-91f9-05670cfb9c46 的 rootPaths 本来就有本仓库和 Ainvest-Terminal-Cloud；Ainvest 项目 96019ccc-8a36-433f-a41b-10add8bf643a 也反向包含两者。selected-project 确实为 MyCodex。两个项目的 updatedAt 分别为上海时间 2026-10-31 19:40:13.977 和 19:40:09.079，早于本轮设置错误修复；时间不能证明具体操作者或写入组件。
+用户追问为什么只选择 MyCodex 却携带两个根目录。只读检查原生 `.codex-global-state.json` 的 local-projects，发现 MyCodex 项目 project-a 的 rootPaths 本来就有本仓库和 External-Service-Repo；外部服务项目 project-b 也反向包含两者。selected-project 确实为 MyCodex。两个项目的 updatedAt 分别为上海时间 2026-10-31 19:40:13.977 和 19:40:09.079，早于本轮设置错误修复；时间不能证明具体操作者或写入组件。
 
 这修正了此前“可能只是全局附带其他项目”的推断：目前已有直接证据表明项目自身配置交叉关联。网关兼容修复只消除发送拦截，未清理原生项目目录配置，也未改变工作目录。此次来源调查保持项目状态只读；若要恢复两个单根项目，应通过原生项目设置路径操作并另行验收，不在客户端运行期间直接改写全局 JSON。
 
 ## 用户授权的项目目录清理
 
-用户随后要求清理。通过当前官方 CLI 的实验性 `project/read` / `project/update` 接口核对映射后的原生项目 ID，再只更新 `roots`，不删除或重建项目。MyCodex 原生项目现只保留本仓库，Ainvest-Terminal-Cloud 原生项目只保留其自身目录。修改前的两条原生记录、旧项目记录及会话归属快照备份于私有 maintenance 目录，权限为 0600，未纳入仓库。
+用户随后要求清理。通过当前官方 CLI 的实验性 `project/read` / `project/update` 接口核对映射后的原生项目 ID，再只更新 `roots`，不删除或重建项目。MyCodex 原生项目现只保留本仓库，External-Service-Repo 原生项目只保留其自身目录。修改前的两条原生记录、旧项目记录及会话归属快照备份于私有 maintenance 目录，权限为 0600，未纳入仓库。
 
 更新响应及再次读取确认：项目 ID、名称、metadata、position、createdAt、recencyAt 保持；旧版 `thread-project-assignments`、`projectless-thread-ids`、selected-project 和新建项目选择快照保持。两个项目的原生数据库成员列表前后均为空；当前宿主尚未完成会话归属迁移，因此不能用该空列表声称已核对全部会话。客户端 PID 42126、gateway 85785、helper 85892 均未重启。
 

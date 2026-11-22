@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { startAcpPeer } from "../acp-peer.mjs";
 import { approveOnce } from "./permissions.mjs";
 import { extractToolOutput } from "../media.mjs";
+import { createAcpDisplay } from "./acp-display.mjs";
 
 export function macHttpsProxy(env: NodeJS.ProcessEnv, { platform = process.platform, inspect = () => spawnSync("/usr/sbin/scutil", ["--proxy"], { encoding: "utf8", timeout: 5000 }) } = {}) {
   if (platform !== "darwin" || Object.keys(env).some(name => /^(?:https?|all|wss?)_proxy$/i.test(name) && env[name])) return {};
@@ -60,7 +61,7 @@ async function setOption(peer: RpcPeer<AcpParams, AcpResult>, sessionId: string,
 
 /** Approval options on interaction_* calls are answers to business questions,
  * never a grant of tool permission (including in automatic policy modes). */
-export async function antigravityPermission(params: AcpParams, { ask, getApprovalMode, signal }: { ask: Ask; getApprovalMode: () => ApprovalMode; signal: AbortSignal }) {
+export async function antigravityPermission(params: AcpParams, { ask, getApprovalMode, signal, approve }: { ask: Ask; getApprovalMode: () => ApprovalMode; signal: AbortSignal; approve?: (tool: AcpParams["toolCall"]) => Promise<boolean | null> }) {
   if (signal.aborted) return { outcome: { outcome: "cancelled" } };
   const options = params.options;
   if (!Array.isArray(options) || !options.length || options.length > 30) return { outcome: { outcome: "cancelled" } };
@@ -80,7 +81,7 @@ export async function antigravityPermission(params: AcpParams, { ask, getApprova
   const option = options.find(value => value.kind === "allow_once");
   const mode = getApprovalMode();
   const allowed = option && mode !== "deny" && (mode === "auto" ||
-    await approveOnce(ask, `Antigravity requests permission:\n${JSON.stringify(params.toolCall)}`));
+    (await approve?.(params.toolCall) ?? await approveOnce(ask, `Antigravity requests permission:\n${JSON.stringify(params.toolCall)}`)));
   return { outcome: allowed && !signal.aborted ? { outcome: "selected", optionId: option.optionId } : { outcome: "cancelled" } };
 }
 
@@ -111,10 +112,10 @@ export function antigravityEngine({ executable, harnessPath, cliHome, env = proc
         return result;
       } finally { await peer?.dispose(); fs.rmSync(cwd, { recursive: true, force: true }); }
     },
-    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, getApprovalMode = () => "ask" }) {
+    async run({ prompt, attachments, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, display, getApprovalMode = () => "ask" }) {
       accountCheck(cliHome); if (signal.aborted) return;
       const peer = await connect(cwd); let sessionId: string | undefined, sending = false, callbackError: unknown, cancelTimer: ReturnType<typeof setTimeout> | undefined;
-      const tools = new Set();
+      const timeline = createAcpDisplay(display, cwd, onTool);
       const abort = () => {
         if (sending && !peer.closed) peer.notify({ method: "session/cancel", params: { sessionId } });
         cancelTimer ??= setTimeout(() => void peer.dispose(), 2000);
@@ -123,13 +124,10 @@ export function antigravityEngine({ executable, harnessPath, cliHome, env = proc
         if (message.method !== "session/update" || message.params?.sessionId !== sessionId || !sending || signal.aborted) return;
         const update = message.params!.update!;
         try {
+          if (update) timeline.update(update);
           if (update?.sessionUpdate === "agent_message_chunk" && update.content && !Array.isArray(update.content)) {
             if (update.content.type === "text" && typeof update.content.text === "string") onText(update.content.text);
             if (update.content.type === "image") for (const image of extractToolOutput(update.content).images) onImage?.(image);
-          }
-          if (update && ["tool_call", "tool_call_update"].includes(update.sessionUpdate)) {
-            if (!tools.has(update.toolCallId)) { tools.add(update.toolCallId); onTool?.({ phase: "start", id: update.toolCallId, name: update.title || "Antigravity tool", input: update.rawInput ?? {} }); }
-            if (["completed", "failed"].includes(update.status)) onTool?.({ phase: "end", id: update.toolCallId, success: update.status === "completed", ...extractToolOutput(update.content ?? update.rawOutput ?? "", { toolName: update.title, cwd }) });
           }
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); callbackError = error; abort(); }
       };
@@ -138,7 +136,7 @@ export function antigravityEngine({ executable, harnessPath, cliHome, env = proc
           if (message.method !== "session/request_permission" || message.params?.sessionId !== sessionId || !sending) {
             peer.notify({ id: message.id, error: { code: -32601, message: "Unsupported Antigravity client request; no tool, login or answer supplied." } }); return;
           }
-          peer.notify({ id: message.id, result: await antigravityPermission(message.params!, { ask, getApprovalMode, signal }) });
+          peer.notify({ id: message.id, result: await antigravityPermission(message.params!, { ask, getApprovalMode, signal, approve: tool => timeline.approve(tool) }) });
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause));
           callbackError = error;
           if (!peer.closed) peer.notify({ id: message.id, result: { outcome: { outcome: "cancelled" } } });
@@ -164,6 +162,7 @@ export function antigravityEngine({ executable, harnessPath, cliHome, env = proc
         const result = await peer.request("session/prompt", { sessionId, prompt: [
           ...(prompt ? [{ type: "text", text: prompt }] : []), ...(attachments ?? []).map(a => ({ type: "image", data: a.data, mimeType: a.mimeType }))] });
         if (callbackError) throw callbackError;
+        timeline.closeThought();
         if (!signal.aborted && result.stopReason !== "end_turn") throw new Error(`Antigravity ended with ${result.stopReason || "unknown status"}.`);
       } finally { sending = false; clearTimeout(cancelTimer); signal.removeEventListener("abort", abort); await peer.dispose(); }
     },

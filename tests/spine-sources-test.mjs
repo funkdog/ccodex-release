@@ -4,7 +4,6 @@ import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { readRadarArchive } from "../gateway/spine/radar-archive.mjs";
 import { RadarService } from "../gateway/spine/radar.mjs";
@@ -39,18 +38,4 @@ test("archive refresh synchronizes current reports without claiming new collecti
   const restarted = new RadarService(home, registry, knowledge, options); assert.equal((await restarted.list()).items[0].saved, true);
   fs.renameSync(file, file + ".offline"); const stale = await restarted.list(); assert.equal(stale.stale, true); assert.equal(stale.items.length, 1); assert.equal(stale.collectedThrough, report.window_end);
   restarted.refresh(); while (registry.activeTasks) await new Promise(resolve => setTimeout(resolve, 5)); const failed = await restarted.list(); assert.equal(failed.refresh.state, "failed"); assert.equal(failed.items[0].id, card.id);
-});
-test("first radar render shows available editorial items when no high-score item exists, and explicit filters still work", { timeout: 30000 }, async () => {
-  const runtime = process.env.MYCODEX_TEST_PLAYWRIGHT ?? path.resolve(path.dirname(process.execPath), "../node_modules/playwright/index.mjs");
-  const { chromium } = await import(pathToFileURL(runtime).href); const browser = await chromium.launch({ executablePath: process.env.MYCODEX_TEST_BROWSER ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
-  try {
-    const page = await browser.newPage(); await page.route("http://127.0.0.1/**", route => route.request().url().endsWith("panel.mjs") ? route.fulfill({ contentType: "text/javascript", body: fs.readFileSync(path.join(root, "bridge/diy/radar-panel.mjs"), "utf8") }) : route.fulfill({ contentType: "text/html; charset=utf-8", body: "<main></main>" }));
-    await page.goto("http://127.0.0.1/"); await page.evaluate(async () => {
-      const { mountRadarPanel } = await import("/panel.mjs"); const controller = new AbortController(); globalThis.calls = [];
-      mountRadarPanel({ document, container: document.querySelector("main"), signal: controller.signal, hostActions: {}, services: { async request(method, p) { calls.push([method, p]); return method.endsWith("/list") ? { configured: true, items: p.highOnly ? [] : [{ id: "a".repeat(32), title: "Priority four", summary: "Source fixture", score: 80, scoreReason: "report priority 4/5", feedback: 0, topics: ["agents"], sources: [{ url: "https://example.test/fixture" }] }], topics: ["agents"], total: p.highOnly ? 0 : 1, availableTotal: 1, highCount: 0, collectedThrough: "2026-11-02T09:30:00+08:00", syncedAt: "2026-11-02T12:00:00+08:00", refreshMode: "archive-sync" } : {}; } } });
-    });
-    await page.getByRole("heading", { name: "Priority four" }).waitFor({ timeout: 3000 }); assert.match(await page.locator(".synced").textContent(), /采集/); assert.equal(await page.getByRole("button", { name: "全部", exact: true }).getAttribute("aria-pressed"), "true");
-    await page.getByRole("button", { name: "🔥 高契合" }).click(); await page.getByText("当前筛选暂无条目。", { exact: true }).waitFor(); await page.getByRole("button", { name: "全部", exact: true }).click(); await page.getByRole("heading", { name: "Priority four" }).waitFor();
-    assert.equal(await page.getByRole("button", { name: "同步最新归档", exact: true }).getAttribute("title"), "同步最新归档；新报告由既有采集任务产生");
-  } finally { await browser.close(); }
 });

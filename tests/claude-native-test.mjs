@@ -49,7 +49,7 @@ test("installed Claude Code uses the configured API key, executes tools, resumes
     });
     const engine = engines.get("claude");
     const catalog = await engine.models(), selected = catalog.find(m => m.id === "sonnet") ?? catalog[0];assert.ok(selected);
-    assert.equal(catalog.some(m => m.id === "fixture-provider-model"), false, "A broad provider catalogue is not the Claude CLI's selectable model list");
+    assert.ok(catalog.some(m => m.id === "fixture-provider-model"));
     assert.equal(catalog.some(m => m.id === "claude-fable-5-1"), false, "Bundled SDK aliases must not advertise models absent from the provider catalogue");
     const text = [];
     const context = { model: selected.id, cwd: home, prompt: "FIRST_TURN_MEMORY: use the Bash tool to run pwd, then report CLAUDE_API_OK.",

@@ -321,6 +321,9 @@ export function buildChatRequest(request, model) {
     } else if (type === "compaction" || type === "item_reference") {
       throw unsupportedInput(`Chat Completions cannot decode opaque ${type} history; materialized conversation history is required.`);
     } else if (["reasoning", "web_search_call"].includes(type)) {
+      // Display/provider metadata is not materialized conversation content.
+      // Keep the surrounding messages and tool call/results, but never replay
+      // opaque reasoning to a stateless Chat endpoint (including legacy items).
       continue;
     } else {
       const text = textOf(item);
@@ -333,6 +336,18 @@ export function buildChatRequest(request, model) {
   pushSystem(systemChunks.join("\n\n"));
   if (messages.filter((m) => m.role !== "system").length === 0) {
     messages.push({ role: "user", content: "Continue." });
+  }
+
+  // Gemini rejects assistant prefill. Preserve commentary as history and ask
+  // for continuation only when there are no outstanding function calls.
+  if ([model?.id, request.model].some(name => /(?:^|[\/._-])gemini(?:[\/._-]|$)/i.test(String(name || ""))) &&
+      messages.at(-1)?.role === "assistant") {
+    const pending = new Set();
+    for (const message of messages) {
+      for (const call of message.tool_calls ?? []) pending.add(call.id);
+      if (message.role === "tool") pending.delete(message.tool_call_id);
+    }
+    if (!pending.size) messages.push({ role: "user", content: "Continue." });
   }
 
   const body = {
@@ -361,6 +376,83 @@ export function buildChatRequest(request, model) {
   if (typeof request.top_p === "number") body.top_p = request.top_p;
 
   return { body, toolKinds };
+}
+
+// Shed inline data-URI images from earlier turns after an upstream HTTP 413
+// while keeping all text, tool outputs, and the latest message's images intact.
+export function omitHistoricalInlineChatImages(body) {
+  if (!body || !Array.isArray(body.messages) || body.messages.length < 2) return null;
+  let omitted = 0;
+  const lastIndex = body.messages.length - 1;
+  const messages = body.messages.map((message, index) => {
+    if (index >= lastIndex || !message || !Array.isArray(message.content)) return message;
+    let changed = false;
+    const parts = message.content.map((part) => {
+      const url = part?.type === "image_url" ? part.image_url?.url : null;
+      if (typeof url === "string" && /^data:/i.test(url)) {
+        changed = true;
+        omitted += 1;
+        return { type: "text", text: "[image omitted: historical inline image exceeded upstream HTTP 413 payload limit]" };
+      }
+      return part;
+    });
+    if (!changed) return message;
+    const content = parts.every((part) => part?.type === "text")
+      ? parts.map((part) => part.text).join("\n")
+      : parts;
+    return { ...message, content };
+  });
+  return omitted > 0 ? { body: { ...body, messages }, omitted } : null;
+}
+
+// Keep the newest allowed images in FIFO order when the upstream model enforces
+// a per-request image count cap (e.g., Gemini's 10-image limit on Copilot Chat).
+export function limitChatImages(body, errorMessage, model) {
+  if (!body || !Array.isArray(body.messages) || typeof errorMessage !== "string") return null;
+  if (!/too many images|maximum (?:number of )?images/i.test(errorMessage)) return null;
+  const match = /(?:maximum\b[^\n]{0,120}?\bis\s+(\d+)|at most\s+(\d+)\s*images|max(?:imum)?\s*(?:of\s*)?(\d+)\s*images)/i.exec(errorMessage);
+  const parsed = match ? Number(match[1] ?? match[2] ?? match[3]) : NaN;
+  const modelLimit = Number(model?.capabilities?.limits?.vision?.max_prompt_images);
+  const maxImages = Number.isSafeInteger(parsed) && parsed >= 0
+    ? parsed
+    : (Number.isSafeInteger(modelLimit) && modelLimit >= 0 ? modelLimit : null);
+
+  let totalImages = 0;
+  for (const message of body.messages) {
+    if (!Array.isArray(message?.content)) continue;
+    for (const part of message.content) {
+      if (part?.type === "image_url") totalImages += 1;
+    }
+  }
+  if (totalImages === 0) return null;
+  if (maxImages !== null && totalImages <= maxImages) return null;
+
+  const lastIndex = body.messages.length - 1;
+  let remainingToOmit = maxImages !== null ? totalImages - maxImages : Infinity;
+  let omitted = 0;
+  const messages = body.messages.map((message, index) => {
+    if (!message || !Array.isArray(message.content) || remainingToOmit <= 0) return message;
+    if (maxImages === null && index >= lastIndex) return message;
+    let changed = false;
+    const parts = message.content.map((part) => {
+      if (part?.type === "image_url" && remainingToOmit > 0) {
+        changed = true;
+        remainingToOmit -= 1;
+        omitted += 1;
+        const reason = maxImages !== null
+          ? `[image omitted: earlier image omitted to stay within model limit of ${maxImages} images]`
+          : "[image omitted: historical image exceeded upstream image count limit]";
+        return { type: "text", text: reason };
+      }
+      return part;
+    });
+    if (!changed) return message;
+    const content = parts.every((part) => part?.type === "text")
+      ? parts.map((part) => part.text).join("\n")
+      : parts;
+    return { ...message, content };
+  });
+  return omitted > 0 ? { body: { ...body, messages }, omitted, kept: totalImages - omitted } : null;
 }
 
 function mapToolChoice(choice) {
@@ -492,7 +584,7 @@ export function sendJson(res, status, value) {
  * Turns OpenAI Chat Completions stream chunks into the Responses SSE protocol
  * that Codex speaks natively.
  */
-export function createResponsesWriter(res, request, toolKinds, { streaming = true, onLog } = {}) {
+export function createResponsesWriter(res, request, toolKinds, { streaming = true, onLog, onEvent } = {}) {
   const responseId = id("resp");
   const createdAt = Math.floor(Date.now() / 1000);
   const output = [];
@@ -501,13 +593,19 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
   let finished = false;
   let usage = null;
   let finishReason = null;
+  let responseBytes = 0;
 
   let textState = null;
+  let reasoningState = null;
   const toolStates = new Map(); // chat tool_call index -> state
 
   function event(type, fields) {
     if (!streaming) return;
-    res.write(`event: ${type}\ndata: ${JSON.stringify({ ...fields, type, sequence_number: sequence++ })}\n\n`);
+    const frame = `event: ${type}\ndata: ${JSON.stringify({ ...fields, type, sequence_number: sequence++ })}\n\n`;
+    const accepted = res.write(frame);
+    onEvent?.(type, { bytes: Buffer.byteLength(frame), itemType: fields.item?.type || null,
+      deltaBytes: typeof fields.delta === "string" ? Buffer.byteLength(fields.delta) : 0,
+      backpressured: accepted === false, queuedBytes: res.writableLength || 0 });
   }
 
   function start() {
@@ -526,11 +624,12 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
   }
 
   function ensureText() {
-    if (textState) return textState;
+    closeReasoning();
+    if (textState && !textState.done) return textState;
     start();
     const itemId = id("msg");
     const outputIndex = output.length;
-    const item = { id: itemId, type: "message", status: "in_progress", role: "assistant", content: [] };
+    const item = { id: itemId, type: "message", status: "in_progress", role: "assistant", phase: "commentary", content: [] };
     output.push(item);
     textState = { item, itemId, outputIndex, text: "", done: false };
     event("response.output_item.added", { output_index: outputIndex, item: { ...item } });
@@ -543,11 +642,12 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
     return textState;
   }
 
-  function closeText(status = "completed") {
+  function closeText(status = "completed", phase = "commentary") {
     if (!textState || textState.done) return;
     textState.done = true;
     const { item, itemId, outputIndex, text } = textState;
     item.status = status;
+    item.phase = phase;
     item.content = [{ type: "output_text", text, annotations: [], logprobs: [] }];
     event("response.output_text.done", {
       output_index: outputIndex,
@@ -565,10 +665,48 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
     event("response.output_item.done", { output_index: outputIndex, item: { ...item } });
   }
 
+  function pushReasoning(text) {
+    if (!text) return;
+    closeText();
+    start();
+    if (!reasoningState) {
+      const item = { id: id("rs"), type: "reasoning", status: "in_progress", summary: [] };
+      reasoningState = { item, outputIndex: output.length, text: "", hasSummary: false };
+      output.push(item);
+      event("response.output_item.added", { output_index: reasoningState.outputIndex, item: { ...item } });
+    }
+    const state = reasoningState;
+    const fields = { output_index: state.outputIndex, item_id: state.item.id, summary_index: 0 };
+    if (text) {
+      if (!state.hasSummary) {
+        state.hasSummary = true;
+        event("response.reasoning_summary_part.added", { ...fields, part: { type: "summary_text", text: "" } });
+      }
+      state.text += text;
+      event("response.reasoning_summary_text.delta", { ...fields, delta: text });
+    }
+  }
+
+  function closeReasoning(status = "completed") {
+    if (!reasoningState) return;
+    const { item, outputIndex, text, hasSummary } = reasoningState;
+    item.status = status;
+    if (hasSummary) {
+      const part = { type: "summary_text", text };
+      item.summary = [part];
+      const fields = { output_index: outputIndex, item_id: item.id, summary_index: 0 };
+      event("response.reasoning_summary_text.done", { ...fields, text });
+      event("response.reasoning_summary_part.done", { ...fields, part });
+    }
+    event("response.output_item.done", { output_index: outputIndex, item: { ...item } });
+    reasoningState = null;
+  }
+
   function materializeTool(state) {
     if (state.materialized) return state;
     start();
     closeText();
+    closeReasoning();
     const alias = state.alias;
     const metadata = toolKinds.get(alias);
     const name = typeof metadata === "object" ? metadata.name : alias;
@@ -628,6 +766,7 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
 
   /** Feed one `chat.completion.chunk` (or a whole non-streamed completion). */
   function pushChunk(chunk) {
+    if (finished) return;
     if (!chunk || typeof chunk !== "object") return;
     if (chunk.usage) {
       usage = {
@@ -635,7 +774,7 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
         input_tokens_details: { cached_tokens: chunk.usage.prompt_tokens_details?.cached_tokens || 0 },
         output_tokens: chunk.usage.completion_tokens || 0,
         output_tokens_details: {
-          reasoning_tokens: chunk.usage.completion_tokens_details?.reasoning_tokens || 0,
+          reasoning_tokens: chunk.usage.completion_tokens_details?.reasoning_tokens ?? chunk.usage.reasoning_tokens ?? 0,
         },
         total_tokens: chunk.usage.total_tokens || 0,
       };
@@ -646,6 +785,14 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
       finishReason = choice.finish_reason;
     }
     const delta = choice.delta || choice.message || {};
+    responseBytes += Buffer.byteLength(JSON.stringify(delta), "utf8");
+    if (responseBytes > 4 * 1024 * 1024) throw new Error("Chat response exceeds the 4 MiB translation budget.");
+
+    // Aliases represent the same readable channel; prefer a nonempty
+    // reasoning_text. reasoning_opaque has no Chat replay contract and must
+    // neither create an empty card nor escape through encrypted_content.
+    const thought = typeof delta.reasoning_text === "string" && delta.reasoning_text ? delta.reasoning_text : delta.reasoning_content;
+    if (typeof thought === "string" && thought) pushReasoning(thought);
 
     if (typeof delta.content === "string" && delta.content) {
       const state = ensureText();
@@ -674,6 +821,8 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
     }
 
     for (const call of delta.tool_calls || []) {
+      closeText();
+      closeReasoning();
       const index = call.index ?? toolStates.size;
       let state = toolStates.get(index);
       if (!state) {
@@ -716,6 +865,7 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
       : null;
     if (incompleteReason) {
       closeText("incomplete");
+      closeReasoning("incomplete");
       for (const state of toolStates.values()) {
         state.done = true;
         if (state.materialized && state.item) state.item.status = "incomplete";
@@ -732,7 +882,13 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
       onLog?.(`incomplete reason=${incompleteReason} items=${output.length}`);
       return { status: "incomplete", incompleteDetails: details };
     }
-    closeText();
+    if (toolStates.size === 0 && !output.some(item => item.type === "message")) {
+      throw Object.assign(new Error("Chat stream ended without an assistant answer or tool call."), {
+        code: "upstream_empty_response",
+      });
+    }
+    closeText("completed", toolStates.size === 0 ? "final_answer" : "commentary");
+    closeReasoning();
     for (const state of toolStates.values()) closeTool(state);
     finished = true;
     const final = responseObject(request, responseId, createdAt, "completed", output, usage);
@@ -748,6 +904,9 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
 
   function fail(message, status = 502, code = "upstream_error") {
     if (finished) return;
+    closeText("incomplete");
+    closeReasoning("incomplete");
+    for (const state of toolStates.values()) if (state.materialized && !state.done) state.item.status = "incomplete";
     finished = true;
     const error = normalizeResponsesError(
       message && typeof message === "object" && !Array.isArray(message)
@@ -777,8 +936,8 @@ export function createResponsesWriter(res, request, toolKinds, { streaming = tru
 }
 
 /** Minimal SSE reader for a `fetch` response body. */
-export async function readSse(body, onEvent, onDone) {
-  for await (const raw of readSseFrames(body)) {
+export async function readSse(body, onEvent, onDone, { onChunk } = {}) {
+  for await (const raw of readSseFrames(body, undefined, onChunk)) {
     const dataLines = [];
     let name = "message";
     for (const line of raw.split(/\r\n|\r|\n/)) {

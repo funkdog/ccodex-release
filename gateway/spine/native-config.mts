@@ -10,7 +10,9 @@ export function spineNativeArguments(config: ConnectionConfig, connectionFile: s
   for (const file of [node, connectionFile, path.join(import.meta.dirname, "mcp-server.mjs")]) {
     if (!path.isAbsolute(file) || !fs.statSync(file).isFile()) throw new Error("MCP requires absolute existing executables/configuration.");
   }
-  return ["-c", `mcp_servers.mycodex={command=${tomlString(node)},args=[${tomlString(path.join(import.meta.dirname, "mcp-server.mjs"))},${tomlString(connectionFile)}],startup_timeout_sec=15,tool_timeout_sec=20}`];
+  // The outer native MCP budget must cover the 120s wait plus transport grace;
+  // ordinary tools still have a 15s gateway RPC budget.
+  return ["-c", `mcp_servers.mycodex={command=${tomlString(node)},args=[${tomlString(path.join(import.meta.dirname, "mcp-server.mjs"))},${tomlString(connectionFile)}],startup_timeout_sec=15,tool_timeout_sec=140}`];
 }
 /** Desktop's metadata/preflight requests replace a configured server with an
  * enabled-only disabled table. The installed CLI still validates its transport.

@@ -78,8 +78,8 @@ tmp-*
 /gateway/**/*.mjs.map
 /bridge/diy/**/*.mjs
 /bridge/diy/**/*.mjs.map
-/bridge/desktop-spine-ui.mjs
-/bridge/desktop-spine-ui.mjs.map
+/bridge/desktop-squad-navigation.mjs
+/bridge/desktop-squad-navigation.mjs.map
 /bridge/desktop-protected-start.mjs
 /bridge/desktop-protected-start.mjs.map
 /bridge/desktop-host-capabilities.mjs

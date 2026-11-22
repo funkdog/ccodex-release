@@ -188,7 +188,7 @@ async function exerciseNativeComposer({ root, child, port, deadline, signal }) {
   } finally { cdp?.close(); }
 }
 
-export async function launchProbe(target, { outputParent = os.tmpdir(), durationMs = 45000, skipWelcome = false, exerciseTurn = false, gatewayFixture = false, signal } = {}) {
+export async function launchProbe(target, { outputParent = os.tmpdir(), durationMs = 45000, skipWelcome = false, exerciseTurn = false, gatewayFixture = false, exercise, signal } = {}) {
   if (process.platform !== "darwin") throw new Error("R0 launcher has only been implemented for macOS");
   if (!target.desktop.explicitDataPath || !target.desktop.independentLock) throw new Error("Desktop isolation is unsupported");
   if (!Number.isInteger(durationMs) || durationMs < 1000 || durationMs > 300000) throw new Error("Duration must be 1–300 seconds");
@@ -250,7 +250,8 @@ export async function launchProbe(target, { outputParent = os.tmpdir(), duration
       const notify = gateway.protocol.notify;
       gateway.protocol.notify = (method, params) => { trace({ kind: "notification", method }); notify(method, params); };
       const file = path.join(root, "connection.json");
-      await fsp.writeFile(file, JSON.stringify({ endpoint, token: config.token, generation: config.generation }), { mode: 0o600 });
+      await fsp.writeFile(file, JSON.stringify({ home: config.home, endpoint, token: config.token, generation: config.generation,
+        frontend: "routed-stdio.mjs", spine: { mcp: true } }), { mode: 0o600 });
       env.CCODEX_GATEWAY_CONNECTION = file;
       cli = fileURLToPath(new URL("../gateway/stdio.mjs", import.meta.url));
     }
@@ -269,7 +270,9 @@ export async function launchProbe(target, { outputParent = os.tmpdir(), duration
     process.stdout.write(JSON.stringify({ probeRoot: root, pid: child.pid, debugPort: port }) + "\n");
     const deadline = Date.now() + durationMs;
     let ui = null;
-    if (exerciseTurn) {
+    if (exercise) {
+      ui = await exercise({ root, child, port, deadline, signal });
+    } else if (exerciseTurn) {
       try { ui = await exerciseNativeComposer({ root, child, port, deadline, signal }); }
       catch (error) { ui = { syntheticAnswerVisible: false, error: error.message }; }
     } else {

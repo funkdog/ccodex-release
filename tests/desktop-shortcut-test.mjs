@@ -42,18 +42,6 @@ test("check-only never starts services or prepares files", async t => {
   assert.equal((await runDesktopShortcut({ ...f.options, checkOnly: true })).action, "ready-to-start");
   assert.deepEqual(f.calls, []); assert.equal(fs.existsSync(f.selection.home), false);
 });
-test("adapters-only failures preserve the app and cannot create automatic repair chats", async t => {
-  const f = fixture(t);
-  const config = JSON.parse(fs.readFileSync(f.options.configFile));
-  config.instances[0].gateway.workbench = false;
-  fs.writeFileSync(f.options.configFile, JSON.stringify(config));
-  const result = await runDesktopShortcut({ ...f.options,
-    inspectHost: () => { throw new Error("unsupported host"); },
-    fallbackLaunch: async () => ({ pid: 456, launchPerformed: true }),
-    queueRepair: async () => assert.fail("Adapters release must not dispatch a repair chat") });
-  assert.equal(result.backendState, "unavailable");
-  assert.equal(result.repairSession.action, "disabled");
-});
 test("unsupported page still prepares configured backend instead of an empty offline fallback", async t => {
   const f = fixture(t); f.host.uiAvailable = false;
   const result = await runDesktopShortcut({ ...f.options,

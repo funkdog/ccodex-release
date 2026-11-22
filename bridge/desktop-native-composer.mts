@@ -8,15 +8,53 @@ import { mountNativeEnginePicker } from "./diy/execution-picker.mjs";
 import { modelExecutionIdentity } from "./desktop-execution-model.mjs";
 
 /** Desktop uses a memory router. Its document URL does not identify the chat.
- * Reuse the committed-Fiber resolver; read only the containing router context. */
+ * Walk connected ancestors when the textbox itself carries no React Fiber, and
+ * fall back to `[data-above-composer-conversation-id]` when present. */
 export function readNativeComposerRoute(container: HTMLElement | null): { pathname: string; key: string | null } | null {
+  if (!container || container.isConnected === false) return null;
   type Location = { pathname?: string; key?: string | null };
   type Props = { value?: { location?: Location }; location?: Location; router?: { state?: { location?: Location } } };
-  return (desktopPickerBinding as unknown as <T>(anchor: null, container: HTMLElement | null, read: (groups: unknown, props?: Props) => T) => { state: T } | null)(null, container, (_groups, props) => {
+  const bind = desktopPickerBinding as unknown as <T>(
+    anchor: null,
+    element: HTMLElement | null,
+    read: (groups: unknown, props?: Props) => T,
+  ) => { state: T } | null;
+  const readLocation = (_groups: unknown, props?: Props) => {
     const location = props?.value?.location ?? props?.location ?? props?.router?.state?.location;
     return typeof location?.pathname === "string" && location.pathname.startsWith("/")
-      ? { pathname: location.pathname, key: location.key ?? null } : null;
-  })?.state ?? null;
+      ? { pathname: location.pathname, key: location.key ?? null }
+      : null;
+  };
+  let cursor: HTMLElement | null = container;
+  for (let depth = 0; cursor && cursor.isConnected !== false && depth < 64; depth++, cursor = cursor.parentElement) {
+    const hit = bind(null, cursor, readLocation)?.state ?? null;
+    if (hit) return hit;
+  }
+  const doc = container?.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+  if (!doc) return null;
+  const scoped =
+    container?.closest<HTMLElement>("[data-above-composer-conversation-id]") ??
+    container
+      ?.closest<HTMLElement>('main, [role="main"], [data-composer-surface-variant]')
+      ?.querySelector<HTMLElement>("[data-above-composer-conversation-id]") ??
+    null;
+  const candidates = scoped
+    ? [scoped]
+    : [...doc.querySelectorAll<HTMLElement>("[data-above-composer-conversation-id]")];
+  const marker =
+    candidates.find(node => (node.getClientRects?.().length ?? 0) > 0) ??
+    (candidates.length === 1 ? candidates[0] : null);
+  const raw = marker?.getAttribute("data-above-composer-conversation-id")?.trim() ?? "";
+  if (!raw) return null;
+  if (raw.startsWith("/")) return { pathname: raw, key: null };
+  const cleaned = raw.replace(/^local:/i, "");
+  if (
+    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(cleaned) ||
+    /^client-new-thread:[0-9a-f-]{36}$/i.test(cleaned)
+  ) {
+    return { pathname: `/local/${cleaned}`, key: null };
+  }
+  return null;
 }
 
 export interface NativeDraftPicker {
@@ -137,7 +175,7 @@ export async function mountCurrentNativeSessions({ window, services, importModul
   const hostRpc = "sessionTransport" in contract && contract.sessionTransport === "host-rpc";
   const nativeControlSelector = "modelControl" in contract.ui ? contract.ui.modelControl : '[data-codex-intelligence-trigger][data-composer-navigation-target="reasoning"]';
   let catalog: Promise<UiModel[]> | null;
-  const modelServices: Pick<UiServices, "listModels" | "refreshModels" | "updateSettings" | "selectDraftModel" | "selectThreadModel" | "setApprovalDefault" | "openModelSources" | "readNativeSpeed" | "selectNativeSpeed"> = { listModels: () => withNativeModels(catalog ??= services.listModels().catch(error => { catalog = null; throw error; })),
+  const modelServices: Pick<UiServices, "listModels" | "refreshModels" | "updateSettings" | "selectDraftModel" | "selectThreadModel" | "setApprovalDefault" | "switchExecution" | "openModelSources" | "readNativeSpeed" | "selectNativeSpeed"> = { listModels: () => withNativeModels(catalog ??= services.listModels().catch(error => { catalog = null; throw error; })),
     ...(services.openModelSources ? { openModelSources: () => services.openModelSources!() } : {}),
     refreshModels: () => { catalog = null; return withNativeModels(catalog = (services.refreshModels ? services.refreshModels() : services.listModels())
       .catch(error => { catalog = null; throw error; })); },
@@ -319,7 +357,7 @@ export function buildNativeSessionsPatch(binding: string, responseEvent: string)
     const pending=new Map();
     const receive=e=>{const value=e.detail,call=pending.get(value?.id);if(!call)return;pending.delete(value.id);clearTimeout(call.timer);value.error?call.reject(new Error(value.error)):call.resolve(value.result);};
     globalThis.addEventListener(event,receive);
-    const request=(method,params={})=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(id);reject(new Error('CLI request timed out; no automatic retry.'));},['listModels','refreshModels'].includes(method)?50000:20000);pending.set(id,{resolve,reject,timer});globalThis[key](JSON.stringify({id,method,params}));});
+    const request=(method,params={})=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(id);reject(new Error('CLI request timed out; no automatic retry.'));},method==='switchExecution'?70000:['listModels','refreshModels'].includes(method)?50000:20000);pending.set(id,{resolve,reject,timer});globalThis[key](JSON.stringify({id,method,params}));});
     const createNativeSessionController=${createNativeSessionController.toString()};
     const installNativeSessionHooks=${installNativeSessionHooks.toString()};
     const desktopPickerBinding=${desktopPickerBinding.toString()};
@@ -330,7 +368,7 @@ export function buildNativeSessionsPatch(binding: string, responseEvent: string)
     const sameNativeModelSource=${sameNativeModelSource.toString()};
     const mountNativeEnginePicker=${mountNativeEnginePicker.toString()};
     try {
-      const ui=await (${mountCurrentNativeSessions.toString()})({window:globalThis,services:{listModels:()=>request('listModels'),refreshModels:()=>request('refreshModels'),listThreads:params=>request('listThreads',params),updateSettings:params=>request('updateSettings',params),setApprovalDefault:params=>request('setApprovalDefault',params)}});
+      const ui=await (${mountCurrentNativeSessions.toString()})({window:globalThis,services:{listModels:()=>request('listModels'),refreshModels:()=>request('refreshModels'),listThreads:params=>request('listThreads',params),updateSettings:params=>request('updateSettings',params),switchExecution:params=>request('switchExecution',params),openModelSources:()=>request('openModelSources'),setApprovalDefault:params=>request('setApprovalDefault',params)}});
       if(ui==='pending'){globalThis.removeEventListener(event,receive);return 'pending';}
       if(!ui){globalThis.removeEventListener(event,receive);return 'unsupported';}
       globalThis.__mycodexNativeSessions={key,dispose(){ui.dispose();globalThis.removeEventListener(event,receive);for(const call of pending.values()){clearTimeout(call.timer);call.reject(new Error('Native selector disconnected.'));}pending.clear();delete globalThis.__mycodexNativeSessions;}};

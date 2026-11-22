@@ -1,60 +1,120 @@
-# MyCodex Adapters
+# MyCodex
 
-在已有官方 ChatGPT/Codex 窗口中使用自己的模型与 CLI。默认沿用官方 Codex 的账号、Provider 和模型设置；需要 GitHub Copilot 时，按接入文档登录自己的账号。
+[![MIT License](https://img.shields.io/badge/license-MIT-2563eb)](LICENSE)
+[![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-43853d)](https://nodejs.org/)
+[![macOS ARM64 Adapters RC.4](https://img.shields.io/badge/macOS_ARM64-Adapters_RC.4-b45309)](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)
 
-当前版本：**0.1.0-rc.4，macOS Apple Silicon（ARM64）预发布候选版**。真实桌面验收尚未完成，当前不标为稳定版。
+中文 · [English](README.en.md)
 
-- [打开 RC.4 下载页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)
-- [直接下载 macOS ARM64 平台包](https://github.com/funkdog/ccodex-release/releases/download/mycodex-adapters-v0.1.0-rc.4/mycodex-adapters-macos-arm64-0.1.0-rc.4.tar.gz)
-- [用自己的 GitHub Copilot 账号接入](docs/CODEX-COPILOT-SETUP.zh-CN.md)
-- [macOS 安装与使用说明](docs/ADAPTERS-MACOS.zh-CN.md)
-- [RC.4 修复与验证记录](docs/releases/mycodex-adapters-0.1.0-rc.4.md)
+**一个主对话定方向，多个专家在独立工作树并行交付。**
 
-## 安装
+## MyCodex 是什么
 
-1. 安装 Node.js 24 或更新版本，并安装、登录兼容的官方 ChatGPT/Codex 客户端；应用版本范围见 macOS 使用说明。
-2. 在 Release 下载 `.tar.gz` 平台包和对应 `.sha256` 文件，放在同一目录，校验后解压：
+MyCodex 在兼容的**官方 Codex / ChatGPT 原生桌面客户端**里加入本地多引擎网关和多智能体协作。你继续在熟悉的桌面窗口里使用原生对话流、项目文件树、集成终端和交互控件。
 
-```bash
-shasum -a 256 -c mycodex-adapters-macos-arm64-0.1.0-rc.4.tar.gz.sha256
-tar -xzf mycodex-adapters-macos-arm64-0.1.0-rc.4.tar.gz
-cd mycodex-adapters-macos-arm64-0.1.0-rc.4
-./Install.command
+- **多引擎网关（Multi-Engine Gateway）。** 在同一窗口里接入官方 Codex、GitHub Copilot（API / CLI）、Claude Code 和受支持的 Antigravity / Gemini 连接，使用你自己的账号和订阅。新建单聊时可选择已配置的引擎和模型，已有会话可在其引擎及模型来源支持的范围内换模型。小队可按槽位混用不同模型，例如让一个模型负责实现，另一个模型做盲审。[引擎与模型切换规则](docs/architecture/0031-model-sources-and-handoff.zh-CN.md)
+- **原生分屏里的 MyCodex Squad。** 左侧主对话负责定方向、对齐验收和拍板。右侧原生分屏常驻 `Squad Studio`，查看成员工作树、分支、历轮任务、Git Diff 和只读产物预览。队员可以跨轮接续，也可以从空白会话开始只读审查。持久成员可一键移到左侧栏，继续单独讨论。
+
+![MyCodex：官方 Codex 原生桌面端 + 多模型引擎网关 + 右侧栏 Squad Studio](docs/assets/mycodex-squad-overview.png)
+
+## 小队设计取舍：别把多 Agent 做成群聊
+
+UC Berkeley 等研究者用 MAST 分析了 1,642 条执行轨迹，记录了任务约定、成员协调和验收环节的多类失败。Anthropic 的 Research 实践把可独立探索的问题放进各自的上下文。Cognition 的 Devin 团队指出，代码写入会固化未明说的决策，多人同时改动时这些决策可能相撞。他们也报告了让独立审查者从 Diff 开始复核的经验。[MAST 论文](https://openreview.net/attachment?id=fAjbYBmonr&name=pdf) · [Anthropic Research 工程实践](https://www.anthropic.com/research/multi-agent-research-system) · [Cognition 的多 Agent 实践](https://cognition.com/blog/multi-agents-working)
+
+1. **按上下文边界拆活，按模块保留记忆。** 将需要大量读代码、跑测试的模块交给独立槽位，让局部发现留在相关会话。实现槽位用 `stateful` 跨轮复用同一会话，延续对接口、约束和排查过程的认识。主对话保留需要各方对齐的目标与契约。
+2. **从空白上下文做只读盲审。** 验收槽位用 `clean` + `readOnly` 开启新会话，拿到验收标准、真实 Diff 和相关原始材料。实现者的对话历史留在原会话，审查者可自行追到代码与测试证据。
+3. **跨库工作树隔离，按需交接材料。** 写入槽位可以绑定不同仓库，各用独立 Git worktree。`touches` 声明写入范围，`forbid` 禁区默认跨轮继承。`inputs` 传原始材料路径，兄弟工作树可作只读参考。内核直接从 Git 收集提交、分支和变更，并在合入前检查写入边界。
+4. **单写者 `STATE`，由内核核对执行状态。** 主对话维护活计划，验收条目同时记录可读的成果描述和可证伪的技术细则。`quiescent` 只表明执行已静止，`escalate` 在回执中请求人工裁决。主对话依据证据推进验收，关键门禁由人拍板。
+5. **交付时外露假设，只在需要时打断。** 成员在回执中列出 `Assumptions & Trade-offs`。主对话用阶段技术品鉴卡提炼值得讨论的选型、性能和风险。没有待处理事项时，`Needs You` 不占空间。门禁可在卡片或聊天里裁决，两种入口更新同一状态。
+
+## 架构
+
+```mermaid
+flowchart LR
+  subgraph Desktop["兼容的 ChatGPT / Codex 桌面客户端"]
+    direction TB
+    Main["主对话 · 目标、验收、决策卡"]
+    Studio["右侧 Squad Studio · 波次、Diff、产物"]
+  end
+  Main -->|"MCP · 初始化、派发、合入"| Squad["Squad V2 内核"]
+  Studio -->|"状态查询与人工裁决"| Squad
+  Squad --> State["STATE · 验收标准与门禁"]
+  Squad --> ImplA["stateful 实现 · 仓库 A / 独立 worktree"]
+  Squad --> ImplB["stateful 实现 · 仓库 B / 独立 worktree"]
+  Squad --> Review["clean 盲审 · 只读验收"]
+  ImplA --> Git["分支、提交与变更"]
+  ImplB --> Git
+  Git -.->|"真实 Diff 与只读引用"| Review
+  Git --> Squad
+  Main --> Gateway["本地 Gateway"]
+  Squad --> Gateway
+  Gateway --> Engines["官方 Codex · Copilot · Claude Code · Antigravity / Gemini"]
 ```
 
-3. 使用原生 Codex 时，向导默认保留官方现有设置。当前任务结束后正常退出客户端，再运行包内的 `Start.command`。
-4. **要接入 GitHub Copilot，按 [专用接入指南](docs/CODEX-COPILOT-SETUP.zh-CN.md) 操作。** RC.4 的简化向导尚未覆盖 `codex-copilot`；指南提供独立账号登录、自己的模型 ID、配置生成和实际启动命令。
+### Squad MCP 工具
 
-从 RC.3 升级时解压到新的长期目录，保留原账号和配置。原生/CLI 配置使用新包的向导选择“使用当前配置”；Copilot 手动配置使用新包路径设置 `MYCODEX_PACKAGE`，保留已有个人配置并按指南正常重开。不删除旧目录中的个人数据，不热替换正在运行的任务。
+工具名以下表中的 MCP 注册名为准，宿主可将点号显示为下划线。成员接收裁剪后的任务简报和材料路径，主对话持有小队控制工具。
 
-解压目录需长期保留，不要从临时文件夹运行。此包不包含 Node、第三方 CLI、发布者的账号、Key 或聊天；请配置自己的账号。
+| 工具 | 职责与边界 |
+| --- | --- |
+| `mycodex.squad_init` | 初始化或接续当前主对话的小队，返回 Studio 入口。 |
+| `mycodex.squad_state` | 用当前 `expectedRevision` 更新共享计划、验收条目或门禁裁决。 |
+| `mycodex.squad_dispatch` | 异步派发一轮工作，指定上下文模式、仓库、写边界和材料引用。 |
+| `mycodex.squad_status` | 只读获取 Studio 快照，查看物理活动、回执及验收进度。 |
+| `mycodex.show_squad_card` | 在当前对话展示需人裁决的门禁或精选技术品鉴。只读呈现。 |
+| `mycodex.squad_integrate` | 合入已静止且通过写边界校验的角色工作树，记录本轮验收。 |
+| `mycodex.squad_close` | 应用户明确要求收束常驻小队，保留真实会话，可扶正指定持久成员。 |
 
-## 使用范围与修复
+[工具参数与注册源码](gateway/spine/squad-commands.mts)
 
-- 新聊天可选择已配置的执行引擎，已有聊天保留原引擎与历史。
-- 按需接入 Claude Code 或已适配的 Antigravity ACP 运行时；连接不默认预填模型，详情见安装说明。
-- RC.4 修复 Chat Completions 的上下文保留、流式工具身份、Schema 转换和截断状态处理，详见发行记录。
-- 工作台、Squad、雷达、日报与跨引擎历史迁移未启用。
-- 当前仅提供 macOS ARM64 候选包；不提供 Intel Mac、Windows 或 Linux 安装包。
+## 快速上手
 
-Release 附有 `RC4-VERIFICATION.json`：精简范围自动门禁 **302/302 通过**，解压后 **476 项载荷文件摘要**及原生默认网关复验通过。真实客户端的发送、审批、取消和冷恢复验收仍待完成；目录可见不代表当前账号推理一定可用。
+### 从源码构建和验证
 
-## 源码与修复
-
-`main` 提供可维护源码、测试、锁定依赖与构建工具。开始修改前阅读 [开发贡献指南](CONTRIBUTING.md)。
+准备 Git、Node.js 24 或更新版本及 npm。以下命令适用于 macOS 或 Linux。Windows 构建命令相同，手动运行重任务使用 `tools/Invoke-HeavyTask.ps1`。
 
 ```bash
 git clone https://github.com/funkdog/ccodex-release.git
 cd ccodex-release
-npm ci --ignore-scripts --no-audit --no-fund
+npm ci
+npm run typecheck
 npm run build
+npm run check:generated
+bash tools/Invoke-HeavyTask.sh node --test tests/squad-protocol-test.mjs tests/squad-lifecycle-test.mjs
 ```
 
-- [RC.4 源码分支](https://github.com/funkdog/ccodex-release/tree/codex/macos-adapters-rc4)
-- [RC.4 固定源码标签](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.4)
-- [RC.4 源码与平台包对应记录](release/RC4-SOURCE.json)
-- [反馈问题](https://github.com/funkdog/ccodex-release/issues/new)；修复可通过 Fork 和 Pull Request 提交到 `main`。
+构建完成后，在 macOS 本机可将当前源码目录直接挂载到兼容的官方客户端体验全套网关与 Squad Studio（参见 [`platforms/macos/`](platforms/macos/) 与 [开发维护说明](docs/DEVELOPMENT.zh-CN.md)）。浏览器用例需要 Playwright 和 Chromium 浏览器；开发入口、隔离测试配置与完整门禁见 [贡献指南](CONTRIBUTING.md)。
 
-源码不含账号、依赖缓存、生成的运行文件或第三方运行时副本。RC.4 的源码标签和 Release 自动 Source code 归档包含完整源码与测试；它们需要构建，使用者安装请下载平台包。后续 `main` 可继续接收修复，固定标签用于复现本次源码。
+### 体验 macOS Adapters 预发布包
 
-历史 [RC.3 下载页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.3)、[RC.3 固定源码标签](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.3) 及附件保持原样。
+[下载 MyCodex Adapters 0.1.0-rc.4](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)。这是 **macOS Apple Silicon（ARM64）候选包**，真实桌面验收仍待完成。校验平台包 SHA-256 并解压到长期目录，运行 `Install.command` 和 `Diagnose.command`，正常退出旧窗口后使用 `Start.command`。
+
+- [macOS 安装与宿主兼容性](docs/ADAPTERS-MACOS.zh-CN.md)
+- [登录自己的 GitHub Copilot 账号并选择模型](docs/CODEX-COPILOT-SETUP.zh-CN.md)
+- [RC.4 发行与验证记录](docs/releases/mycodex-adapters-0.1.0-rc.4.md) · [RC.3 发行记录](docs/releases/mycodex-adapters-0.1.0.md)
+
+`main` 包含 Squad V2 源码。RC.4 是此前冻结的 Adapters 快照，其中关闭了 Squad。
+
+## 仓库导航
+
+| 目录 | 内容 |
+| --- | --- |
+| [`gateway/`](gateway/) | App Server 路由、会话协议与引擎适配 |
+| [`gateway/spine/`](gateway/spine/) | Squad V2 内核、MCP、状态与工作树校验 |
+| [`bridge/`](bridge/) | 响应协议桥接、桌面宿主适配及 [Squad Studio 与对话卡片](bridge/diy/) |
+| [`tests/`](tests/) · [`tools/`](tools/) | 回归用例、构建、源码审计与验证工具 |
+| [`docs/`](docs/) · [`release/`](release/) | 设计、使用手册与发行源码对应记录 |
+
+- [ADR 0034 · Squad V2 架构](docs/architecture/0034-squad-v2-architecture.zh-CN.md)
+- [ADR 0035 · Squad V2 演进与复盘](docs/architecture/0035-squad-v2-retrospective-and-closeout.zh-CN.md)
+- [Squad Studio 视觉规范](docs/design/squad-visual-spec.md) · [异构引擎和原生显示协议](docs/architecture/0032-heterogeneous-model-and-display-standard.zh-CN.md)
+
+## 致谢
+
+- 感谢 **troupe** 对单主控编排的探索。先明确并审批验收标准，再按角色分配独立 Git worktree，逐分支独立审查后合流。[troupe](https://github.com/hitianqi/troupe)
+- 感谢 **bothouse** 展示如何将 Claude Code、Codex、Gemini 等本地 CLI 组为一队，交接时保留用户原话，再由干净上下文中的成员二次复核。[bothouse](https://github.com/zuiho-kai/bothouse)
+- 感谢 UC Berkeley 的 MAST 研究者、Anthropic 工程团队与 Cognition 的 Devin 团队公开多智能体系统的失败分析、上下文切分和独立审查经验。[MAST](https://openreview.net/attachment?id=fAjbYBmonr&name=pdf) · [Anthropic](https://www.anthropic.com/research/multi-agent-research-system) · [Cognition](https://cognition.com/blog/multi-agents-working)
+
+## 开源协议
+
+本仓的第一方网关、桥接与 Squad 源码按 [MIT License](LICENSE) 开源。第三方组件适用各自的许可，第三方私有运行时二进制及个人凭据由用户独立管理，源码仓库不分发这些内容。

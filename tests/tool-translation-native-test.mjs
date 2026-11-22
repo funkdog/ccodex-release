@@ -27,11 +27,12 @@ for (const parameterShape of ["simple", "root-union", "open-required"]) test(`in
       assert.equal(tool.function.parameters.oneOf, undefined);
       assert(tool.function.parameters.required.every(name => Object.hasOwn(tool.function.parameters.properties, name)));
       const argumentsText = encodedParameters ? JSON.stringify({ input: '{"code":"owned_fixture_only"}' }) : '{"code":"owned_fixture_only"}';
-      reply({ tool_calls: [{ index: 0, id: "call_synthetic_ui", type: "function", function: { name: tool.function.name, arguments: argumentsText } }] });
+      reply({ reasoning_text: "**Checking UI**\nInspecting fixture.", reasoning_opaque: "SYNTHETIC_GEMINI_OPAQUE_TOKEN",
+        tool_calls: [{ index: 0, id: "call_synthetic_ui", type: "function", function: { name: tool.function.name, arguments: argumentsText } }] });
     } else {
       assert(body.messages.some(message => message.role === "tool" && message.content.includes("OWNED_SCREENSHOT")));
       assert(body.messages.some(message => Array.isArray(message.content) && message.content.some(part => part.type === "image_url")));
-      reply({ content: "NATIVE_UI_TOOL_OK" });
+      reply({ reasoning_content: "Checking the owned screenshot fixture.", reasoning_opaque: "SYNTHETIC_GEMINI_OPAQUE_TOKEN", content: "NATIVE_UI_TOOL_OK" });
     }
   }, { route: "/chat/completions", model });
   let peer;
@@ -46,8 +47,9 @@ for (const parameterShape of ["simple", "root-union", "open-required"]) test(`in
     peer.notify({ id: message.id, result: { success: true, contentItems: [{ type: "inputText", text: "OWNED_SCREENSHOT" }, { type: "inputImage", imageUrl: `data:image/png;base64,${png}` }] } });
   };
   let complete;
+  const notifications = [];
   const completed = new Promise(resolve => complete = resolve);
-  peer.onNotification = message => { if (message.method === "turn/completed") complete(message.params.turn); };
+  peer.onNotification = message => { notifications.push(message); if (message.method === "turn/completed") complete(message.params.turn); };
   await peer.request("initialize", { clientInfo: { name: "owned-ui-tool-test", version: "1" }, capabilities: { experimentalApi: true } }); peer.notify({ method: "initialized" });
   const started = await peer.request("thread/start", { model: model.id, cwd: root, ephemeral: true, approvalPolicy: "never", sandbox: "read-only",
     dynamicTools: [{ type: "namespace", name: namespace, description: "Synthetic UI runtime, no real device", tools: [{ type: "function", name: "js", description: "Inspect the owned fixture only", inputSchema: parameterShape === "root-union"
@@ -57,6 +59,20 @@ for (const parameterShape of ["simple", "root-union", "open-required"]) test(`in
   await peer.request("turn/start", { threadId: started.thread.id, input: [{ type: "text", text: "Inspect the synthetic UI tool only." }] });
   const turn = await completed; assert.equal(turn.status, "completed", JSON.stringify(turn.error)); assert.equal(calls.length, 1);
   assert(turn.items.some(item => item.type === "agentMessage" && item.text === "NATIVE_UI_TOOL_OK"));
+  assert(notifications.some(event => event.method === "item/reasoning/summaryTextDelta" && event.params.delta === "Checking the owned screenshot fixture."),
+    `The installed app-server must consume the translated reasoning summary: ${JSON.stringify(notifications)}`);
+  assert.equal(turn.items.find(item => item.type === "agentMessage" && item.text === "NATIVE_UI_TOOL_OK").phase, "final_answer");
+  assert.equal(bridge.requests.length, 2, "The core must send its tool result back without a bridge-generated 400");
+  assert(notifications.some(event => event.method === "item/reasoning/summaryTextDelta" && event.params.delta === "**Checking UI**\nInspecting fixture."));
+  let finishNext;
+  const nextCompleted = new Promise(resolve => { finishNext = resolve; });
+  peer.onNotification = message => { if (message.method === "turn/completed") finishNext(message.params.turn); };
+  await peer.request("turn/start", { threadId: started.thread.id, input: [{ type: "text", text: "Continue this same fixture chat." }] });
+  const nextTurn = await nextCompleted;
+  assert.equal(nextTurn.status, "completed", JSON.stringify(nextTurn.error));
+  assert.equal(bridge.requests.length, 3, "A later user turn must also remain usable");
+  assert(!JSON.stringify(bridge.requests).includes("SYNTHETIC_GEMINI_OPAQUE_TOKEN"));
+  assert.deepEqual(bridge.diagnostics().errors, []);
 });
 
 test("installed Codex marks a Chat turn failed instead of completed when finish_reason is length", { timeout: 30000, skip: !fs.existsSync(executable) }, async t => {

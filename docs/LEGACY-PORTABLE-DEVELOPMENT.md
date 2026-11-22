@@ -29,7 +29,7 @@ Desktop account panel. It uses Microsoft's hosted Work IQ MCP service with a sep
 explicit Microsoft sign-in; GitHub Copilot credentials do not grant M365 access.
 Setup never opens a browser automatically, and the connection remains disabled until
 enterprise data processing is acknowledged. The current secure credential cache is
-Windows-only. See [WORKIQ.md](WORKIQ.md) for architecture, setup, verification and the
+Windows-only. See [WORKIQ.md](../WORKIQ.md) for architecture, setup, verification and the
 remaining gaps; this is not a claim of complete Microsoft 365 Copilot feature parity.
 
 ## Batch session history
@@ -390,8 +390,8 @@ codex-copilot export .\codex-copilot-transfer.zip
 The bundle contains the installer/runtime and preferred model name, but no OAuth token,
 Credential Manager data, sessions, logs, databases, MCP secrets or live profile files.
 The destination user extracts it, runs `install.ps1`, and authenticates independently.
-See [MIGRATION.md](MIGRATION.md).
-中文说明见 [MIGRATION.zh-CN.md](MIGRATION.zh-CN.md)。
+See [MIGRATION.md](../MIGRATION.md).
+中文说明见 [MIGRATION.zh-CN.md](../MIGRATION.zh-CN.md)。
 
 ### When the bridge starts
 

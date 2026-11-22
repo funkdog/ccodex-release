@@ -29,6 +29,7 @@ test("one compatibility incident creates one isolated repair task and retains it
   assert.equal(first.action, "queued"); assert.equal(second.action, "already-queued");
   assert.equal(f.calls.length, 1); assert.equal(f.calls[0].executable, f.cli);
   assert.ok(f.calls[0].args.includes("--worktree")); assert.ok(f.calls[0].args.includes("--approve-for-me"));
+  assert.ok(!f.calls[0].args.includes("--sandbox"), "--approve-for-me already selects workspace-write and conflicts with --sandbox");
   assert.equal(f.calls[0].args.at(-1), "-");
   assert.equal(fs.statSync(first.stateFile).mode & 0o077, 0);
   assert.equal(JSON.parse(fs.readFileSync(first.stateFile, "utf8")).mode, "isolated-worktree");
@@ -43,6 +44,7 @@ test("dirty source creates a read-only diagnostic thread without concurrent edit
   const result = await queueDesktopRepairSession({ ...f.options, git: () => " M unrelated-file\n" });
   assert.equal(result.mode, "read-only-diagnosis");
   assert.ok(!f.calls[0].args.includes("--worktree"));
+  assert.ok(!f.calls[0].args.includes("--approve-for-me"));
   assert.ok(f.calls[0].args.includes("read-only"));
   assert.deepEqual(latestDesktopRepairSession(f.home), { action: "launching", mode: "read-only-diagnosis" });
 });

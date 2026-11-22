@@ -1,0 +1,476 @@
+{
+  "schemaVersion": 1,
+  "source": "Installed app-server generate-json-schema --experimental; refresh deliberately on contract drift.",
+  "items": {
+    "userMessage": {
+      "status": "projected"
+    },
+    "hookPrompt": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "agentMessage": {
+      "status": "projected"
+    },
+    "functionCallOutput": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "plan": {
+      "status": "projected"
+    },
+    "reasoning": {
+      "status": "projected"
+    },
+    "commandExecution": {
+      "status": "projected"
+    },
+    "fileChange": {
+      "status": "projected"
+    },
+    "mcpToolCall": {
+      "status": "projected"
+    },
+    "dynamicToolCall": {
+      "status": "projected"
+    },
+    "collabAgentToolCall": {
+      "status": "unsupported_by_boundary",
+      "reason": "External child agents have no independently readable gateway thread identity."
+    },
+    "subAgentActivity": {
+      "status": "unsupported_by_boundary",
+      "reason": "External child agents have no independently readable gateway thread identity."
+    },
+    "webSearch": {
+      "status": "projected"
+    },
+    "imageView": {
+      "status": "projected"
+    },
+    "sleep": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "imageGeneration": {
+      "status": "projected"
+    },
+    "enteredReviewMode": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "exitedReviewMode": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "contextCompaction": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    }
+  },
+  "notifications": {
+    "error": {
+      "status": "projected"
+    },
+    "thread/started": {
+      "status": "projected"
+    },
+    "thread/status/changed": {
+      "status": "projected"
+    },
+    "thread/readState/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/archived": {
+      "status": "projected"
+    },
+    "thread/deleted": {
+      "status": "projected"
+    },
+    "thread/unarchived": {
+      "status": "projected"
+    },
+    "thread/closed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/reverted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/search/partial": {
+      "status": "unsupported_by_boundary",
+      "reason": "Gateway title search returns complete merged pages; no provisional partial batches are fabricated."
+    },
+    "skills/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/name/updated": {
+      "status": "projected"
+    },
+    "thread/section/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/attachment/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/goal/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/prediction/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/goal/cleared": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/queue/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "project/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/project/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/environment/connected": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/environment/disconnected": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/settings/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/tokenUsage/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "turn/started": {
+      "status": "projected"
+    },
+    "hook/started": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "turn/completed": {
+      "status": "projected"
+    },
+    "hook/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "turn/diff/updated": {
+      "status": "projected"
+    },
+    "turn/plan/updated": {
+      "status": "projected"
+    },
+    "item/started": {
+      "status": "projected"
+    },
+    "item/autoApprovalReview/started": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "item/autoApprovalReview/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "autoApprovalReview/strictReviewRequired": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "item/completed": {
+      "status": "projected"
+    },
+    "item/agentMessage/delta": {
+      "status": "projected"
+    },
+    "item/plan/delta": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "command/exec/outputDelta": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI does not expose a controllable host PTY."
+    },
+    "process/outputDelta": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI does not expose a controllable host PTY."
+    },
+    "process/exited": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI does not expose a controllable host PTY."
+    },
+    "item/commandExecution/outputDelta": {
+      "status": "projected"
+    },
+    "item/commandExecution/terminalInteraction": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI does not expose a controllable host PTY."
+    },
+    "item/fileChange/outputDelta": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "item/fileChange/patchUpdated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "serverRequest/resolved": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "item/mcpToolCall/progress": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "mcpServer/oauthLogin/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "mcpServer/startupStatus/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "mcpServer/event/stream/notification": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "account/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "account/gatewayOAuth/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "account/rateLimits/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "app/list/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "remoteControl/status/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    },
+    "externalAgentConfig/import/progress": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "externalAgentConfig/import/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "fs/changed": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "item/reasoning/summaryTextDelta": {
+      "status": "projected"
+    },
+    "item/reasoning/summaryPartAdded": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "item/reasoning/textDelta": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/compacted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "model/rerouted": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "model/verification": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "modelProvider/authRecoveryStarted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "modelProvider/authRecoveryCompleted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "turn/moderationMetadata": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "model/safetyBuffering/updated": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "warning": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "guardianWarning": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "deprecationNotice": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "configWarning": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "fuzzyFileSearch/sessionUpdated": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "fuzzyFileSearch/sessionCompleted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "thread/realtime/started": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/itemAdded": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/item/started": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/item/transcript/delta": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/item/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/transcript/delta": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/transcript/done": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/outputAudio/delta": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/sdp": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/error": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "thread/realtime/closed": {
+      "status": "unsupported_by_boundary",
+      "reason": "External CLI has no host realtime/audio session."
+    },
+    "windows/worldWritableWarning": {
+      "status": "unsupported_by_boundary",
+      "reason": "Requires native harness or host-owned policy/configuration state."
+    },
+    "windowsSandbox/setupCompleted": {
+      "status": "unsupported_by_boundary",
+      "reason": "No verified external CLI source for this host feature; no fabricated notification."
+    },
+    "account/login/completed": {
+      "status": "unsupported_by_boundary",
+      "reason": "Authentication, apps and MCP connections belong to the external executor."
+    }
+  },
+  "templates": {
+    "sha256": "2c5b58bd2c9a13ade7797f6986a307cf7e90df570af46cf921e2a03a5b5a1f1a",
+    "modelFields": [
+      "additional_speed_tiers",
+      "apply_patch_tool_type",
+      "auto_compact_token_limit",
+      "auto_review_model_override",
+      "availability_nux",
+      "available_in_plans",
+      "base_instructions",
+      "comp_hash",
+      "context_window",
+      "default_reasoning_level",
+      "default_reasoning_summary",
+      "default_service_tier",
+      "default_verbosity",
+      "description",
+      "display_name",
+      "effective_context_window_percent",
+      "experimental_supported_tools",
+      "guardian",
+      "include_apps_usage_instructions",
+      "include_plugin_usage_instructions",
+      "include_skills_usage_instructions",
+      "input_modalities",
+      "max_context_window",
+      "minimal_client_version",
+      "model_messages",
+      "model_specialty",
+      "multi_agent_reasoning_effort",
+      "multi_agent_version",
+      "node_repl_auto_review_required",
+      "node_repl_disabled",
+      "prefer_websockets",
+      "priority",
+      "requires_sandboxed_review",
+      "service_tiers",
+      "shell_type",
+      "slug",
+      "support_verbosity",
+      "supported_in_api",
+      "supported_reasoning_levels",
+      "supports_experimental_context",
+      "supports_image_detail_original",
+      "supports_parallel_tool_calls",
+      "supports_reasoning_effort_updates",
+      "supports_reasoning_summaries",
+      "supports_reasoning_summary_parameter",
+      "supports_search_tool",
+      "tool_mode",
+      "truncation_policy",
+      "upgrade",
+      "use_responses_lite",
+      "visibility",
+      "web_search_tool_type"
+    ],
+    "messageFields": [
+      "approvals",
+      "auto_review",
+      "collaboration_modes",
+      "confirmation_policies",
+      "guardian_v2",
+      "instructions_template",
+      "instructions_variables",
+      "multi_agent",
+      "permissions",
+      "persistent_instructions",
+      "token_budget",
+      "tools"
+    ]
+  }
+}

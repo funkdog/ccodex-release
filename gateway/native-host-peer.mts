@@ -9,6 +9,7 @@ import { parseHostRef } from "./spine/host-thread-contracts.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import type { HostDeliveryReceipt, HostThreadRef } from "./spine/host-thread-contracts.mjs";
+import { createSquadNativeHandler } from "./squad-native-peer.mjs";
 
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid native host response.");
@@ -25,13 +26,24 @@ async function accountIdentity(native: NativePeer, timeoutMs = 5000) {
 /** Reverse channel over the existing native peer. Delivery needs both a
  * frontend mutation guard and a fresh gateway authority confirmation. */
 export function createNativeHostPeer(config: ConnectionConfig, native: NativePeer, ownsThread: (id: string) => unknown, warn: (message: string) => void = () => {},
-  { runExclusive }: { runExclusive?: <T>(threadId: string, operation: () => Promise<T>) => Promise<T> } = {}) {
+  { runExclusive, squadRequest, switchExecution }: { runExclusive?: <T>(threadId: string, operation: () => Promise<T>) => Promise<T>;
+    switchExecution?: (threadId: string, model: string) => Promise<unknown>;
+    squadRequest?: (method: string, params: Record<string, unknown>) => Promise<unknown> } = {}) {
   const runtimeId = randomUUID(), hostId = `local:${digest(config.home).slice(0, 32)}`;
   let socket: Socket | undefined, peer: RpcPeer | undefined, stopped = false, starting: Promise<void> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined, retry = 0, connected = false, warned = false;
   const reads = new Set<Promise<unknown>>();
+  const pendingDeletions = new Set<string>();
   let identity: Awaited<ReturnType<typeof accountIdentity>> | undefined;
+  const flushDeletions = async () => {
+    if (!connected || !peer || !identity) return;
+    for (const threadId of pendingDeletions) {
+      await peer.request("gateway/squad/thread_deleted", { ref: { hostId, accountId: identity.accountId, runtimeId, threadId } }, { timeoutMs: 5000 });
+      pendingDeletions.delete(threadId);
+    }
+  };
   const deliveries = new Map<string, { fingerprint: string; receipt: HostDeliveryReceipt }>();
+  const squad = squadRequest && runExclusive ? createSquadNativeHandler({ request: squadRequest, ownsThread, runExclusive, home: config.home }) : undefined;
   const deliver = async (p: Record<string, unknown>, ref: HostThreadRef, channel: RpcPeer) => {
     if (typeof p.requestId !== "string" || !/^[a-f0-9]{64}$/.test(p.requestId) || typeof p.message !== "string" || !p.message.trim() || Buffer.byteLength(p.message) > 16384 ||
       typeof p.workspace !== "string" || !path.isAbsolute(p.workspace) || p.workspace.length > 4096) throw new Error("Invalid host delivery.");
@@ -72,8 +84,19 @@ export function createNativeHostPeer(config: ConnectionConfig, native: NativePee
     }
   };
   const handle = async (method: string, value: unknown, channel: RpcPeer) => {
-    if (stopped || !identity || !["mycodex/host/read", "mycodex/host/result", "mycodex/host/deliver", "mycodex/host/receipt"].includes(method)) throw new Error("Native host operation unavailable.");
+    if (stopped || !identity || !["mycodex/host/read", "mycodex/host/result", "mycodex/host/deliver", "mycodex/host/receipt", "mycodex/host/squad", "mycodex/host/switch_execution"].includes(method)) throw new Error("Native host operation unavailable.");
     const p = object(value), ref = parseHostRef(p.ref);
+    if (method === "mycodex/host/switch_execution") {
+      if (!switchExecution || Object.keys(p).some(key => !["ref", "model"].includes(key)) || typeof p.model !== "string" ||
+          ref.hostId !== hostId || ref.accountId !== identity.accountId || ref.runtimeId !== runtimeId || ownsThread(ref.threadId) ||
+          (await accountIdentity(native)).accountId !== identity.accountId) throw new Error("Native execution switch binding changed.");
+      return switchExecution(ref.threadId, p.model);
+    }
+    if (method === "mycodex/host/squad") {
+      if (!squad || Object.keys(p).some(key => !["ref", "command"].includes(key)) || ref.hostId !== hostId || ref.accountId !== identity.accountId || ref.runtimeId !== runtimeId || ownsThread(ref.threadId)) throw new Error("Squad native binding mismatch.");
+      if ((await accountIdentity(native)).accountId !== identity.accountId) throw new Error("Native account changed.");
+      return squad(ref, p.command);
+    }
     const keys = method === "mycodex/host/read" ? ["ref"] : method === "mycodex/host/result" ? ["ref", "turnId", "offset"] : method === "mycodex/host/deliver" ? ["ref", "requestId", "message", "workspace"] : ["ref", "requestId"];
     if (Object.keys(p).some(key => !keys.includes(key)) ||
       ref.hostId !== hostId || ref.accountId !== identity.accountId || ref.runtimeId !== runtimeId || ownsThread(ref.threadId)) throw new Error("Native host target mismatch.");
@@ -139,8 +162,8 @@ export function createNativeHostPeer(config: ConnectionConfig, native: NativePee
           if (reads.size >= 8) { currentChannel.notify({ id: message.id, error: { code: -32000, message: "Native host read budget exhausted." } }); return; }
           const reading = handle(message.method!, message.params, currentChannel).then(result => {
             if (!stopped && !currentChannel.closed) currentChannel.notify({ id: message.id, result });
-          }, () => {
-            if (!stopped && !currentChannel.closed) currentChannel.notify({ id: message.id, error: { code: -32000, message: "Native host operation failed; reconcile any delivery before retrying." } });
+          }, error => {
+            if (!stopped && !currentChannel.closed) currentChannel.notify({ id: message.id, error: { code: -32000, message: message.method === "mycodex/host/switch_execution" && error instanceof Error ? error.message.slice(0, 2048) : "Native host operation failed; reconcile any delivery before retrying." } });
           }).catch(() => { channelSocket?.destroy(); currentChannel.close(); }).finally(() => { reads.delete(reading); });
           reads.add(reading);
         };
@@ -148,8 +171,12 @@ export function createNativeHostPeer(config: ConnectionConfig, native: NativePee
         channelSocket.once("close", () => { currentChannel.close(); if (peer === currentChannel) connected = false; schedule(); });
         if (stopped) { channelSocket.destroy(); currentChannel.close(); return; }
         await currentChannel.request("initialize", { clientInfo: { name: "mycodex_native_host", version: "1" } }, { timeoutMs: 5000 });
-        await currentChannel.request("gateway/host/register", { runtimeId, hostId, ...identity, canDeliver: Boolean(runExclusive) }, { timeoutMs: 5000 });
+        // Model handoff does not depend on the optional Squad capability.
+        await currentChannel.request("gateway/host/register", { runtimeId, hostId, ...identity, canDeliver: Boolean(runExclusive),
+          ...(squad ? { canSquad: true } : {}), ...(switchExecution ? { canSwitch: true } : {}),
+          ...(squad || switchExecution ? { frontendPid: process.ppid } : {}) }, { timeoutMs: 5000 });
         connected = true; retry = 0; warned = false;
+        await flushDeletions();
       } catch {
         if (!stopped && !native.closed && !warned) { warned = true; warn("Native host channel unavailable; conversation routing continues and delivery receipts await reconnection."); }
         channelSocket?.destroy(); channel?.close(); schedule();
@@ -157,5 +184,7 @@ export function createNativeHostPeer(config: ConnectionConfig, native: NativePee
     })().finally(() => { starting = undefined; });
     return starting;
   };
-  return { start, async close() { stopped = true; clearTimeout(retryTimer); socket?.destroy(); peer?.close(); await starting; await Promise.allSettled([...reads]); socket?.destroy(); peer?.close(); } };
+  return { start, async deleted(threadId: string) {
+    pendingDeletions.add(threadId); await flushDeletions();
+  }, async close() { stopped = true; clearTimeout(retryTimer); socket?.destroy(); peer?.close(); await starting; await Promise.allSettled([...reads]); socket?.destroy(); peer?.close(); } };
 }

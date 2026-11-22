@@ -3,6 +3,7 @@ import type { StoredThread, ThreadTombstone } from "./contracts.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { recoverDisplayItems } from "./display-projector.mjs";
 
 const maxBytes = 8 * 1024 * 1024;
 const validId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -21,7 +22,7 @@ export function readThreadOwnership(directory: string, id: unknown) {
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > maxBytes) throw new Error("Invalid gateway ownership record.");
   const thread = JSON.parse(fs.readFileSync(file, "utf8")) as StoredThread | ThreadTombstone;
   if (thread.schemaVersion !== 1 || thread.id !== id || typeof thread.engineId !== "string" || !thread.engineId) throw new Error("Corrupt gateway ownership record; native fallback is prohibited.");
-  return { engineId: thread.engineId, adapter: thread.engineAdapter, ...("deleted" in thread ? { deleted: true } : {}) };
+  return { engineId: thread.engineId, adapter: thread.engineAdapter, ...("executionHandoff" in thread && thread.executionHandoff ? { executionHandoff: true } : {}), ...("deleted" in thread ? { deleted: true } : {}) };
 }
 
 /** One atomic document per thread, written only by the socket-owning gateway.
@@ -48,8 +49,10 @@ export class ThreadStore {
           typeof thread.engineId !== "string" || !Array.isArray(thread.turns)) throw new Error("Unsupported gateway thread state.");
       this.threads.set(thread.id, thread);
       // The external CLI may already have acted. Never re-submit an uncertain turn.
-      if (thread.turns.some(turn => turn.status === "inProgress")) {
-        for (const turn of thread.turns) if (turn.status === "inProgress") {
+      const uncertain = (turn: StoredThread["turns"][number]) => turn.status === "inProgress" || turn.items.some(item => "status" in item && item.status === "inProgress");
+      if (thread.turns.some(uncertain)) {
+        for (const turn of thread.turns) if (uncertain(turn)) {
+          recoverDisplayItems(turn);
           turn.status = "failed";
           turn.error = { message: "Gateway stopped during this turn. The CLI outcome is unknown; inspect the workspace before continuing.", codexErrorInfo: null, additionalDetails: null };
         }
@@ -74,12 +77,15 @@ export class ThreadStore {
     // Execution owns only these fields. All UI intent/metadata belongs to the
     // latest committed document, including future metadata fields.
     const current = this.get(thread.id);
-    this.save({ ...current, nativeSessionId: thread.nativeSessionId, turns: thread.turns,
+    this.save({ ...current, nativeSessionId: thread.nativeSessionId, ...(thread.handoffPending !== undefined ? { handoffPending: thread.handoffPending } : {}), turns: thread.turns,
       status: thread.status, updatedAt: thread.updatedAt, preview: thread.preview });
   }
   tombstone(thread: StoredThread, cleanup: ThreadTombstone["cleanup"]) {
     const value: ThreadTombstone = { schemaVersion: 1, id: thread.id, engineId: thread.engineId, engineAdapter: thread.engineAdapter,
       deleted: true, deletedAt: Math.floor(Date.now() / 1000), cleanup,
+      ...(thread.executionHandoff ? { executionHandoff: true, executionCleanup: [...(thread.executionOrigins ?? []), thread]
+        .filter((entry): entry is typeof entry & { nativeSessionId: string } => Boolean(entry.nativeSessionId))
+        .map(entry => ({ engineId: entry.engineId, engineAdapter: entry.engineAdapter, nativeSessionId: entry.nativeSessionId, cwd: thread.cwd })) } : {}),
       ...(cleanup === "pending" && thread.nativeSessionId ? { nativeSessionId: thread.nativeSessionId, cwd: thread.cwd } : {}) };
     this.saveTombstone(value); return value;
   }

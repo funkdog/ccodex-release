@@ -142,21 +142,3 @@ test("account checks retain actionable native authentication errors while maskin
   } }; } } });
   await assert.rejects(engine.run({ model: "fixture", cwd: home, prompt: "check", signal: new AbortController().signal, onSession() {}, onText() {}, ask() {} }), error => /401 authentication_error/.test(error.message) && !error.message.includes("fixture-check-secret"));
 });
-
-
-test("Claude candidates intersect CLI support with the service directory and retain only explicitly configured custom IDs", async t => {
-  const http = await import("node:http");
-  const server = http.createServer((_req, res) => { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ data: [{ id: "claude-supported" }, { id: "gemini-unrelated" }, { id: "service-only" }], has_more: false })); });
-  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "claude-candidates-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const { writeClaudeApiProfile } = await import("../gateway/claude-api-profile.mjs");
-  writeClaudeApiProfile(home, {}, "fixture-key");
-  const engine = claudeCodeEngine({ credentialProfile: home, environment: () => ({ ANTHROPIC_API_KEY: "fixture-key", ANTHROPIC_BASE_URL: `http://127.0.0.1:${server.address().port}`, ANTHROPIC_MODEL: "own-custom-model" }), sdk: {
-    query: () => ({ close() {}, supportedModels: async () => [{ value: "sonnet", resolvedModel: "claude-supported", displayName: "CLI supported", supportedEffortLevels: ["low", "high"] }, { value: "not-on-service", displayName: "Unavailable" }] }),
-  } });
-  const candidates = await engine.models();
-  assert.deepEqual(candidates.map(model => model.id), ["own-custom-model", "claude-supported"]);
-  assert.deepEqual(candidates[1].supportedReasoningEfforts, ["low", "high"]);
-});

@@ -26,7 +26,7 @@ function templateBySlug(slug) {
  * (base instructions, tool prompts, approval copy) for a Copilot model.
  */
 function pickTemplate(model) {
-  const id = model.id;
+  const id = model.api_source?.model || model.id;
   const direct = templateBySlug(id);
   if (direct) return direct;
 
@@ -119,17 +119,13 @@ function compareVersionDescending(left, right) {
   return 0;
 }
 
-const CHAT_SINGLE_STREAM_INTRO =
-  "You communicate with the user through a single assistant text stream. Include a brief 1-2 sentence progress note only in turns that also invoke tools; emit a standalone text response without tool calls only when yielding back to the user with your final answer or a blocking question.";
-
-const CHAT_PROGRESS_UPDATES_SECTION = `## Progress updates
-
-- Include brief 1-2 sentence progress updates only alongside tool calls in the same assistant turn.
-- Never send a standalone progress message without tool calls, because a turn without tool calls ends your work and yields back to the user.
-- Do not prefix messages with channel labels.
-- Ensure your final answer is self-contained and summarizes the key outcomes and verification.`;
+let chatInstructions;
 
 function rebrandInstructions(text, model, { route } = {}) {
+  if (route === "chat") {
+    chatInstructions ??= fs.readFileSync(path.join(import.meta.dirname, "..", "assets", "chat-instructions.md"), "utf8");
+    return chatInstructions.replaceAll("{{model_name}}", model.name || model.id);
+  }
   if (!text) return text;
   let updated = text;
   if ((model.vendor || "OpenAI") !== "OpenAI") {
@@ -137,25 +133,6 @@ function rebrandInstructions(text, model, { route } = {}) {
       /^You are Codex, an? ([a-z ]*)agent based on GPT-[0-9.]+\./,
       (_m, kind) => `You are Codex, a ${kind}agent based on ${model.name}.`,
     );
-  }
-  if (route === "chat") {
-    updated = updated.replace(
-      /(?:Use `multi_tool_use\.parallel` to parallelize tool calls and only this\.|You use `multi_tool_use\.parallel` for that parallelism, and only that\.)/g,
-      "Emit independent tool calls in parallel within the same assistant turn when supported.",
-    );
-    updated = updated.replace(
-      /You have (?:2 ways of communicating|two channels for staying in conversation) with the users?:\r?\n- (?:Share intermediary updates|You share updates) in (?:the )?`commentary` channel\.[ \t]*\r?\n- (?:After you have completed all(?: of)? your work, (?:you )?send a message|You yield back to the user and end your turn by sending a final message) to the `final` channel\./g,
-      CHAT_SINGLE_STREAM_INTRO,
-    );
-    updated = updated.replace(
-      /## (?:Intermediary updates|Intermediate commentary)[ \t]*\r?\n[\s\S]*?(?=\r?\n#{1,2} |\s*$)/g,
-      CHAT_PROGRESS_UPDATES_SECTION,
-    );
-    updated = updated.replaceAll("in the `commentary` channel", "in a brief progress note alongside your tool call");
-    updated = updated.replaceAll("in the commentary channel", "in a brief progress note alongside your tool call");
-    updated = updated.replaceAll("in `commentary` channel", "in a brief progress note alongside your tool call");
-    updated = updated.replaceAll("to the `final` channel", "in your final response");
-    updated = updated.replaceAll("in the final channel", "in your final response");
   }
   return updated;
 }
@@ -327,6 +304,10 @@ export function buildCatalog(copilotModels, { includeHidden = false } = {}) {
   const ordered = usable
     .map((model, index) => ({ model, index }))
     .sort((left, right) => {
+      const sourceDifference = Number(Boolean(right.model.api_source?.priority)) - Number(Boolean(left.model.api_source?.priority));
+      if (sourceDifference !== 0) return sourceDifference;
+      const preferredDifference = Number(Boolean(right.model.api_source?.preferred)) - Number(Boolean(left.model.api_source?.preferred));
+      if (preferredDifference !== 0) return preferredDifference;
       const leftVendor = vendorGroup(left.model);
       const rightVendor = vendorGroup(right.model);
       const vendorDifference =
@@ -373,7 +354,8 @@ export function buildCatalog(copilotModels, { includeHidden = false } = {}) {
 
     entry.slug = model.id;
     entry.display_name = displayName(model.name);
-    entry.description = `${vendor} via GitHub Copilot · ${traits.join(" · ")}`;
+    entry.description = `${model.api_source ? `${model.api_source.label} · ${new URL(model.api_source.baseUrl).host}` : `${vendor} via GitHub Copilot`} · ${traits.join(" · ")}`;
+    if (model.api_source) entry.api_source = { ...model.api_source };
     entry.visibility = "list";
     entry.supported_in_api = true;
     entry.priority = priority++;
@@ -441,9 +423,9 @@ export function buildCatalog(copilotModels, { includeHidden = false } = {}) {
       long_context_window_tokens: longTier?.context_window_tokens || null,
       long_context_prompt_tokens: longTier?.max_prompt_tokens || null,
       capability_provenance: {
-        model: "github-copilot-models",
+        model: model.api_source ? "external-models-api" : "github-copilot-models",
         efforts: efforts.length ? "github-copilot-models" : null,
-        context:
+        context: model.api_source ? "local-conservative-default" :
           model.codex_copilot_context?.default_prompt_tokens ||
           model.codex_copilot_context?.long_context_prompt_tokens
             ? "copilot-cli-sdk"

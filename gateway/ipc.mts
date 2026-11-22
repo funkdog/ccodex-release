@@ -34,11 +34,11 @@ export function writeMessage(stream: Writable, value: unknown, callback?: () => 
   stream.write(bytes, callback);
 }
 
-export function attachConnection(socket: net.Socket, { token, generation, handle, onClose, afterReply, traceToken, hostToken }: { token: string; generation: string; traceToken?: string; hostToken?: string; handle: (method: string, params: GatewayParams, connection: GatewayConnection) => Promise<unknown>; onClose: (connection: GatewayConnection) => void; afterReply?: (method: string, result: unknown) => void }) {
+export function attachConnection(socket: net.Socket, { token, generation, handle, onClose, afterReply, traceToken, hostToken, workerToken }: { token: string; generation: string; traceToken?: string; hostToken?: string; workerToken?: string; handle: (method: string, params: GatewayParams, connection: GatewayConnection) => Promise<unknown>; onClose: (connection: GatewayConnection) => void; afterReply?: (method: string, result: unknown) => void }) {
   let authenticated = false;
   let initialized = false;
   let closed = false;
-  let role: "default" | "native-trace" | "native-host" = "default";
+  let role: "default" | "native-trace" | "native-host" | "squad-worker" = "default";
   const pending = new Map<RpcId, (error?: unknown, result?: Answers) => void>();
   const incoming = new Set();
   const send = (message: unknown) => { if (!closed) writeMessage(socket, message); };
@@ -64,9 +64,10 @@ export function attachConnection(socket: net.Socket, { token, generation, handle
   readMessages(socket, message => {
     if (!message || typeof message !== "object" || Array.isArray(message)) throw new Error("Invalid RPC frame.");
     if (!authenticated) {
-      if (message.hello !== 1 || !(message.token === token || traceToken && message.token === traceToken || hostToken && message.token === hostToken) || message.generation !== generation) { socket.destroy(); return; }
+      if (message.hello !== 1 || !(message.token === token || traceToken && message.token === traceToken || hostToken && message.token === hostToken || workerToken && message.token === workerToken) || message.generation !== generation) { socket.destroy(); return; }
       if (message.token === traceToken) role = "native-trace";
       if (message.token === hostToken) role = "native-host";
+      if (message.token === workerToken) role = "squad-worker";
       authenticated = true;
       clearTimeout(helloTimer);
       send({ hello: 1, generation });

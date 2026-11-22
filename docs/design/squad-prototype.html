@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>协作小队 (Squad) — 交互式视觉原型</title>
+  <style>
+    /* ==========================================================================
+       1. 色彩系统 (OKLCH Tokens - 严格遵循 docs/design/squad-visual-spec.md)
+       ========================================================================== */
+    :root,
+    [data-theme="dark"] {
+      /* 中性色阶 (8 步) */
+      --squad-surface-0: oklch(0.14 0.008 260);
+      --squad-surface-1: oklch(0.18 0.010 260);
+      --squad-surface-2: oklch(0.22 0.012 260);
+      --squad-border-subtle: oklch(0.26 0.012 260);
+      --squad-border-strong: oklch(0.36 0.015 260);
+      --squad-text-primary: oklch(0.93 0.006 260);
+      --squad-text-secondary: oklch(0.72 0.012 260);
+      --squad-text-muted: oklch(0.62 0.012 260);
+
+      /* 主强调色 (Squad Identity Accent - Electric Indigo) */
+      --squad-accent-solid: oklch(0.64 0.19 275);
+      --squad-accent-hover: oklch(0.70 0.19 275);
+      --squad-accent-text: oklch(0.78 0.14 275);
+      --squad-accent-surface: oklch(0.24 0.05 275);
+      --squad-accent-ring: oklch(0.64 0.19 275 / 0.55);
+
+      /* 语义状态色: Running (青蓝) */
+      --squad-status-running-dot: oklch(0.72 0.16 240);
+      --squad-status-running-text: oklch(0.78 0.13 240);
+      --squad-status-running-bg: oklch(0.24 0.04 240);
+
+      /* 语义状态色: Settled (翠绿) */
+      --squad-status-settled-dot: oklch(0.74 0.17 152);
+      --squad-status-settled-text: oklch(0.80 0.14 152);
+      --squad-status-settled-bg: oklch(0.23 0.04 152);
+
+      /* 语义状态色: Needs Attention (琥珀橙) */
+      --squad-status-attention-dot: oklch(0.78 0.17 70);
+      --squad-status-attention-text: oklch(0.82 0.15 70);
+      --squad-status-attention-bg: oklch(0.25 0.05 70);
+
+      /* 语义状态色: Idle (冷灰) */
+      --squad-status-idle-dot: oklch(0.52 0.015 260);
+      --squad-status-idle-text: oklch(0.64 0.012 260);
+      --squad-status-idle-bg: oklch(0.21 0.010 260);
+
+      /* 演示画布背景 */
+      --canvas-bg: oklch(0.11 0.006 260);
+      --window-shadow: 0 24px 60px oklch(0 0 0 / 0.65);
+    }
+
+    [data-theme="light"] {
+      /* 中性色阶 (8 步) */
+      --squad-surface-0: oklch(0.96 0.004 260);
+      --squad-surface-1: oklch(0.99 0.002 260);
+      --squad-surface-2: oklch(0.94 0.006 260);
+      --squad-border-subtle: oklch(0.90 0.008 260);
+      --squad-border-strong: oklch(0.80 0.012 260);
+      --squad-text-primary: oklch(0.18 0.010 260);
+      --squad-text-secondary: oklch(0.42 0.014 260);
+      --squad-text-muted: oklch(0.49 0.012 260);
+
+      /* 主强调色 */
+      --squad-accent-solid: oklch(0.52 0.21 275);
+      --squad-accent-hover: oklch(0.46 0.21 275);
+      --squad-accent-text: oklch(0.45 0.19 275);
+      --squad-accent-surface: oklch(0.94 0.03 275);
+      --squad-accent-ring: oklch(0.52 0.21 275 / 0.45);
+
+      /* 语义状态色: Running */
+      --squad-status-running-dot: oklch(0.58 0.18 240);
+      --squad-status-running-text: oklch(0.44 0.16 240);
+      --squad-status-running-bg: oklch(0.94 0.03 240);
+
+      /* 语义状态色: Settled */
+      --squad-status-settled-dot: oklch(0.58 0.17 152);
+      --squad-status-settled-text: oklch(0.42 0.14 152);
+      --squad-status-settled-bg: oklch(0.94 0.03 152);
+
+      /* 语义状态色: Needs Attention */
+      --squad-status-attention-dot: oklch(0.64 0.18 65);
+      --squad-status-attention-text: oklch(0.44 0.15 60);
+      --squad-status-attention-bg: oklch(0.95 0.04 70);
+
+      /* 语义状态色: Idle */
+      --squad-status-idle-dot: oklch(0.62 0.015 260);
+      --squad-status-idle-text: oklch(0.48 0.012 260);
+      --squad-status-idle-bg: oklch(0.95 0.005 260);
+
+      /* 演示画布背景 */
+      --canvas-bg: oklch(0.91 0.006 260);
+      --window-shadow: 0 20px 50px oklch(0.2 0.02 260 / 0.15);
+    }
+
+    /* ==========================================================================
+       2. 间距、圆角与字体阶梯
+       ========================================================================== */
+    :root {
+      --space-0-5: 2px;
+      --space-1: 4px;
+      --space-1-5: 6px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-full: 9999px;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--canvas-bg);
+      color: var(--squad-text-primary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      line-height: 16px;
+      -webkit-font-smoothing: antialiased;
+      padding: 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transition: background-color 150ms ease, color 150ms ease;
+    }
+
+    /* ==========================================================================
+       顶部原型控制台 (方便检验各种状态、亮暗主题、Reduced Motion)
+       ========================================================================== */
+    .proto-toolbar {
+      width: 100%;
+      max-width: 1120px;
+      background: var(--squad-surface-1);
+      border: 1px solid var(--squad-border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .proto-toolbar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .proto-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: var(--radius-xs);
+      background: var(--squad-accent-surface);
+      color: var(--squad-accent-text);
+      border: 1px solid var(--squad-border-subtle);
+    }
+
+    .proto-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-btn {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--squad-border-subtle);
+      background: var(--squad-surface-2);
+      color: var(--squad-text-primary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 150ms ease, transform 120ms ease;
+    }
+
+    .ctrl-btn:hover {
+      border-color: var(--squad-border-strong);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.98);
+    }
+
+    .ctrl-btn[aria-pressed="true"] {
+      background: var(--squad-accent-surface);
+      border-color: var(--squad-accent-solid);
+      color: var(--squad-accent-text);
+    }
+
+    /* ==========================================================================
+       主工作区仿真窗口 (IDE 侧边栏 200px + 代码主区 + 小队协作面板 340px)
+       ========================================================================== */
+    .ide-window {
+      width: 100%;
+      max-width: 1120px;
+      height: 620px;
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      border-radius: 10px;
+      box-shadow: var(--window-shadow);
+      display: grid;
+      grid-template-columns: 200px 1fr 340px;
+      overflow: hidden;
+    }
+
+    /* --------------------------------------------------------------------------
+       区域 A: 原生 200px 侧边栏与【组件 f: 侧边栏会话分组头】
+       -------------------------------------------------------------------------- */
+    .ide-sidebar {
+      width: 200px;
+      background: var(--squad-surface-0);
+      border-right: 1px solid var(--squad-border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-2);
+      user-select: none;
+    }
+
+    .sidebar-top-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--squad-text-muted);
+      padding: 4px 6px 8px;
+      letter-spacing: 0.02em;
+    }
+
+    /* 组件 f: 侧边栏会话分组头 (高度 24px, 适配 200px 宽度) */
+    .sidebar-group-header {
+      height: 24px;
+      padding: var(--space-1) var(--space-1-5);
+      border-radius: var(--radius-xs);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-1);
+      cursor: pointer;
+      color: var(--squad-text-secondary);
+      background: transparent;
+      border: 1px solid transparent;
+    }
+
+    .sidebar-group-header:hover {
+      background: var(--squad-surface-1);
+      color: var(--squad-text-primary);
+    }
+
+    .sidebar-group-header:active,
+    .sidebar-group-header.is-active {
+      background: var(--squad-surface-2);
+      color: var(--squad-text-primary);
+    }
+
+    .sidebar-group-header:focus-visible {
+      outline: none;
+      border-color: var(--squad-accent-ring);
+    }
+
+    .sidebar-group-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      min-width: 0;
+      max-width: 65%;
+    }
+
+    .chevron-icon {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      color: var(--squad-text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(90deg);
+      transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .sidebar-group-header.is-collapsed .chevron-icon {
+      transform: rotate(0deg);
+    }
+
+    .sidebar-group-header:hover .chevron-icon {
+      color: var(--squad-text-secondary);
+    }
+
+    .squad-mini-anchor {
+      width: 4px;
+      height: 4px;
+      border-radius: 1px;
+      background: var(--squad-accent-solid);
+      flex-shrink: 0;
+    }
+
+    .sidebar-group-name {
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-group-stats {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: var(--space-0-5);
+      flex-shrink: 0;
+    }
+
+    /* 侧边栏折叠内会话列表 */
+    .sidebar-session-list {
+      margin-top: 2px;
+      padding-left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transform-origin: top;
+      transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease;
+    }
+
+    .sidebar-session-list.is-hidden {
+      display: none;
+    }
+
+    .sidebar-session-item {
+      height: 24px;
+      padding: 0 6px;
+      border-radius: var(--radius-xs);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--squad-text-secondary);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .sidebar-session-item:hover {
+      background: var(--squad-surface-1);
+      color: var(--squad-text-primary);
+    }
+
+    .sidebar-session-item.is-supervisor {
+      color: var(--squad-text-primary);
+      font-weight: 500;
+    }
+
+    .sidebar-session-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .sidebar-role-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--squad-accent-text);
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--squad-border-subtle);
+      margin: 8px 4px;
+    }
+
+    /* --------------------------------------------------------------------------
+       区域 B: 中央 Supervisor 会话与代码上下文区
+       -------------------------------------------------------------------------- */
+    .ide-center {
+      background: var(--squad-surface-1);
+      border-right: 1px solid var(--squad-border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .supervisor-banner {
+      border: 1px solid var(--squad-border-subtle);
+      background: var(--squad-surface-0);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .supervisor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .supervisor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--squad-accent-text);
+    }
+
+    .supervisor-goal {
+      color: var(--squad-text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .supervisor-desc {
+      color: var(--squad-text-secondary);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    /* 组件图例速览表 */
+    .spec-showcase-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .spec-box {
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+
+    .spec-box-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--squad-text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dot-showcase-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--squad-border-subtle);
+    }
+    .dot-showcase-row:last-child {
+      border-bottom: none;
+    }
+
+    .supervisor-log {
+      margin-top: auto;
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--squad-text-secondary);
+    }
+
+    /* --------------------------------------------------------------------------
+       区域 C: 右侧小队协作面板 (Squad Panel - 包含组件 a, b, c, d, e)
+       -------------------------------------------------------------------------- */
+    .squad-panel {
+      background: var(--squad-surface-0);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+
+    .squad-panel-top {
+      height: 36px;
+      padding: 0 var(--space-3);
+      border-bottom: 1px solid var(--squad-border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--squad-text-secondary);
+    }
+
+    .squad-panel-body {
+      flex: 1;
+      padding: var(--space-2) var(--space-3);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ==========================================================================
+       组件 a: 状态指示点 (Status Dot - 12x12 容器, 6x6 核心)
+       ========================================================================== */
+    .status-dot-wrap {
+      width: 12px;
+      height: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      position: relative;
+      z-index: 2;
+      transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* 1. Idle 态 */
+    .status-dot-wrap[data-status="idle"] .status-dot {
+      background: var(--squad-status-idle-dot);
+    }
+
+    /* 2. Running 态 (带同心扩散伪元素) */
+    .status-dot-wrap[data-status="running"] .status-dot {
+      background: var(--squad-status-running-dot);
+    }
+
+    .status-dot-wrap[data-status="running"]::after {
+      content: "";
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: var(--squad-status-running-dot);
+      z-index: 1;
+      animation: squad-pulse 1600ms cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+    }
+
+    @keyframes squad-pulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.65;
+      }
+      100% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+    }
+
+    /* 3. Settled 态 */
+    .status-dot-wrap[data-status="settled"] .status-dot {
+      background: var(--squad-status-settled-dot);
+    }
+
+    /* 4. Needs Attention 态 (带静态警示外衬底环) */
+    .status-dot-wrap[data-status="needs_attention"] .status-dot {
+      background: var(--squad-status-attention-dot);
+    }
+
+    .status-dot-wrap[data-status="needs_attention"]::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-full);
+      background: var(--squad-status-attention-dot);
+      opacity: 0.28;
+      z-index: 1;
+    }
+
+    /* ==========================================================================
+       组件 c: 小队区块头部 (Squad Section Header - 高度 28px)
+       ========================================================================== */
+    .squad-section-header {
+      height: 28px;
+      padding: var(--space-1) var(--space-2);
+      margin-bottom: var(--space-1);
+      border-radius: var(--radius-xs);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+
+    .squad-section-header:hover {
+      background: var(--squad-surface-1);
+    }
+
+    .squad-header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .squad-identity-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: var(--squad-accent-text);
+      display: inline-block;
+    }
+
+    .squad-header-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--squad-text-primary);
+    }
+
+    .squad-header-count {
+      font-size: 11px;
+      color: var(--squad-text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .squad-agg-pill {
+      height: 20px;
+      padding: var(--space-0-5) var(--space-2);
+      border-radius: var(--radius-full);
+      background: var(--squad-surface-1);
+      border: 1px solid var(--squad-border-subtle);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .agg-item-running { color: var(--squad-status-running-text); }
+    .agg-item-settled { color: var(--squad-status-settled-text); }
+    .agg-item-attention { color: var(--squad-status-attention-text); }
+    .agg-item-idle { color: var(--squad-status-idle-text); }
+    .agg-sep { color: var(--squad-text-muted); }
+
+    /* ==========================================================================
+       组件 b: Worker 成员卡片 (Worker Member Card)
+       ========================================================================== */
+    .worker-card-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .worker-card {
+      background: var(--squad-surface-1);
+      border: 1px solid var(--squad-border-subtle);
+      border-radius: var(--radius-sm);
+      position: relative;
+      overflow: hidden;
+      transition: opacity 150ms ease;
+    }
+
+    .worker-card:hover {
+      background: var(--squad-surface-2);
+      border-color: var(--squad-border-strong);
+    }
+
+    .worker-card:focus-within {
+      border-color: var(--squad-border-strong);
+    }
+
+    .worker-card.is-active {
+      border-color: var(--squad-accent-solid);
+    }
+
+    /* Needs Attention 语义态描边 */
+    .worker-card[data-status="needs_attention"] {
+      border-color: oklch(from var(--squad-status-attention-dot) l c h / 0.45);
+    }
+
+    /* 已派发简报特殊态：左侧 2px 身份色条 */
+    .worker-card.is-dispatched::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--squad-accent-solid);
+    }
+
+    /* Disabled 状态演示 */
+    .worker-card.is-disabled {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .worker-card-main {
+      min-height: 36px;
+      padding: 6px var(--space-3);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .worker-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--squad-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .worker-engine-badge {
+      height: 16px;
+      padding: 0 var(--space-1-5);
+      border-radius: var(--radius-xs);
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      color: var(--squad-text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .worker-spacer {
+      flex: 1;
+    }
+
+    .worker-status-label {
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .worker-card[data-status="running"] .worker-status-label { color: var(--squad-status-running-text); }
+    .worker-card[data-status="settled"] .worker-status-label { color: var(--squad-status-settled-text); }
+    .worker-card[data-status="needs_attention"] .worker-status-label { color: var(--squad-status-attention-text); }
+    .worker-card[data-status="idle"] .worker-status-label { color: var(--squad-status-idle-text); }
+
+    .worker-action-btn {
+      height: 24px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--squad-border-subtle);
+      background: var(--squad-surface-0);
+      color: var(--squad-text-primary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 100ms ease, opacity 120ms ease;
+    }
+
+    .worker-action-btn:hover {
+      border-color: var(--squad-border-strong);
+      background: var(--squad-surface-2);
+    }
+
+    .worker-action-btn:active {
+      transform: scale(0.98);
+    }
+
+    .worker-action-btn:focus-visible {
+      outline: 2px solid var(--squad-accent-ring);
+      outline-offset: 1px;
+    }
+
+    .worker-action-btn.btn-primary-mini {
+      background: var(--squad-accent-solid);
+      border-color: transparent;
+      color: oklch(0.99 0 0);
+    }
+    .worker-action-btn.btn-primary-mini:hover {
+      background: var(--squad-accent-hover);
+    }
+
+    .worker-action-btn.btn-attention-mini {
+      background: var(--squad-status-attention-bg);
+      border-color: var(--squad-status-attention-dot);
+      color: var(--squad-status-attention-text);
+    }
+
+    /* 已派发简报摘要次行 (使卡片形成 56px 双行结构) */
+    .worker-brief-summary {
+      padding: 0 var(--space-3) 8px 32px;
+      margin-top: -2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+    }
+
+    .worker-brief-text {
+      font-size: 11px;
+      color: var(--squad-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .worker-brief-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--squad-accent-text);
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       组件 d: 任务简报编辑区 (Task Brief Inline Editor)
+       ========================================================================== */
+    .brief-editor {
+      border-top: 1px solid var(--squad-border-subtle);
+      padding: var(--space-3);
+      background: var(--squad-surface-1);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      transform-origin: top;
+      animation: editor-expand 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .brief-editor.is-hidden {
+      display: none;
+    }
+
+    @keyframes editor-expand {
+      0% {
+        opacity: 0;
+        transform: translateY(-4px) scaleY(0.96);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+      }
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .form-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--squad-text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .form-input {
+      height: 28px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-xs);
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      color: var(--squad-text-primary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+    }
+
+    .form-textarea {
+      min-height: 60px;
+      padding: 6px var(--space-2);
+      border-radius: var(--radius-xs);
+      background: var(--squad-surface-0);
+      border: 1px solid var(--squad-border-subtle);
+      color: var(--squad-text-primary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      line-height: 16px;
+      resize: vertical;
+    }
+
+    .form-input:hover,
+    .form-textarea:hover {
+      border-color: var(--squad-border-strong);
+    }
+
+    .form-input:focus,
+    .form-textarea:focus {
+      outline: 2px solid var(--squad-accent-ring);
+      border-color: var(--squad-accent-solid);
+    }
+
+    /* 边界声明 (只读自动填入) */
+    .boundary-readonly {
+      min-height: 28px;
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-xs);
+      background: var(--squad-surface-0);
+      border: 1px dashed var(--squad-border-subtle);
+      color: var(--squad-text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: default;
+    }
+
+    .editor-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: var(--space-2);
+      margin-top: 2px;
+    }
+
+    .btn-cancel {
+      height: 28px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-xs);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--squad-text-secondary);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn-cancel:hover {
+      background: var(--squad-surface-2);
+      color: var(--squad-text-primary);
+    }
+
+    .btn-confirm {
+      height: 28px;
+      padding: 0 var(--space-3);
+      border-radius: var(--radius-xs);
+      background: var(--squad-accent-solid);
+      border: none;
+      color: oklch(0.99 0 0);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 100ms ease;
+    }
+
+    .btn-confirm:hover {
+      background: var(--squad-accent-hover);
+    }
+
+    .btn-confirm:active {
+      transform: scale(0.98);
+    }
+
+    .kbd-hint {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    /* ==========================================================================
+       组件 e: 结果汇总条 (Result Aggregation Bar - 面板底部 44px)
+       ========================================================================== */
+    .result-aggregation-bar {
+      height: 44px;
+      margin: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      background: var(--squad-accent-surface);
+      border: 1px solid oklch(from var(--squad-accent-solid) l c h / 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      animation: bar-slide-up 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .result-aggregation-bar.is-hidden {
+      display: none;
+    }
+
+    @keyframes bar-slide-up {
+      0% {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .agg-bar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-width: 0;
+    }
+
+    .settled-check-badge {
+      width: 16px;
+      height: 16px;
+      border-radius: var(--radius-full);
+      background: var(--squad-status-settled-dot);
+      color: oklch(0.14 0.01 260);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .agg-bar-text {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--squad-text-primary);
+      white-space: nowrap;
+    }
+
+    /* ==========================================================================
+       Reduced Motion 无障碍降级方案 (支持系统级与原型手动切换)
+       ========================================================================== */
+    @media (prefers-reduced-motion: reduce) {
+      .status-dot-wrap[data-status="running"]::after {
+        animation: none !important;
+        transform: scale(1.6) !important;
+        opacity: 0.30 !important;
+      }
+      .brief-editor,
+      .result-aggregation-bar,
+      .chevron-icon {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
+    [data-reduced-motion="true"] .status-dot-wrap[data-status="running"]::after {
+      animation: none !important;
+      transform: scale(1.6) !important;
+      opacity: 0.30 !important;
+    }
+
+    [data-reduced-motion="true"] .brief-editor,
+    [data-reduced-motion="true"] .result-aggregation-bar,
+    [data-reduced-motion="true"] .chevron-icon {
+      animation: none !important;
+      transition: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 顶部原型控制栏：一键切换场景、亮/暗主题、Reduced Motion -->
+  <div class="proto-toolbar">
+    <div class="proto-toolbar-title">
+      <span>协作小队 (Squad) 视觉语言原型</span>
+      <span class="proto-badge">OKLCH · 4px Grid</span>
+    </div>
+    <div class="proto-controls">
+      <button class="ctrl-btn" id="btn-scenario-mixed" aria-pressed="true" onclick="setScenario('mixed')">
+        场景 1：混合并行态 (含已派发 / 编辑展开)
+      </button>
+      <button class="ctrl-btn" id="btn-scenario-settled" aria-pressed="false" onclick="setScenario('settled')">
+        场景 2：全部完成 (触发底部结果汇总条)
+      </button>
+      <button class="ctrl-btn" id="btn-motion" aria-pressed="false" onclick="toggleReducedMotion()">
+        Reduced Motion: 关
+      </button>
+      <button class="ctrl-btn" id="btn-theme" onclick="toggleTheme()">
+        切换亮/暗色 (当前: Dark)
+      </button>
+    </div>
+  </div>
+
+  <!-- 仿真桌面端代码助手主界面 -->
+  <div class="ide-window">
+
+    <!-- ==================== 左侧：原生 200px 侧边栏 (组件 f) ==================== -->
+    <aside class="ide-sidebar">
+      <div class="sidebar-top-label">SESSIONS (200px 侧边栏)</div>
+
+      <!-- 组件 f: 侧边栏会话分组头 -->
+      <div
+        class="sidebar-group-header is-active"
+        id="sidebar-squad-header"
+        tabindex="0"
+        role="button"
+        aria-expanded="true"
+        onclick="toggleSidebarGroup()"
+        title="点击折叠/展开小队会话分组"
+      >
+        <div class="sidebar-group-left">
+          <span class="chevron-icon">▸</span>
+          <span class="squad-mini-anchor"></span>
+          <span class="sidebar-group-name">Auth 重构小队</span>
+        </div>
+        <div class="sidebar-group-stats" id="sidebar-agg-stats">
+          <span class="agg-item-attention">⚠1</span>
+          <span class="agg-sep">·</span>
+          <span class="agg-item-running">⟳1</span>
+        </div>
+      </div>
+
+      <!-- 折叠分组下的成员列表 -->
+      <div class="sidebar-session-list" id="sidebar-session-list">
+        <div class="sidebar-session-item is-supervisor">
+          <span class="status-dot-wrap" data-status="running">
+            <span class="status-dot"></span>
+          </span>
+          <span class="sidebar-session-name">Supervisor 主控</span>
+          <span class="sidebar-role-tag">LEAD</span>
+        </div>
+        <div class="sidebar-session-item">
+          <span class="status-dot-wrap" id="side-dot-1" data-status="running">
+            <span class="status-dot"></span>
+          </span>
+          <span class="sidebar-session-name">Worker-1 · 鉴权中间件</span>
+        </div>
+        <div class="sidebar-session-item">
+          <span class="status-dot-wrap" id="side-dot-2" data-status="settled">
+            <span class="status-dot"></span>
+          </span>
+          <span class="sidebar-session-name">Worker-2 · Token 契约</span>
+        </div>
+        <div class="sidebar-session-item">
+          <span class="status-dot-wrap" id="side-dot-3" data-status="needs_attention">
+            <span class="status-dot"></span>
+          </span>
+          <span class="sidebar-session-name">Worker-3 · 迁移脚本</span>
+        </div>
+        <div class="sidebar-session-item">
+          <span class="status-dot-wrap" id="side-dot-4" data-status="idle">
+            <span class="status-dot"></span>
+          </span>
+          <span class="sidebar-session-name">Worker-4 · E2E 回归</span>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-top-label">RECENT</div>
+      <div class="sidebar-session-item">
+        <span class="status-dot-wrap" data-status="idle"><span class="status-dot"></span></span>
+        <span class="sidebar-session-name">修复支付回调幂等性</span>
+      </div>
+      <div class="sidebar-session-item">
+        <span class="status-dot-wrap" data-status="settled"><span class="status-dot"></span></span>
+        <span class="sidebar-session-name">升级 Vite 6 构建配置</span>
+      </div>
+    </aside>
+
+    <!-- ==================== 中间：Supervisor 会话与设计规范对照图例 ==================== -->
+    <main class="ide-center">
+      <div>
+        <div class="supervisor-banner">
+          <div class="supervisor-header">
+            <span class="supervisor-badge">
+              <span class="squad-identity-icon"></span>
+              SUPERVISOR 会话 · Auth 重构小队
+            </span>
+            <span class="worker-engine-badge">claude-3.7-sonnet</span>
+          </div>
+          <div class="supervisor-goal">全局目标：将旧版 Session Cookie 鉴权平滑迁移至双 Token (JWT + Refresh) 架构</div>
+          <div class="supervisor-desc">
+            已在右侧面板创建 4 个并行 Worker。你可以点击任意 Worker 卡片上的「派发 / 编辑简报」展开内联简报编辑器，或点击上方工具栏切换「全部完成」状态体验底部汇总条。
+          </div>
+        </div>
+
+        <!-- 状态点与交互规范实时检视 -->
+        <div class="spec-showcase-grid">
+          <div class="spec-box">
+            <div class="spec-box-title">
+              <span>a) 状态指示点 (Status Dot) 四态</span>
+              <span class="worker-engine-badge">6px core / 12px box</span>
+            </div>
+            <div class="dot-showcase-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span class="status-dot-wrap" data-status="running"><span class="status-dot"></span></span>
+                <span>running (执行中 · 1600ms 呼吸脉冲)</span>
+              </span>
+              <span class="agg-item-running" style="font-family:var(--font-mono)">oklch(240)</span>
+            </div>
+            <div class="dot-showcase-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span class="status-dot-wrap" data-status="settled"><span class="status-dot"></span></span>
+                <span>settled (已完成 · 翠绿静态实心)</span>
+              </span>
+              <span class="agg-item-settled" style="font-family:var(--font-mono)">oklch(152)</span>
+            </div>
+            <div class="dot-showcase-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span class="status-dot-wrap" data-status="needs_attention"><span class="status-dot"></span></span>
+                <span>needs_attention (需注意 · 琥珀双环)</span>
+              </span>
+              <span class="agg-item-attention" style="font-family:var(--font-mono)">oklch(70)</span>
+            </div>
+            <div class="dot-showcase-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span class="status-dot-wrap" data-status="idle"><span class="status-dot"></span></span>
+                <span>idle (空闲 · 冷灰低权重)</span>
+              </span>
+              <span class="agg-item-idle" style="font-family:var(--font-mono)">oklch(260)</span>
+            </div>
+          </div>
+
+          <div class="spec-box">
+            <div class="spec-box-title">
+              <span>交互指引 (Interactive Guide)</span>
+              <span class="worker-engine-badge">Pure Transform/Opacity</span>
+            </div>
+            <div style="color:var(--squad-text-secondary);display:flex;flex-direction:column;gap:6px;font-size:11px;">
+              <div>1. <b>内联简报编辑区</b>：右侧 `Worker-4` 默认展开了任务简报编辑区，可点击「取消」或「确认派发」体验真实派发流转。</div>
+              <div>2. <b>已派发特殊态</b>：`Worker-1` 与 `Worker-2` 带有左侧 `2px` 电光靛紫身份色条与子任务摘要行（双行 `56px`）。</div>
+              <div>3. <b>结果汇总条</b>：点击顶部「场景 2：全部完成」，底部将滑出汇总条，点击「汇总至 Supervisor」可将结果写回主会话。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="supervisor-log" id="supervisor-log">
+        [Supervisor] 等待各 Worker 完成子任务后汇总变更集...
+      </div>
+    </main>
+
+    <!-- ==================== 右侧：小队协作面板 (包含组件 c, b, d, e) ==================== -->
+    <section class="squad-panel" aria-label="协作小队面板">
+      <div class="squad-panel-top">
+        <span>COLLABORATIVE SQUAD</span>
+        <span style="font-family:var(--font-mono);color:var(--squad-text-muted)">4 WORKERS</span>
+      </div>
+
+      <div class="squad-panel-body">
+        <!-- 组件 c: 小队区块头部 (28px 高) -->
+        <div class="squad-section-header" tabindex="0">
+          <div class="squad-header-left">
+            <span class="squad-identity-icon"></span>
+            <span class="squad-header-title">Auth 重构小队</span>
+            <span class="squad-header-count">(4)</span>
+          </div>
+          <div class="squad-agg-pill" id="panel-agg-pill" title="小队实时状态聚合">
+            <span class="agg-item-attention">⚠ 1</span>
+            <span class="agg-sep">·</span>
+            <span class="agg-item-running">⟳ 1</span>
+            <span class="agg-sep">·</span>
+            <span class="agg-item-settled">✓ 1</span>
+          </div>
+        </div>
+
+        <!-- 组件 b: Worker 成员卡片列表 -->
+        <div class="worker-card-list">
+
+          <!-- Worker 1: Running + 已派发简报特殊态 (56px 双行) -->
+          <div class="worker-card is-dispatched" id="card-w1" data-status="running">
+            <div class="worker-card-main">
+              <span class="status-dot-wrap" id="dot-w1" data-status="running">
+                <span class="status-dot"></span>
+              </span>
+              <span class="worker-name">Worker-1 · 鉴权中间件</span>
+              <span class="worker-engine-badge">claude-3.7</span>
+              <span class="worker-spacer"></span>
+              <span class="worker-status-label" id="label-w1">执行中</span>
+              <button class="worker-action-btn" onclick="toggleBriefEditor('w1')">编辑简报</button>
+            </div>
+            <div class="worker-brief-summary" id="summary-w1">
+              <span class="worker-brief-text">重构 src/middleware/jwt.ts 并支持自动续期旋转</span>
+              <span class="worker-brief-tag">已派发</span>
+            </div>
+            <!-- 内联简报编辑区 (默认收起) -->
+            <div class="brief-editor is-hidden" id="editor-w1">
+              <div class="form-field">
+                <label class="form-label">小队目标 (Squad Goal)</label>
+                <input class="form-input" type="text" value="将旧版 Session 鉴权迁移至双 Token 架构" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">当前 Worker 子任务 (Subtask)</label>
+                <textarea class="form-textarea">重构 src/middleware/jwt.ts 并支持自动续期旋转，确保向后兼容旧版请求头。</textarea>
+              </div>
+              <div class="form-field">
+                <label class="form-label">边界声明 (只读自动填入)</label>
+                <div class="boundary-readonly">
+                  <span>🔒</span>
+                  <span>Scope: src/middleware/** · 只读: prisma/schema.prisma</span>
+                </div>
+              </div>
+              <div class="editor-actions">
+                <button class="btn-cancel" onclick="toggleBriefEditor('w1')">取消 <span class="kbd-hint">Esc</span></button>
+                <button class="btn-confirm" onclick="dispatchBrief('w1')">更新派发 <span class="kbd-hint">⌘↵</span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Worker 2: Settled + 已派发简报特殊态 -->
+          <div class="worker-card is-dispatched" id="card-w2" data-status="settled">
+            <div class="worker-card-main">
+              <span class="status-dot-wrap" id="dot-w2" data-status="settled">
+                <span class="status-dot"></span>
+              </span>
+              <span class="worker-name">Worker-2 · Token 契约</span>
+              <span class="worker-engine-badge">o3-mini</span>
+              <span class="worker-spacer"></span>
+              <span class="worker-status-label" id="label-w2">已完成</span>
+              <button class="worker-action-btn" onclick="toggleBriefEditor('w2')">查看简报</button>
+            </div>
+            <div class="worker-brief-summary" id="summary-w2">
+              <span class="worker-brief-text">定义 RefreshToken Payload 类型与 Zod 校验规则</span>
+              <span class="worker-brief-tag">已派发</span>
+            </div>
+            <div class="brief-editor is-hidden" id="editor-w2">
+              <div class="form-field">
+                <label class="form-label">小队目标 (Squad Goal)</label>
+                <input class="form-input" type="text" value="将旧版 Session 鉴权迁移至双 Token 架构" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">当前 Worker 子任务 (Subtask)</label>
+                <textarea class="form-textarea">定义 RefreshToken Payload 类型与 Zod 校验规则。</textarea>
+              </div>
+              <div class="form-field">
+                <label class="form-label">边界声明 (只读自动填入)</label>
+                <div class="boundary-readonly">
+                  <span>🔒</span>
+                  <span>Scope: src/types/auth.ts · 禁止修改路由层</span>
+                </div>
+              </div>
+              <div class="editor-actions">
+                <button class="btn-cancel" onclick="toggleBriefEditor('w2')">关闭 <span class="kbd-hint">Esc</span></button>
+                <button class="btn-confirm" onclick="dispatchBrief('w2')">重新派发 <span class="kbd-hint">⌘↵</span></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Worker 3: Needs Attention 态 -->
+          <div class="worker-card is-dispatched" id="card-w3" data-status="needs_attention">
+            <div class="worker-card-main">
+              <span class="status-dot-wrap" id="dot-w3" data-status="needs_attention">
+                <span class="status-dot"></span>
+              </span>
+              <span class="worker-name">Worker-3 · 迁移脚本</span>
+              <span class="worker-engine-badge">claude-3.7</span>
+              <span class="worker-spacer"></span>
+              <span class="worker-status-label" id="label-w3">需确认</span>
+              <button class="worker-action-btn btn-attention-mini" id="btn-w3" onclick="resolveAttention()">处理</button>
+            </div>
+            <div class="worker-brief-summary" id="summary-w3">
+              <span class="worker-brief-text">检测到 Redis 键前缀冲突，等待人工确认清理策略</span>
+              <span class="worker-brief-tag" style="color:var(--squad-status-attention-text)">阻塞待批</span>
+            </div>
+          </div>
+
+          <!-- Worker 4: Idle 态 + 默认展开【组件 d: 任务简报编辑区】 -->
+          <div class="worker-card is-active" id="card-w4" data-status="idle">
+            <div class="worker-card-main">
+              <span class="status-dot-wrap" id="dot-w4" data-status="idle">
+                <span class="status-dot"></span>
+              </span>
+              <span class="worker-name">Worker-4 · E2E 回归</span>
+              <span class="worker-engine-badge">sonnet-3.7</span>
+              <span class="worker-spacer"></span>
+              <span class="worker-status-label" id="label-w4">空闲</span>
+              <button class="worker-action-btn btn-primary-mini" id="btn-w4" onclick="toggleBriefEditor('w4')">派发</button>
+            </div>
+            <div class="worker-brief-summary is-hidden" id="summary-w4" style="display:none;">
+              <span class="worker-brief-text" id="summary-text-w4">编写登录、Token 刷新与登出吊销的 Playwright 用例</span>
+              <span class="worker-brief-tag">已派发</span>
+            </div>
+
+            <!-- 组件 d: 任务简报编辑区 (默认展开供直接检视) -->
+            <div class="brief-editor" id="editor-w4">
+              <div class="form-field">
+                <label class="form-label">
+                  <span>小队目标 (Squad Goal)</span>
+                  <span style="font-family:var(--font-mono);color:var(--squad-text-muted)">继承自 Supervisor</span>
+                </label>
+                <input class="form-input" type="text" value="将旧版 Session 鉴权迁移至双 Token 架构" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">当前 Worker 子任务 (Worker Subtask)</label>
+                <textarea class="form-textarea" id="textarea-w4" placeholder="输入派发给该 Worker 的具体任务简报...">编写登录、Token 刷新与登出吊销的 Playwright E2E 测试用例，覆盖过期与并发刷新边界。</textarea>
+              </div>
+              <div class="form-field">
+                <label class="form-label">边界声明 (只读自动填入)</label>
+                <div class="boundary-readonly">
+                  <span>🔒</span>
+                  <span>Scope: tests/e2e/auth.spec.ts · 禁止修改 src/**</span>
+                </div>
+              </div>
+              <div class="editor-actions">
+                <button class="btn-cancel" onclick="toggleBriefEditor('w4')">取消 <span class="kbd-hint">Esc</span></button>
+                <button class="btn-confirm" onclick="dispatchBrief('w4')">确认派发 <span class="kbd-hint">⌘↵</span></button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 组件 e: 结果汇总条 (所有 Worker 完成后在面板底部出现) -->
+      <div class="result-aggregation-bar is-hidden" id="result-agg-bar">
+        <div class="agg-bar-left">
+          <span class="settled-check-badge">✓</span>
+          <span class="agg-bar-text">4 个 Worker 已全部完成</span>
+        </div>
+        <button class="btn-confirm" id="btn-merge-supervisor" onclick="mergeToSupervisor()">
+          汇总至 Supervisor ↵
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // 1. 切换亮/暗色主题
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('btn-theme').textContent =
+        `切换亮/暗色 (当前: ${next === 'dark' ? 'Dark' : 'Light'})`;
+    }
+
+    // 2. 切换 Reduced Motion 降级方案
+    function toggleReducedMotion() {
+      const html = document.documentElement;
+      const isReduced = html.getAttribute('data-reduced-motion') === 'true';
+      html.setAttribute('data-reduced-motion', !isReduced);
+      const btn = document.getElementById('btn-motion');
+      btn.setAttribute('aria-pressed', String(!isReduced));
+      btn.textContent = `Reduced Motion: ${!isReduced ? '开 (静态双环降级)' : '关'}`;
+    }
+
+    // 3. 侧边栏小队会话分组折叠/展开
+    function toggleSidebarGroup() {
+      const header = document.getElementById('sidebar-squad-header');
+      const list = document.getElementById('sidebar-session-list');
+      const isCollapsed = header.classList.toggle('is-collapsed');
+      header.setAttribute('aria-expanded', String(!isCollapsed));
+      list.classList.toggle('is-hidden', isCollapsed);
+    }
+
+    // 4. 展开/收起内联任务简报编辑区
+    function toggleBriefEditor(workerId) {
+      const editor = document.getElementById(`editor-${workerId}`);
+      const card = document.getElementById(`card-${workerId}`);
+      const isHidden = editor.classList.toggle('is-hidden');
+      card.classList.toggle('is-active', !isHidden);
+    }
+
+    // 5. 确认派发简报 -> 卡片转入 "已派发简报" 特殊态 + Running 状态
+    function dispatchBrief(workerId) {
+      const card = document.getElementById(`card-${workerId}`);
+      const dot = document.getElementById(`dot-${workerId}`);
+      const label = document.getElementById(`label-${workerId}`);
+      const editor = document.getElementById(`editor-${workerId}`);
+      const summary = document.getElementById(`summary-${workerId}`);
+
+      if (workerId === 'w4') {
+        const val = document.getElementById('textarea-w4').value.trim();
+        if (val) {
+          document.getElementById('summary-text-w4').textContent = val;
+        }
+        const btn = document.getElementById('btn-w4');
+        btn.textContent = '编辑简报';
+        btn.classList.remove('btn-primary-mini');
+        summary.style.display = 'flex';
+        document.getElementById('side-dot-4').setAttribute('data-status', 'running');
+      }
+
+      card.classList.add('is-dispatched');
+      card.classList.remove('is-active');
+      card.setAttribute('data-status', 'running');
+      dot.setAttribute('data-status', 'running');
+      label.textContent = '执行中';
+      editor.classList.add('is-hidden');
+
+      document.getElementById('supervisor-log').textContent =
+        `[Supervisor] 已向 ${workerId.toUpperCase()} 派发任务简报，Worker 已进入 running 状态。`;
+    }
+
+    // 6. 处理 Needs Attention 阻塞项
+    function resolveAttention() {
+      const card = document.getElementById('card-w3');
+      const dot = document.getElementById('dot-w3');
+      const label = document.getElementById('label-w3');
+      const btn = document.getElementById('btn-w3');
+
+      card.setAttribute('data-status', 'running');
+      dot.setAttribute('data-status', 'running');
+      document.getElementById('side-dot-3').setAttribute('data-status', 'running');
+      label.textContent = '执行中';
+      btn.textContent = '查看';
+      btn.classList.remove('btn-attention-mini');
+      document.getElementById('summary-w3').innerHTML =
+        `<span class="worker-brief-text">已确认使用 auth:v2: 命名空间，正在执行 Redis 迁移脚本</span><span class="worker-brief-tag">已派发</span>`;
+
+      document.getElementById('panel-agg-pill').innerHTML =
+        `<span class="agg-item-running">⟳ 2</span><span class="agg-sep">·</span><span class="agg-item-settled">✓ 1</span>`;
+      document.getElementById('sidebar-agg-stats').innerHTML =
+        `<span class="agg-item-running">⟳2</span><span class="agg-sep">·</span><span class="agg-item-settled">✓1</span>`;
+    }
+
+    // 7. 场景一键切换 (混合态 vs 全部完成态)
+    function setScenario(mode) {
+      const isSettled = mode === 'settled';
+      document.getElementById('btn-scenario-mixed').setAttribute('aria-pressed', String(!isSettled));
+      document.getElementById('btn-scenario-settled').setAttribute('aria-pressed', String(isSettled));
+
+      const aggBar = document.getElementById('result-agg-bar');
+      const mergeBtn = document.getElementById('btn-merge-supervisor');
+      mergeBtn.textContent = '汇总至 Supervisor ↵';
+      mergeBtn.style.opacity = '1';
+      mergeBtn.disabled = false;
+
+      if (isSettled) {
+        // 将全部 4 个 Worker 设为 settled 完成态，展示底部结果汇总条
+        ['w1', 'w2', 'w3', 'w4'].forEach((id, idx) => {
+          const card = document.getElementById(`card-${id}`);
+          const dot = document.getElementById(`dot-${id}`);
+          const label = document.getElementById(`label-${id}`);
+          const editor = document.getElementById(`editor-${id}`);
+          card.setAttribute('data-status', 'settled');
+          card.classList.add('is-dispatched');
+          card.classList.remove('is-active');
+          dot.setAttribute('data-status', 'settled');
+          label.textContent = '已完成';
+          if (editor) editor.classList.add('is-hidden');
+          document.getElementById(`side-dot-${idx + 1}`).setAttribute('data-status', 'settled');
+        });
+        document.getElementById('summary-w4').style.display = 'flex';
+        document.getElementById('btn-w4').textContent = '查看简报';
+        document.getElementById('btn-w4').classList.remove('btn-primary-mini');
+        document.getElementById('btn-w3').textContent = '查看简报';
+        document.getElementById('btn-w3').classList.remove('btn-attention-mini');
+
+        document.getElementById('panel-agg-pill').innerHTML =
+          `<span class="agg-item-settled">✓ 4</span>`;
+        document.getElementById('sidebar-agg-stats').innerHTML =
+          `<span class="agg-item-settled">✓4</span>`;
+
+        aggBar.classList.remove('is-hidden');
+        document.getElementById('supervisor-log').textContent =
+          `[Supervisor] 所有 4 个 Worker 均已进入 settled 状态，底部结果汇总条已激活。`;
+      } else {
+        window.location.reload();
+      }
+    }
+
+    // 8. 汇总结果至 Supervisor
+    function mergeToSupervisor() {
+      const btn = document.getElementById('btn-merge-supervisor');
+      btn.textContent = '已汇总 ✓';
+      btn.style.opacity = '0.6';
+      btn.disabled = true;
+      document.getElementById('supervisor-log').textContent =
+        `[Supervisor] ✓ 已成功合并 4 个 Worker 的变更集摘要与测试报告，可直接在主会话提交 PR。`;
+    }
+  </script>
+</body>
+</html>

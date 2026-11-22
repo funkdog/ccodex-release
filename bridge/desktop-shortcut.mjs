@@ -27,7 +27,6 @@ export async function runDesktopShortcut({ root = path.resolve(import.meta.dirna
   queueRepair = queueDesktopRepairSession, retirementTimeoutMs = 75000,
   delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)) } = {}) {
   const selection = resolveDesktopMode({ arguments: ["--config", configFile], inherited });
-  if (selection.gateway?.workbench === false) queueRepair = async () => ({ action: "disabled" });
   if (selection.host !== "current" || selection.mode !== "app-server-gateway") throw new Error("MyCodex shortcut requires the current-host gateway configuration.");
   // A configured backend failure stays visible. The emergency path starts
   // the signed stock app without an empty or incompatible MyCodex router.

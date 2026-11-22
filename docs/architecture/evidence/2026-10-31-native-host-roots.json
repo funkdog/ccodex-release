@@ -73,11 +73,11 @@
     "storageKey": "local-projects",
     "selectedProject": {
       "type": "local",
-      "projectId": "0a506a2c-780e-43c0-91f9-05670cfb9c46"
+      "projectId": "project-a"
     },
     "projects": [
       {
-        "id": "0a506a2c-780e-43c0-91f9-05670cfb9c46",
+        "id": "project-a",
         "name": "MyCodex",
         "rootPaths": [
           "/Users/<user>/workspace/ccodex-release",
@@ -86,8 +86,8 @@
         "updatedAt": 1793446813977
       },
       {
-        "id": "96019ccc-8a36-433f-a41b-10add8bf643a",
-        "name": "Ainvest-Terminal-Cloud",
+        "id": "project-b",
+        "name": "External-Service-Repo",
         "rootPaths": [
           "/Users/<user>/workspace/other-project",
           "/Users/<user>/workspace/ccodex-release"
@@ -106,7 +106,7 @@
       {
         "name": "MyCodex",
         "nativeId": "01a186dc-b3a8-7471-bb44-75c7de3b57ec",
-        "legacyId": "0a506a2c-780e-43c0-91f9-05670cfb9c46",
+        "legacyId": "project-a",
         "nativeRoots": [
           {
             "path": "/Users/<user>/workspace/ccodex-release"
@@ -119,9 +119,9 @@
         "desktopMatches": true
       },
       {
-        "name": "Ainvest-Terminal-Cloud",
+        "name": "External-Service-Repo",
         "nativeId": "01a15877-8f80-7ed3-a118-619d6af75156",
-        "legacyId": "96019ccc-8a36-433f-a41b-10add8bf643a",
+        "legacyId": "project-b",
         "nativeRoots": [
           {
             "path": "/Users/<user>/workspace/other-project"

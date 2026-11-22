@@ -9,12 +9,17 @@ import { pathToFileURL } from "node:url";
 import { connectCdp, CdpTargetSessions } from "./desktop-cdp.mjs";
 import { readProcessIdentity, sameProcessLifetime, desktopEndpointOwner } from "./desktop-process.mjs";
 import { inspectCurrentHost } from "./desktop-current-host.mjs";
+import { openSystemBrowser } from "./desktop-actions.mjs";
+import { launchModelSources } from "./model-sources-launch.mjs";
 import { createCliSelectorServices } from "./desktop-cli-selector.mjs";
+import { desktopPickerBinding } from "./desktop-model-controls.mjs";
+import { currentHostContracts } from "./desktop-current-host-contract.mjs";
+import { readNativeComposerRoute } from "./desktop-native-composer.mjs";
 import { buildNativeSessionsPatch } from "./desktop-native-composer.mjs";
 import { readRoutingConnection } from "../gateway/routed-stdio.mjs";
 import { RpcPeer } from "../gateway/rpc-peer.mjs";
 import { connectGateway, writeMessage } from "../gateway/ipc.mjs";
-import { buildSpinePatch } from "./desktop-spine-ui.mjs";
+import { buildDesktopSquadsPatch, loadDesktopSquads } from "./desktop-sessions.mjs";
 import { boundedJson, DIY_REQUEST_BYTES, DIY_RESPONSE_BYTES } from "../gateway/spine/registry.mjs";
 import { createUiHealthPublisher, type UiComponentHealth } from "./desktop-ui-health.mjs";
 
@@ -34,7 +39,7 @@ export function parseGatewayUiRequest(payload: string): GatewayUiRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid UI request.");
   const p = value as Record<string, unknown>;
   if (Object.keys(p).some(key => !["id", "method", "params"].includes(key)) || typeof p.id !== "string" || !p.id.length || p.id.length > 128 || typeof p.method !== "string" ||
-    !(["listModels", "refreshModels", "listThreads", "updateSettings", "setApprovalDefault"].includes(p.method) || /^diy\/[a-z][a-z0-9_-]*\/[a-z][a-z0-9_-]*$/.test(p.method)) ||
+    !["listModels", "refreshModels", "listThreads", "listSquads", "updateSettings", "switchExecution", "openModelSources", "setApprovalDefault"].includes(p.method) ||
     (p.params !== undefined && (!p.params || typeof p.params !== "object" || Array.isArray(p.params)))) throw new Error("Invalid or unapproved UI method.");
   return { id: p.id, method: p.method, params: (p.params ?? {}) as Record<string, unknown> };
 }
@@ -66,6 +71,48 @@ export async function watchGatewayUi({ active, assertHost, update, wait = () => 
   }
 }
 
+/** Serialized into an already verified host renderer. All dependencies are
+ * explicit arguments; the Studio view itself never touches native internals. */
+export async function navigateDesktopSquadThread(threadId: string, anchorThreadId: string,
+  routeReader: typeof readNativeComposerRoute, contracts: typeof currentHostContracts, navigate: boolean, expectedRoute?: string): Promise<boolean | string> {
+  const host = globalThis as unknown as import("./desktop-diy-contracts.mjs").HostWindow;
+  if (host.codexWindowType !== 'electron' || !contracts.some(contract => contract.version === host.electronBridge?.getSentryInitOptions?.().appVersion && contract.ui)) return false;
+  const current = () => routeReader(document.querySelector('main, [role="main"]') ?? document.body)?.pathname;
+  const destination = `/local/${threadId}`;
+  if (!navigate) return current() ?? false;
+  if (current() !== expectedRoute) return false;
+  if (current() === destination) return true;
+  host.dispatchEvent(new host.MessageEvent('message', { data: { type: 'navigate-to-route', path: destination } }));
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (current() === destination) return true;
+    await new Promise<void>(resolve => host.setTimeout(resolve, 25));
+  }
+  return false;
+}
+
+export async function openDesktopSquadThread(targets: Iterable<{ session: CdpSession; contexts: Set<number> }>, params: unknown, assertHost: () => void): Promise<{ opened: boolean; reason?: string }> {
+  const p = params as { threadId?: string; anchorThreadId?: string } | null;
+  const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+  if (!p || typeof p !== 'object' || Object.keys(p).some(key => !['threadId','anchorThreadId'].includes(key)) || typeof p.threadId !== 'string' || typeof p.anchorThreadId !== 'string' || !uuid.test(p.threadId) || !uuid.test(p.anchorThreadId)) throw new Error('Invalid Desktop thread destination.');
+  const expression = (navigate: boolean, expectedRoute?: string) => `(()=>{const desktopPickerBinding=${desktopPickerBinding.toString()};return (${navigateDesktopSquadThread.toString()})(${JSON.stringify(p.threadId)},${JSON.stringify(p.anchorThreadId)},${readNativeComposerRoute.toString()},${JSON.stringify(currentHostContracts)},${navigate},${JSON.stringify(expectedRoute)});})()`;
+  const candidates: Array<{ session: CdpSession; contextId: number; route: string }> = [];
+  for (const target of targets) for (const contextId of target.contexts) {
+    if (!target.session.active) continue;
+    assertHost();
+    try {
+      const probe = await target.session.send('Runtime.evaluate', { contextId, expression: expression(false), returnByValue: true, awaitPromise: true });
+      if (!probe.exceptionDetails && typeof probe.result?.value === 'string') candidates.push({ session: target.session, contextId, route: probe.result.value });
+    } catch { /* A vanished renderer is unavailable, never another destination. */ }
+  }
+  const preferred = candidates.filter(target => [`/local/${p.threadId}`, `/local/${p.anchorThreadId}`].includes(target.route));
+  const matches = preferred.length ? preferred : candidates;
+  if (matches.length !== 1) return { opened: false, reason: 'No unique matching Desktop window is connected.' };
+  assertHost();
+  const { session, contextId, route } = matches[0];
+  const result = await session.send('Runtime.evaluate', { contextId, expression: expression(true, route), returnByValue: true, awaitPromise: true });
+  return { opened: !result.exceptionDetails && result.result?.value === true };
+}
+
 export async function runGatewayUi(receiptFile: string) {
   const stat = fs.lstatSync(receiptFile);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024 || (stat.mode & 0o077)) throw new Error("Invalid private current-host receipt.");
@@ -91,8 +138,9 @@ export async function runGatewayUi(receiptFile: string) {
   socket = await connectGateway(config, message => peer.receive(message));
   socket.on("close", () => peer.close());
   const sessions = new CdpTargetSessions() as unknown as CdpSessions;
-  const services = createCliSelectorServices((method, params) => peer.request(method, params,
-    { timeoutMs: ["model/list", "gateway/models/refresh"].includes(method) ? 45000 : 15000 }));
+  const services = createCliSelectorServices((method, params) => peer.request(method,
+    method === "gateway/conversation/switch" ? { ...params, frontendPid: receipt.identity.pid } : params,
+    { timeoutMs: method === "gateway/conversation/switch" ? 65000 : ["model/list", "gateway/models/refresh"].includes(method) ? 45000 : 15000 }));
   let stopping = false, bindingReported = false;
   const activityTargets = new Map<string, { session: CdpSession; contexts: Set<number>; event: string }>();
   peer.onNotification = message => {
@@ -103,18 +151,29 @@ export async function runGatewayUi(receiptFile: string) {
       target.session.send("Runtime.evaluate", { contextId, expression: `globalThis.dispatchEvent(new CustomEvent(${JSON.stringify(target.event)}, {detail:${JSON.stringify(message.params)}}))`, returnByValue: true }).catch(() => {});
     }
   };
+  peer.onRequest = message => {
+    if (message.method !== 'mycodex/desktop/open_thread' || stopping) {
+      peer.notify({ id: message.id, error: { code: -32601, message: 'Unsupported Desktop UI operation.' } }); return;
+    }
+    void openDesktopSquadThread(activityTargets.values(), message.params, assertHost).then(result => {
+      if (!peer.closed) peer.notify({ id: message.id, result });
+    }, cause => {
+      if (!peer.closed) peer.notify({ id: message.id, error: { code: -32000, message: (cause instanceof Error ? cause.message : String(cause)).slice(0, 400) } });
+    });
+  };
   const stop = () => { stopping = true; };
   process.once("SIGTERM", stop); process.once("SIGINT", stop);
   try {
     await peer.request("initialize", { clientInfo: { name: "mycodex_selector", version: "0.1" } }, { timeoutMs: 5000 });
     peer.notify({ method: "initialized" });
+    await peer.request('gateway/desktop/register', { frontendPid: receipt.identity.pid }, { timeoutMs: 5000 });
     await watchGatewayUi({ active: () => !stopping && !peer.closed, assertHost, onTransient: () => health("retrying"), update: async () => {
       const response = await fetch(`http://127.0.0.1:${receipt.port}/json/list`, { signal: AbortSignal.timeout(5000), redirect: "error" });
       if (!response.ok) throw new Error("Current-host renderer catalog is unavailable.");
       const targets = (await response.json() as CdpTarget[]).filter(target => target.type === "page" && String(target.url).startsWith("app://-/"));
       sessions.retain(targets);
       let ready = false;
-      const components: UiComponentHealth = { nativeSessions: "pending", workbench: config.spine ? "pending" : "disabled" };
+      const components: UiComponentHealth = { nativeSessions: "pending", squads: "pending" };
       for (const target of targets) {
         const endpoint = new URL(target.webSocketDebuggerUrl);
         if (endpoint.protocol !== "ws:" || !["127.0.0.1", "localhost"].includes(endpoint.hostname) || Number(endpoint.port) !== receipt.port || endpoint.username || endpoint.password) throw new Error("Unexpected renderer endpoint.");
@@ -141,7 +200,10 @@ export async function runGatewayUi(receiptFile: string) {
                 inFlight.add(request.id);
                 let result, error;
                 try {
-                  if (request.method.startsWith("diy/")) result = await peer.request(request.method, request.params, { timeoutMs: /^diy\/(?:work\/(?:dispatch|handoff|integrate)|goals\/plan)$/.test(request.method) ? 120000 : 15000 });
+                  if (request.method === "listSquads") {
+                    if (Object.keys(request.params).length) throw new Error("Squad listing takes no parameters.");
+                    result = await peer.request("diy/squad/list", {});
+                  }
                   else if (request.method === "listModels") result = await services.listModels();
                   else if (request.method === "refreshModels") result = await services.refreshModels!();
                   else if (request.method === "setApprovalDefault") {
@@ -150,9 +212,19 @@ export async function runGatewayUi(receiptFile: string) {
                         !["ask", "read-only", "auto", "deny"].includes(String(p.cliApprovalMode))) throw new Error("Invalid CLI approval preference.");
                     result = await services.setApprovalDefault!(p as { model: string; cliApprovalMode: import("../gateway/contracts.mjs").ApprovalMode });
                   }
+                  else if (request.method === "openModelSources") {
+                    if (Object.keys(request.params).length) throw new Error("Source settings takes no parameters.");
+                    const provider = config.engines?.find(engine => engine.adapter === "codex-copilot");
+                    if (!provider || provider.adapter !== "codex-copilot") throw new Error("当前实例尚未配置 API bridge。");
+                    await openSystemBrowser(await launchModelSources(provider.bridgeHome, provider.bridgePort)); result = {};
+                  }
                   else if (request.method === "listThreads") {
                     if (request.params.cursor != null && typeof request.params.cursor !== "string") throw new Error("Invalid thread cursor.");
                     result = await services.listThreads({ cursor: request.params.cursor as string | null | undefined });
+                  } else if (request.method === "switchExecution") {
+                    const p = request.params;
+                    if (Object.keys(p).some(key => !["threadId", "model", "expectedModel"].includes(key)) || typeof p.threadId !== "string" || typeof p.model !== "string" || p.expectedModel !== undefined && typeof p.expectedModel !== "string") throw new Error("Invalid execution switch.");
+                    result = await services.switchExecution!(p as { threadId: string; model: string; expectedModel?: string });
                   } else {
                     const p = request.params;
                     if (typeof p.threadId !== "string" || (p.model !== undefined && typeof p.model !== "string") ||
@@ -173,25 +245,25 @@ export async function runGatewayUi(receiptFile: string) {
           mainFrame = (await session!.send("Page.getFrameTree")).frameTree!.frame.id;
           await session!.send("Runtime.enable");
           await session!.send("Runtime.addBinding", { name: binding });
-          // Mount the workbench before awaiting the independent native model
-          // controls. Lazy host modules must not hold back goals and work.
-          session.selectorPatch = `(async()=>{const workbench=${config.spine ? buildSpinePatch(binding, responseEvent, config.spine.ui?.rightOffset) : '"disabled"'};
+          // Sidebar state and return navigation are independent of the Studio
+          // and inline cards; no legacy workbench is injected into the host.
+          session.selectorPatch = `(async()=>{const squads=${buildDesktopSquadsPatch(binding, responseEvent, true)};
             const nativeSessions=await (${buildNativeSessionsPatch(binding, responseEvent)});
-            return {nativeSessions,workbench};})()`;
+            return {nativeSessions,squads};})()`;
           activityTargets.set(target.id, { session, contexts, event: responseEvent + "_activity" });
           sessions.set(target.id, session);
         }
         const installed = await session!.send("Runtime.evaluate", { expression: session.selectorPatch, returnByValue: true, awaitPromise: true });
         if (installed.exceptionDetails) throw new Error(`Native session integration: ${installed.exceptionDetails.exception?.description || installed.exceptionDetails.text}`);
         const value = installed.result?.value as UiComponentHealth | undefined;
-        if (value?.nativeSessions === "active" && (!config.spine || value.workbench === "active")) ready = true;
-        for (const key of ["nativeSessions", "workbench"] as const) {
+        if (value?.nativeSessions === "active" && value.squads === "active") ready = true;
+        for (const key of ["nativeSessions", "squads"] as const) {
           const state = value?.[key];
           if (state === "active" || components[key] !== "active" && state === "unavailable") components[key] = state;
         }
-        if (!bindingReported && components.workbench === "active") {
+        if (!bindingReported && components.squads === "active") {
           bindingReported = true;
-          console.error("MyCodex 工作台已接入当前窗口。");
+          console.error("MyCodex 小队侧栏与返回导航已接入当前窗口。");
         }
       }
       health(ready ? "ready" : "pending", components);
@@ -199,7 +271,7 @@ export async function runGatewayUi(receiptFile: string) {
   } finally {
     health("unavailable");
     for (const session of sessions.sessions.values()) {
-      try { await session.evaluate("globalThis.__mycodexSpine?.dispose();globalThis.__mycodexNativeSessions?.dispose()"); } catch {}
+      try { await session.evaluate("globalThis.__codexCopilotSquadsV1?.dispose();globalThis.__mycodexNativeSessions?.dispose()"); } catch {}
     }
     sessions.close(); socket.destroy(); peer.close();
     activityTargets.clear();

@@ -7,8 +7,10 @@ export const p2SourceFiles = [...new Set([...spineSourceFiles,
   "gateway/media.mts", "gateway/input.mts", "gateway/protocol.mts", "gateway/router.mts", "gateway/ipc.mts", "gateway/acp-peer.mts",
   "gateway/engines/antigravity.mts", "gateway/engines/gemini-cli.mts", "gateway/engines/github-copilot.mts", "gateway/engines/claude-code.mts",
   "gateway/spine/config.mts", "gateway/spine/io.mts", "gateway/spine/schema.mts", "gateway/spine/kernel.mts", "gateway/spine/trace.mts", "gateway/spine/trace-peer.mts", "gateway/spine/radar.mts", "gateway/spine/daily.mts", "gateway/spine/knowledge.mts", "gateway/spine/knowledge-contracts.mts", "gateway/spine/schemas/mycodex-knowledge-card.schema.json",
-  "bridge/diy/radar-panel.mts", "bridge/diy/daily-panel.mts", "bridge/diy/workbench.mts",
-  "tests/gateway-media-test.mjs", "tests/spine-p2-test.mjs", "tests/spine-p2-ui-test.mjs", "tests/spine-native-tap-test.mjs", "tests/types/spine-p2-contracts.mts", "tests/fixtures/antigravity-acp.mjs", "tests/fixtures/gemini-acp.mjs", "tools/typescript-state.mjs", "tools/check-spine-p2-source.mjs", "docs/architecture/0020-spine-p2.zh-CN.md", "docs/architecture/evidence/2026-11-02-spine-p2.json",
+  "bridge/diy/squad-card.mts",
+  "gateway/spine/squad-commands.mts", "gateway/spine/squad-v2-contracts.mts", "gateway/spine/squad-v2-state.mts", "gateway/spine/squad-v2-workspace.mts", "gateway/spine/squad-v2-kernel.mts", "gateway/spine/squad-service.mts",
+  "tests/squad-lifecycle-test.mjs", "tests/squad-v2-adversarial-test.mjs", "tests/squad-v2-ui-test.mjs",
+  "tests/gateway-media-test.mjs", "tests/spine-p2-test.mjs", "tests/spine-native-tap-test.mjs", "tests/types/spine-p2-contracts.mts", "tests/fixtures/antigravity-acp.mjs", "tests/fixtures/gemini-acp.mjs", "tools/typescript-state.mjs", "tools/check-spine-p2-source.mjs", "docs/architecture/0020-spine-p2.zh-CN.md", "docs/architecture/evidence/2026-11-02-spine-p2.json",
 ])];
 export function auditP2(root = path.resolve(import.meta.dirname, "..")) {
   const result = auditSourceFiles(root, p2SourceFiles);

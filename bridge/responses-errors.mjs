@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-const CONTEXT_CODES = new Set(["context_length_exceeded", "context_window_exceeded"]);
-const CONTEXT_MESSAGE = /(?:input exceeds the context window|maximum context length (?:is|of)|context (?:window|length) (?:has been )?exceeded)/i;
+const CONTEXT_CODES = new Set([
+  "context_length_exceeded",
+  "context_window_exceeded",
+  "payload_too_large",
+  "request_too_large",
+]);
+const CONTEXT_MESSAGE = /(?:input exceeds the context window|maximum context length (?:is|of)|context (?:window|length) (?:has been )?exceeded|request entity too large|payload too large|too many images)/i;
 
 export function isContextWindowError(error) {
   return Boolean(error && typeof error === "object" && (
