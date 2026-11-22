@@ -17,9 +17,9 @@ MyCodex 在兼容的**官方 Codex / ChatGPT 原生桌面客户端**里加入本
 
 ![MyCodex：官方 Codex 原生桌面端 + 多模型引擎网关 + 右侧栏 Squad Studio](docs/assets/mycodex-squad-overview.png)
 
-## 小队设计取舍：别把多 Agent 做成群聊
+## 实践范式与核心设计取舍
 
-UC Berkeley 等研究者用 MAST 分析了 1,642 条执行轨迹，记录了任务约定、成员协调和验收环节的多类失败。Anthropic 的 Research 实践把可独立探索的问题放进各自的上下文。Cognition 的 Devin 团队指出，代码写入会固化未明说的决策，多人同时改动时这些决策可能相撞。他们也报告了让独立审查者从 Diff 开始复核的经验。[MAST 论文](https://openreview.net/attachment?id=fAjbYBmonr&name=pdf) · [Anthropic Research 工程实践](https://www.anthropic.com/research/multi-agent-research-system) · [Cognition 的多 Agent 实践](https://cognition.com/blog/multi-agents-working)
+MyCodex Squad 并非唯一的多智能体形态，而是我们在复杂工程开发、多模态内容制作等长链路场景中摸索出的一种顺手实践范式。UC Berkeley 等研究者用 MAST 分析了 1,642 条执行轨迹，记录了任务约定、成员协调和验收环节的多类失败；Anthropic 的 Research 实践将可独立探索的子问题放入各自独立的上下文；Cognition（Devin 团队）指出每次代码写入都自带未明说的隐性决策，并验证了独立审查者从 Diff 开始复核的价值。[MAST 论文](https://openreview.net/attachment?id=fAjbYBmonr&name=pdf) · [Anthropic Research 工程实践](https://www.anthropic.com/research/multi-agent-research-system) · [Cognition 的多 Agent 实践](https://cognition.com/blog/multi-agents-working)
 
 1. **按上下文边界拆活，按模块保留记忆。** 将需要大量读代码、跑测试的模块交给独立槽位，让局部发现留在相关会话。实现槽位用 `stateful` 跨轮复用同一会话，延续对接口、约束和排查过程的认识。主对话保留需要各方对齐的目标与契约。
 2. **从空白上下文做只读盲审。** 验收槽位用 `clean` + `readOnly` 开启新会话，拿到验收标准、真实 Diff 和相关原始材料。实现者的对话历史留在原会话，审查者可自行追到代码与测试证据。
