@@ -185,11 +185,11 @@ test("real current-process lifetime inspection works without modifying any appli
     pid: 36858,
     platform: "darwin",
     lifetime: "macos:Tue Nov 17 13:32:06 2026",
-    executable: "/Users/example/.cache/codex-runtimes/codex-primary-runtime.previous/dependencies/node/bin/node",
+    executable: "/workspace/example/.cache/codex-runtimes/codex-primary-runtime.previous/dependencies/node/bin/node",
   };
   const recorded = {
     ...rotated,
-    executable: "/Users/example/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    executable: "/workspace/example/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
   };
   assert.equal(sameProcessLifetime(recorded, rotated), true);
   assert.equal(sameProcessLifetime(recorded, { ...rotated, executable: "/usr/local/bin/node" }), false);

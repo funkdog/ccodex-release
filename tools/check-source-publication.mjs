@@ -13,7 +13,21 @@ const secrets = [
   /sk-[A-Za-z0-9_-]{24,}/,
   /-{5}BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-{5}/,
 ];
-const machinePath = /\b[A-Z]:[\\/]+Users[\\/]+[^\\/\s"'`<>]+/i;
+const machinePaths = [/\b[A-Z]:[\\/]+Users[\\/]+[^\\/\s"'\x60<>]+/i, /\/(?:Users|home)\/[^/\s"'\x60<>]+/];
+const privateTerms = /(?:10[j]qka|my[h]exin|\ba[i]me\b|gitlab-[o]uter|slip[s]hod|gemini-4-[c]arbon|gpt-6\\?\.[12]-[s]ol|gpt-6\\?\.2-[a]stra|gpt-daybreak-(?:blue|red)-[l]atest|小[红]书)/i;
+const knownBinary = /\.(?:ico|png|jpg|jpeg|gif|webp)$/i;
+const contentFindings = (file, text) => {
+  const findings = [];
+  if (text.includes("\0")) findings.push({ file, issue: "unexpected binary source" });
+  if (machinePaths.some(pattern => pattern.test(text))) findings.push({ file, issue: "machine-specific user path" });
+  if (privateTerms.test(text)) findings.push({ file, issue: "private publication term" });
+  if (secrets.some(pattern => pattern.test(text))) findings.push({ file, issue: "credential-shaped content" });
+  return findings;
+};
+
+export function auditPublicText(root, files) {
+  return files.filter(file => !knownBinary.test(file)).flatMap(file => contentFindings(file, fs.readFileSync(path.join(root, file), "utf8")));
+}
 
 export function auditSourceFiles(root, files) {
   const base = path.resolve(root);
@@ -40,19 +54,7 @@ export function auditSourceFiles(root, files) {
       continue;
     }
     bytes += stat.size;
-    if (/\.(?:ico|png|jpg|jpeg|gif|webp)$/i.test(name)) continue;
-    const text = fs.readFileSync(full, "utf8");
-    if (text.includes("\0")) {
-      findings.push({ file: name, issue: "unexpected binary source" });
-      continue;
-    }
-    if (machinePath.test(text)) {
-      findings.push({ file: name, issue: "machine-specific user path" });
-    }
-    if (secrets.some(pattern => pattern.test(text))) {
-      // Never include the matching credential in audit output.
-      findings.push({ file: name, issue: "credential-shaped content" });
-    }
+    if (!knownBinary.test(name)) findings.push(...contentFindings(name, fs.readFileSync(full, "utf8")));
   }
   return { passed: findings.length === 0, files: files.length, bytes, findings };
 }

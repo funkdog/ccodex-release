@@ -39,10 +39,10 @@ function messages(result) {
 
 test("probe keeps HOME but strips credentials and preexisting backend overrides", () => {
   const root = path.resolve(os.tmpdir(), "isolated-probe");
-  const env = probeEnvironment(root, { HOME: "/home/example", PATH: "/bin", OPENAI_API_KEY: "private",
+  const env = probeEnvironment(root, { HOME: "/workspace/example", PATH: "/bin", OPENAI_API_KEY: "private",
     GITHUB_TOKEN: "private", CODEX_HOME: "/existing", CODEX_CLI_PATH: "/existing-cli",
     CODEX_APP_SERVER_USE_LOCAL_DAEMON: "1", NODE_OPTIONS: "--require private-hook" });
-  assert.equal(env.HOME, "/home/example");
+  assert.equal(env.HOME, "/workspace/example");
   assert.equal(env.CODEX_HOME, path.join(root, "profile"));
   assert.equal(env.CODEX_APP_SERVER_FORCE_CLI, "1");
   for (const key of ["OPENAI_API_KEY", "GITHUB_TOKEN", "NODE_OPTIONS", "CODEX_APP_SERVER_USE_LOCAL_DAEMON"]) {

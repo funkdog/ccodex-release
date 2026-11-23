@@ -224,3 +224,32 @@ test("Copilot forwards reasoning on create/resume and applies live per-session a
   assert.deepEqual(decisions.slice(0, 7), ["approve-once", "approve-once", "reject", "reject", "reject", "reject", "reject"]);
   assert.equal(asks, 8);
 });
+
+test("explicit model selections limit discovery and inference while pending engines do not start", async t => {
+  const { createEngines } = await import("../gateway/engines/index.mjs");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-model-selection-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const sdkPath = path.join(home, "fixture.mjs");
+  fs.writeFileSync(sdkPath, `
+    export function query() {
+      return { supportedModels: async () => [{ value: "approved" }, { value: "other" }],
+        close() {}, async *[Symbol.asyncIterator]() { yield { type: "result", subtype: "success", result: "fixture" }; } };
+    }
+  `);
+  const configs = [
+    { id: "pending", adapter: "claude-code", sdkPath: path.join(home, "missing.mjs"), enabledModels: [] },
+    { id: "selected", adapter: "claude-code", sdkPath, enabledModels: ["approved"] },
+    { id: "legacy", adapter: "claude-code", sdkPath },
+  ];
+  const engines = await createEngines(configs, { env: {} });
+  assert.equal(engines.has("pending"), false);
+  assert.deepEqual((await engines.get("legacy").models()).map(model => model.id), ["approved", "other"]);
+  const selected = engines.get("selected");
+  assert.deepEqual((await selected.models()).map(model => model.id), ["approved"]);
+  const seen = [];
+  const context = { model: "other", cwd: home, prompt: "fixture", signal: new AbortController().signal, onSession() {},
+    onText: text => seen.push(text), ask: async () => null };
+  await assert.rejects(selected.run(context), /not enabled/);
+  await selected.run({ ...context, model: "approved" });
+  assert.deepEqual(seen, ["fixture"]);
+});

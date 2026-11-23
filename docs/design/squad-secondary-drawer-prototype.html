@@ -1036,7 +1036,7 @@
         <div class="chat-composer">
           <textarea id="composer-input" placeholder="输入消息，或从右侧二级分栏派发 / 汇总小队结果..."></textarea>
           <div class="composer-bar">
-            <span id="composer-meta">Codex · Gemini 4 Carbon · 工作区 /Users/developer/AIBuild/ccodex-release</span>
+            <span id="composer-meta">Codex · Gemini 4 Carbon · 工作区 /workspace/example/AIBuild/ccodex-release</span>
             <button type="button" class="send-btn" id="composer-send">发送 ↑</button>
           </div>
         </div>
@@ -1078,14 +1078,14 @@
         {
           title: "交易学习",
           threads: [
-            { id: "t-wedge", title: "判断这是三推 wedge 吗", engine: "Codex · GPT-6.1-Sol" },
-            { id: "t-chart", title: "点评读图作业 20261108", engine: "Codex · GPT-6.1-Sol" },
+            { id: "t-wedge", title: "判断这是三推 wedge 吗", engine: "Codex · fixture-codex-a" },
+            { id: "t-chart", title: "点评读图作业 20261108", engine: "Codex · fixture-codex-a" },
           ],
         },
         {
           title: "AI学习",
           threads: [
-            { id: "t-cloud", title: "继续讨论云端 Agent 与沙箱架构", engine: "Codex · GPT-6.1-Sol" },
+            { id: "t-cloud", title: "继续讨论云端 Agent 与沙箱架构", engine: "Codex · fixture-codex-a" },
             { id: "t-arxiv", title: "总结 arXiv 2611.05275v1", engine: "Codex · GPT-6-Luna" },
           ],
         },
@@ -1101,7 +1101,7 @@
           goal: "并行审查 0032 双平面协议落地代码与 Schema 覆盖完整性",
           anchorThreadId: "t-arch",
           anchorTitle: "Mycodex核心架构方案讨论",
-          anchorEngine: "codex · gemini-4-carbon",
+          anchorEngine: "codex · gemini-fixture-pro",
           workers: [
             {
               id: "w-claude",
@@ -1138,7 +1138,7 @@
               id: "w-codex",
               name: "codex-gate",
               engine: "codex",
-              modelLabel: "原生 Codex · GPT-6.1-Sol",
+              modelLabel: "原生 Codex · fixture-codex-a",
               status: "running",
               task: "在隔离临时目录运行 typescript-task.mjs test 验证旧会话回读兼容",
               summary: "",
@@ -1395,7 +1395,7 @@
               <div class="preset-grid">
                 <label class="preset-option"><input type="checkbox" checked value="claude-code|Claude Code · Sonnet 4.6|claude-worker" /> <span><strong>claude-worker</strong> · Claude Code (Sonnet 4.6)</span></label>
                 <label class="preset-option"><input type="checkbox" checked value="gemini-cli|Gemini CLI · 3.1 Pro|gemini-worker" /> <span><strong>gemini-worker</strong> · Gemini CLI (3.1 Pro)</span></label>
-                <label class="preset-option"><input type="checkbox" value="codex|原生 Codex · GPT-6.1-Sol|codex-worker" /> <span><strong>codex-worker</strong> · 原生 Codex (GPT-6.1-Sol)</span></label>
+                <label class="preset-option"><input type="checkbox" value="codex|原生 Codex · fixture-codex-a|codex-worker" /> <span><strong>codex-worker</strong> · 原生 Codex (fixture-codex-a)</span></label>
               </div>
             </div>
             <div>
@@ -1486,7 +1486,7 @@
             <select class="field-input" id="add-w-model">
               <option value="claude-code|Claude Code · Opus 4.6">Claude Code · Opus 4.6</option>
               <option value="gemini-cli|Gemini CLI · 3.1 Pro">Gemini CLI · 3.1 Pro</option>
-              <option value="codex|原生 Codex · GPT-6.1-Sol">原生 Codex · GPT-6.1-Sol</option>
+              <option value="codex|原生 Codex · fixture-codex-a">原生 Codex · fixture-codex-a</option>
             </select>
             <div style="display:flex;justify-content:flex-end;gap:6px">
               <button class="btn-ghost" id="btn-cancel-add">取消</button>

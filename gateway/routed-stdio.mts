@@ -86,9 +86,11 @@ export async function runRoutedStdio({ args = process.argv.slice(2), env = proce
   const ended = new Promise<void>(resolve => { done = resolve; });
   let failure = false;
   const close = () => { input.pause(); done(); };
-  const copilotProvider = config.engines?.find((engine): engine is EngineConfig & { adapter: "codex-copilot" } => engine.adapter === "codex-copilot");
+  const copilotProvider = config.engines?.find((engine): engine is EngineConfig & { adapter: "codex-copilot" } =>
+    engine.adapter === "codex-copilot" && engine.enabledModels?.length !== 0);
   const providerArgs = copilotProvider ? copilotProviderArguments(copilotProvider) : [];
-  const googleProvider = config.engines?.find((engine): engine is EngineConfig & { adapter: "codex-gemini" } => engine.adapter === "codex-gemini");
+  const googleProvider = config.engines?.find((engine): engine is EngineConfig & { adapter: "codex-gemini" } =>
+    engine.adapter === "codex-gemini" && engine.enabledModels?.length !== 0);
   if (googleProvider) providerArgs.push(...googleProviderArguments(googleProvider));
   const native = await startNativePeer({ executable, args: [...args, ...providerArgs, ...spineArgs],
     spineShimDirectory: config.spine?.shimDirectory,

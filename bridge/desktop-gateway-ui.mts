@@ -214,7 +214,7 @@ export async function runGatewayUi(receiptFile: string) {
                   }
                   else if (request.method === "openModelSources") {
                     if (Object.keys(request.params).length) throw new Error("Source settings takes no parameters.");
-                    const provider = config.engines?.find(engine => engine.adapter === "codex-copilot");
+                    const provider = config.engines?.find(engine => engine.adapter === "codex-copilot" && engine.enabledModels?.length !== 0);
                     if (!provider || provider.adapter !== "codex-copilot") throw new Error("当前实例尚未配置 API bridge。");
                     await openSystemBrowser(await launchModelSources(provider.bridgeHome, provider.bridgePort)); result = {};
                   }

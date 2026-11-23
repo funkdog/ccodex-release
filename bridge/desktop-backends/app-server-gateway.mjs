@@ -121,7 +121,8 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
       // its shared catalog. Finish discovery before the native picker can cache
       // a partial cold response on the first window.
       const result = await peer.request("model/list", { limit: 1000 }, { timeoutMs: 45000 });
-      if (!Array.isArray(result.data) || !result.data.length) throw new Error("No engine models are available.");
+      const allowEmpty = selection.host === "current" && selection.gateway.engines.every(engine => engine.enabledModels?.length === 0);
+      if (!Array.isArray(result.data) || (!result.data.length && !allowEmpty)) throw new Error("No engine models are available.");
       if (result.warnings?.length) console.error(`MyCodex model catalog: ${result.warnings.join("; ")}`);
     } catch (error) {
       throw new Error(`MyCodex 模型目录尚未就绪：${error.message}。尚未启动或重启 ChatGPT；可稍后重试 MyCodex。`);
@@ -226,7 +227,7 @@ export function appServerGatewayBackend({ root, home, selection, nativeCli }) {
     async stage(options) { await stage(options); return { connectionFile: file, shim, frontend }; },
     async prepare(options) {
       const { config, running } = await stage(options);
-      const provider = selection.gateway.engines.find(engine => engine.adapter === "codex-copilot");
+      const provider = selection.gateway.engines.find(engine => engine.adapter === "codex-copilot" && engine.enabledModels?.length !== 0);
       if (provider) {
         try {
           const ensured = await runFile(process.execPath, [path.join(root, "bridge", "ensure.mjs"), "--preserve-running", "--refresh-idle"], {

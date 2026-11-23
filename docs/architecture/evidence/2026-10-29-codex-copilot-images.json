@@ -33,7 +33,7 @@
   "nativeCodexLive": [
     {
       "recordedAt": "2026-10-29T10:39:53.994Z",
-      "model": "gpt-6.1-sol",
+      "model": "fixture-codex-a",
       "effort": "xhigh",
       "imageReply": "Red",
       "checks": {
@@ -76,7 +76,7 @@
   ],
   "copilotCliLive": {
     "recordedAt": "2026-10-29T10:40:11.200Z",
-    "model": "gpt-6.1-sol",
+    "model": "fixture-codex-a",
     "images": true,
     "cliTurns": 1,
     "nativeInferenceTurns": 0,

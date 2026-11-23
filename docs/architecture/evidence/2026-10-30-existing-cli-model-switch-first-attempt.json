@@ -9,7 +9,7 @@
     {
       "engine": "copilot",
       "models": [
-        "copilot/gpt-6.1-sol",
+        "copilot/fixture-codex-a",
         "copilot/auto"
       ],
       "reasoningEffort": "none",
@@ -20,7 +20,7 @@
       "runtimeStates": [
         {
           "phase": "create",
-          "model": "gpt-6.1-sol",
+          "model": "fixture-codex-a",
           "effort": "medium"
         },
         {

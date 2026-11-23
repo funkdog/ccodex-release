@@ -1,4 +1,5 @@
 # Private state and generated resource payloads are never source inputs.
+/.mycodex/
 /desktop/
 /runtime/
 /profile/

@@ -51,9 +51,9 @@ test("host draft selection rejects missing capabilities, rejected choices, stale
 });
 
 test("a native model without adjustable reasoning can still switch models through the host picker", async () => {
-  const target = "mycodex/codex-copilot/api-aaaaaaaaaaaa--gpt-6.1-sol";
+  const target = "mycodex/codex-copilot/api-aaaaaaaaaaaa--fixture-codex-a";
   let calls = 0;
-  const picker = { model: "mycodex/codex-copilot/api-aaaaaaaaaaaa--gpt-6.2-astra", reasoningEffort: null, reasoningEffortDisabled: true,
+  const picker = { model: "mycodex/codex-copilot/api-aaaaaaaaaaaa--fixture-codex-c", reasoningEffort: null, reasoningEffortDisabled: true,
     modelOptions: [{ model: { model: target, supportedReasoningEfforts: [] } }],
     onSelectModel(model, effort) { calls++; this.model = model; this.reasoningEffort = effort; return true; } };
   const selected = await selectHostDraftModel({ model: target, effort: null, current: () => true, read: () => picker, wait: async () => {} });

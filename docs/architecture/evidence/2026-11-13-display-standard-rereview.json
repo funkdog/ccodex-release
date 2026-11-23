@@ -107,7 +107,7 @@
     "requestedCondition": "Only after re-review passes",
     "performed": false,
     "reason": "Blocked by the P1 native personality finding; no launcher replacement, backend staging, retirement, activation or client restart was attempted.",
-    "sourceBinding": "The existing MyCodex launcher and active backend are directly bound to /Users/developer/AIBuild/ccodex-release; ccodex-dev sync is a Windows developer entry, not the active Mac path."
+    "sourceBinding": "The existing MyCodex launcher and active backend are directly bound to /workspace/example/AIBuild/ccodex-release; ccodex-dev sync is a Windows developer entry, not the active Mac path."
   },
   "protection": {
     "files": 21,

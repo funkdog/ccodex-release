@@ -31,7 +31,7 @@
 - 真实 Copilot `gpt-6-astra` 两轮通过：通过 CLI `session.model.getCurrent` 反查到创建时 `high`、恢复时 `low`；临时工作区 `apply_patch` 写入成功，1 次自动批准、0 次人工审批。探针另加精确文件保护，没有触发，原生推理入口观察计数为 0。第一次探针使用已移除的 create-file 工具名称而未触发工具，已改为当前 CLI 实际提供的 `apply_patch`；没有把该次失败当作审批成功。见 [真实 CLI 报告](evidence/2026-10-29-cli-controls-live.json)。
 - 已热更新本机空闲网关与 UI helper，原 ChatGPT PID、CLI 会话 ID 和历史保留，入口检查为 `activate-existing`。见 [本机更新记录](evidence/2026-10-29-cli-controls-local-upgrade.json)。
 
-用户已在原窗口确认紧凑布局正常，推理与审批设置可以选择并保持，并提供了 `Copilot · GPT-6.1 Sol / 推理 极高 / 自动批准` 的截图。该实际线程的网关记录独立核对为 `copilot/gpt-6.1-sol`、`xhigh`、`auto`。设置保存不等于旧审批失败操作已重试；当时线程已空闲，新策略下的后续工具执行需要用户在该线程继续工作。
+用户已在原窗口确认紧凑布局正常，推理与审批设置可以选择并保持，并提供了 `Copilot · GPT-6.1 Sol / 推理 极高 / 自动批准` 的截图。该实际线程的网关记录独立核对为 `copilot/fixture-codex-a`、`xhigh`、`auto`。设置保存不等于旧审批失败操作已重试；当时线程已空闲，新策略下的后续工具执行需要用户在该线程继续工作。
 
 这是本机源码热更新，不是新的多平台发行。`VERSION` 保持 `1.2.36`。Claude 等其他 CLI 的可配置推理及自动审批不在本轮通过范围内。
 
@@ -45,7 +45,7 @@
 
 Desktop 首轮普通发送携带 `approvalPolicy: never` 后，网关曾将它优先解释成 CLI 拒绝授权，覆盖已保存的 `cliApprovalMode: ask`，造成 Antigravity 搜索与终端、Copilot 文件与终端工具在弹窗前被拒绝。修复删除了这两处原生字段的否决逻辑，并使 CLI 设置更新只修改 CLI 策略。旧会话无需切换控件即可沿用保存的模式，缺失模式时仍默认逐次确认。
 
-63 项相关回归通过（约 1.8 秒），包含两种真实适配器的旧状态恢复、重复 `never` 信封、单次允许/拒绝、自动模式、显式拒绝、重启及 Copilot 组织审批限制。隔离 profile 的真实 Copilot `gpt-6.1-sol` 与 Antigravity `gemini-4-argon` 均在 `ask` + `never` 下完成 `pwd` 和联网搜索；探针只单次批准指定只读操作，临时 profile 已移除。
+63 项相关回归通过（约 1.8 秒），包含两种真实适配器的旧状态恢复、重复 `never` 信封、单次允许/拒绝、自动模式、显式拒绝、重启及 Copilot 组织审批限制。隔离 profile 的真实 Copilot `fixture-codex-a` 与 Antigravity `gemini-4-argon` 均在 `ask` + `never` 下完成 `pwd` 和联网搜索；探针只单次批准指定只读操作，临时 profile 已移除。
 
 本机空闲网关已通过现有退休/重连接口加载修复，保留私有连接能力，未退出 ChatGPT。原会话仍保存 `ask` + `never`，历史和 CLI session ID 保留。首次原会话验收未完成：`send_message_to_thread` 返回 `Provide bounded text or image input`，CUA 不允许操作 Codex 自身界面，未绕过界面限制。
 

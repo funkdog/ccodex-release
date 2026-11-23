@@ -10,7 +10,7 @@
     "id": "6d4188ba-3b58-4b8e-abb6-5a4fd0878350",
     "name": "MYCODEX-MGMT-COPILOT-1031",
     "engine": "copilot",
-    "model": "copilot/gpt-6.1-sol",
+    "model": "copilot/fixture-codex-a",
     "sectionId": "01984de2-8f74-7c91-a3b2-5c5e937cf318",
     "section": {
       "id": "01984de2-8f74-7c91-a3b2-5c5e937cf318",

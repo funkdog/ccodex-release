@@ -28,7 +28,7 @@
     "apiGeminiModels": ["gemini-4-argon", "gemini-3.8-flash"],
     "apiGeminiInputModalities": ["text", "image"],
     "cliGeminiModels": [],
-    "firstSelectorModel": "codex-copilot/gpt-6.1-sol",
+    "firstSelectorModel": "codex-copilot/fixture-codex-a",
     "warnings": []
   },
   "persistedCliMetadata": {

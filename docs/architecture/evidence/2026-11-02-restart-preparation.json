@@ -62,7 +62,7 @@
     },
     "restored": {
       "provider": "mycodex-copilot",
-      "model": "mycodex/codex-copilot/gpt-6.1-sol",
+      "model": "mycodex/codex-copilot/fixture-codex-a",
       "effort": "xhigh",
       "approvalPolicy": "never",
       "turnCount": 31
@@ -86,7 +86,7 @@
           "settingsRetained": true,
           "workspaceUntouched": true
         },
-        "model": "mycodex/copilot/gpt-6.1-sol",
+        "model": "mycodex/copilot/fixture-codex-a",
         "effort": "high",
         "passed": true
       },

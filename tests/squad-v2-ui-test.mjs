@@ -117,7 +117,7 @@ test(
           handle: "role-studio",
           continuity: "stateful",
           workspace: "worktree",
-          model: "gpt-6.1-sol",
+          model: "fixture-codex-a",
           reasoningEffort: "high",
           task: "实现右侧分屏工作台",
           touches: ["owned.ts"],

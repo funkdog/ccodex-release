@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-2563eb)](LICENSE)
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-43853d)](https://nodejs.org/)
-[![macOS ARM64 Adapters RC.4](https://img.shields.io/badge/macOS_ARM64-Adapters_RC.4-b45309)](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)
+[![MyCodex 0.2.0-rc.1 for macOS ARM64](https://img.shields.io/badge/macOS_ARM64-MyCodex_0.2.0--rc.1-b45309)](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1)
 
 [中文](README.md) · English
 
@@ -85,15 +85,15 @@ bash tools/Invoke-HeavyTask.sh node --test tests/squad-protocol-test.mjs tests/s
 
 After building on macOS, you can launch a compatible official desktop client against your local source build to enable the full gateway and Squad Studio (see [`platforms/macos/`](platforms/macos/) and [`docs/DEVELOPMENT.zh-CN.md`](docs/DEVELOPMENT.zh-CN.md)). Browser tests need Playwright and a Chromium browser; see the [contribution guide](CONTRIBUTING.md) for source entry points, isolated test setup, and broader checks.
 
-### Try the macOS Adapters prerelease
+### Try the macOS prerelease
 
-[Download MyCodex Adapters 0.1.0-rc.4](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4). This candidate is for **macOS Apple Silicon (ARM64)**. Live desktop acceptance is pending. Verify the platform archive's SHA-256, extract it to a directory you will keep, and run `Install.command` and `Diagnose.command`. Quit the existing desktop client normally before using `Start.command`.
+[Download MyCodex 0.2.0-rc.1](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1). Verify the **macOS Apple Silicon (ARM64)** archive’s SHA-256, extract it, and run `./Install.command` and `./Diagnose.command`. Once active tasks have finished, quit the official client normally and run `./Start.command`. Native Codex, the `mycodex` MCP server, and the right-hand `Squad Studio` are enabled by default.
 
 - [macOS installation and compatible host versions](docs/ADAPTERS-MACOS.zh-CN.md) (Chinese)
 - [Connect your own GitHub Copilot account and select a model](docs/CODEX-COPILOT-SETUP.zh-CN.md) (Chinese)
-- [RC.4 release and verification record](docs/releases/mycodex-adapters-0.1.0-rc.4.md) · [RC.3 release record](docs/releases/mycodex-adapters-0.1.0.md) (Chinese)
+- [0.2.0-rc.1 release and verification](docs/releases/mycodex-0.2.0-rc.1.md) · [GitHub Copilot setup](docs/CODEX-COPILOT-SETUP.zh-CN.md) (Chinese)
 
-`main` contains the Squad V2 source. RC.4 is an earlier frozen Adapters snapshot with Squad disabled.
+Use the setup wizard to add Claude Code or Antigravity ACP 1.4.4. Follow the linked setup guide for GitHub Copilot.
 
 ## Repository Guide
 

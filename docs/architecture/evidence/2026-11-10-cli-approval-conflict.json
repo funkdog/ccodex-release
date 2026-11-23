@@ -34,7 +34,7 @@
   "liveIsolatedChecks": [
     {
       "adapter": "github-copilot",
-      "model": "copilot/gpt-6.1-sol",
+      "model": "copilot/fixture-codex-a",
       "approvalPolicy": "never",
       "cliApprovalMode": "ask",
       "passed": true,

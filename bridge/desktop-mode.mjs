@@ -92,10 +92,14 @@ export function resolveDesktopMode({
       if (instance.gateway.spine !== undefined) {
         validateSpineOptions(instance.gateway.spine);
       }
-      if (!Array.isArray(instance.gateway.engines) || !instance.gateway.engines.length || instance.gateway.engines.length > 32) throw new Error("Gateway engines are required.");
+      const nativeOnly = instance.host === "current" && instance.gateway.engines?.length === 0;
+      if (!Array.isArray(instance.gateway.engines) || (!nativeOnly && !instance.gateway.engines.length) || instance.gateway.engines.length > 32) throw new Error("Gateway engines are required.");
       const engines = new Set();
       for (const engine of instance.gateway.engines) {
-        keys(engine, ["id", "adapter", "executable", "sdkPath", "bridgeHome", "bridgePort", "cliHome", "harnessPath", "initialApprovalMode"], "gateway engine");
+        keys(engine, ["id", "adapter", "executable", "sdkPath", "bridgeHome", "bridgePort", "cliHome", "harnessPath", "initialApprovalMode", "enabledModels"], "gateway engine");
+        if (engine.enabledModels !== undefined && (!Array.isArray(engine.enabledModels) || engine.enabledModels.length > 64 ||
+            new Set(engine.enabledModels).size !== engine.enabledModels.length || engine.enabledModels.some(model => typeof model !== "string" || !model || model.length > 256 || /\s|\0/.test(model))))
+          throw new Error("enabledModels must contain distinct explicit model IDs.");
         if (typeof engine.id !== "string" || !idPattern.test(engine.id) || engines.has(engine.id)) throw new Error("Invalid or duplicate engine ID.");
         engines.add(engine.id);
         if (!["claude-code", "github-copilot", "codex-copilot", "gemini-cli", "codex-gemini", "antigravity-acp"].includes(engine.adapter)) throw new Error(`Unsupported engine adapter: ${engine.adapter}`);
@@ -134,7 +138,10 @@ export function resolveDesktopMode({
           throw new Error("Copilot provider settings require the codex-copilot adapter.");
         for (const field of ["executable", "sdkPath"]) if (engine[field] !== undefined) absolute(engine[field], field);
       }
-      if (!engines.has(instance.gateway.defaultEngine)) throw new Error("Gateway defaultEngine must reference a configured engine.");
+      if (nativeOnly ? instance.gateway.defaultEngine !== null : !engines.has(instance.gateway.defaultEngine)) {
+        throw new Error("Gateway defaultEngine must reference a configured engine or be null for a current host with no engines.");
+      }
+      if (nativeOnly) instance.gateway.spine ??= { mcp: true, eventTap: true };
     }
     return { ...instance, home };
   });

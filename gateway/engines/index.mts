@@ -27,6 +27,7 @@ export function cliEnvironment(inherited = process.env) {
 export async function createEngines(configs: EngineConfig[], { env = cliEnvironment(), nativeCli, home }: { env?: NodeJS.ProcessEnv; nativeCli?: string; home?: string } = {}) {
   const engines = new Map<string, EngineAdapter>();
   for (const config of configs) {
+    if (config.enabledModels?.length === 0) continue;
     if (config.adapter === "antigravity-acp") {
       if (engines.has(config.id)) throw new Error("Duplicate Antigravity engine ID.");
       for (const field of ["executable", "harnessPath"] as const)
@@ -61,6 +62,17 @@ export async function createEngines(configs: EngineConfig[], { env = cliEnvironm
     if (config.adapter === "claude-code" && typeof sdk.query !== "function") throw new Error("The configured Claude Agent SDK has no query contract.");
     engines.set(config.id, { adapter: config.adapter, ...(config.adapter === "claude-code" && config.initialApprovalMode ? { initialApprovalMode: config.initialApprovalMode } : {}), ...(config.adapter === "claude-code" ? claudeCodeEngine({ sdk: sdk as ClaudeSdk, executable: config.executable, env,
       ...(config.cliHome ? { credentialProfile: config.cliHome, environment: () => claudeApiEnvironment(config.cliHome!, env) } : {}) }) : copilotEngine({ sdk: sdk as CopilotSdk, executable: config.executable, env })) });
+  }
+  for (const { id, enabledModels } of configs) {
+    if (!enabledModels?.length) continue;
+    const allowed = new Set(enabledModels), engine = engines.get(id)!;
+    const filtered: EngineAdapter = Object.create(engine);
+    filtered.models = async () => (await engine.models()).filter(model => allowed.has(model.id));
+    filtered.run = async context => {
+      if (!allowed.has(context.model)) throw new Error("This model is not enabled for the selected engine.");
+      return engine.run(context);
+    };
+    engines.set(id, filtered);
   }
   return engines;
 }

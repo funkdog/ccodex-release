@@ -62,7 +62,20 @@ bash tools/Invoke-HeavyTask.sh node --test tests/squad-v2-ui-test.mjs
 
 | 快照 | 源码标签 | 平台包与源码对应记录 |
 | --- | --- | --- |
+| MyCodex 0.2.0-rc.1 | 预定 `mycodex-v0.2.0-rc.1` | [RC-0.2.0-RC1-SOURCE.json](release/RC-0.2.0-RC1-SOURCE.json) |
 | RC.4 | [`mycodex-adapters-source-v0.1.0-rc.4`](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.4) | [RC4-SOURCE.json](release/RC4-SOURCE.json) |
 | RC.3 | [`mycodex-adapters-source-v0.1.0-rc.3`](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.3) | [RC3-SOURCE.json](release/RC3-SOURCE.json) |
 
 固定记录绑定各自平台包及运行源码摘要。`main` 继续维护 Gateway 和 Squad V2。候选版真实桌面验收和正式打包各有独立门禁，参见 [源码维护与发布](docs/DEVELOPMENT.zh-CN.md)。
+
+### macOS 候选包
+
+在 macOS ARM64 源码目录安装锁定依赖，执行 `npm run typecheck`、`npm run build` 与 `npm run check:generated`。完成测试和源码审计并提交后，在重任务包装器内打包。输出目录应为新目录。
+
+```bash
+bash tools/Invoke-HeavyTask.sh node tools/package-adapters.mjs /absolute/path/to/artifacts
+MYCODEX_RC1_ARCHIVE=/absolute/path/to/artifacts/mycodex-macos-arm64-0.2.0-rc.1.tar.gz \
+  bash tools/Invoke-HeavyTask.sh node --test tests/mycodex-rc1-package-test.mjs
+```
+
+载荷源文件变化后，先暂存，再用 `node tools/package-adapters.mjs --source-record` 生成源码绑定记录。历史证据中的模型与工作区占位符已脱敏。

@@ -38,7 +38,7 @@
   "liveCopilotCli": {
     "recordedAt": "2026-11-02T05:20:38.876Z",
     "engine": "copilot",
-    "model": "gpt-6.1-sol",
+    "model": "fixture-codex-a",
     "pageHelperUsed": false,
     "productionGatewayModified": false,
     "originalCliProfileUsed": false,
@@ -54,12 +54,12 @@
     "runtimeStates": [
       {
         "phase": "create",
-        "model": "gpt-6.1-sol",
+        "model": "fixture-codex-a",
         "effort": "high"
       },
       {
         "phase": "resume",
-        "model": "gpt-6.1-sol",
+        "model": "fixture-codex-a",
         "effort": "high"
       }
     ],
@@ -70,7 +70,7 @@
     "probe": {
       "recordedAt": "2026-11-02T05:14:30.796Z",
       "runtime": "native-codex",
-      "model": "gpt-6.1-sol",
+      "model": "fixture-codex-a",
       "desktopRestarted": false,
       "existingNativeProfileUsed": false,
       "cliGatewayInferenceTurns": 0,

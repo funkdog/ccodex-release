@@ -32,6 +32,7 @@ export interface RunContext {
   onImage?: (image: EngineImage) => void;
   onCheckpoint?: (eventId: string) => void;
   display?: DisplaySink;
+  verification?: boolean;
 }
 export interface ForkContext { nativeSessionId: string; cwd: string; beforeEventId?: string }
 export interface DeleteContext { nativeSessionId: string; cwd: string }
@@ -47,7 +48,7 @@ export interface EngineAdapter {
 }
 export interface ProviderConfig { bridgePort: number; bridgeHome: string }
 export interface GoogleConfig { bridgePort: number; cliHome: string; sdkPath: string }
-export type EngineConfig = { id: string } & (
+export type EngineConfig = { id: string; enabledModels?: string[] } & (
   { adapter: "antigravity-acp"; executable: string; harnessPath: string; cliHome: string } |
   { adapter: "gemini-cli"; executable: string; cliHome: string } |
   ({ adapter: "codex-gemini" } & GoogleConfig) |

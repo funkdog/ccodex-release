@@ -16,7 +16,7 @@ import type { ResolveDispatchAuthority, VerifyDispatchResources } from "./spine/
 
 assertTypeScriptBuild(path.resolve(import.meta.dirname, ".."));
 
-export async function startGateway({ home, endpoint, token, generation, runtimeGeneration, engines, defaultEngine, idleTimeoutMs = 0, onIdle, onRetire, spine: spineOptions, dispatchAuthority, verifyDispatchResources }: { home: string; endpoint: string; token: string; generation: string; runtimeGeneration?: string; engines: Map<string, EngineAdapter>; defaultEngine: string; idleTimeoutMs?: number; onIdle?: () => void; onRetire?: () => void; spine?: SpineRuntimeOptions; dispatchAuthority?: ResolveDispatchAuthority; verifyDispatchResources?: VerifyDispatchResources }) {
+export async function startGateway({ home, endpoint, token, generation, runtimeGeneration, engines, defaultEngine, idleTimeoutMs = 0, onIdle, onRetire, spine: spineOptions, dispatchAuthority, verifyDispatchResources }: { home: string; endpoint: string; token: string; generation: string; runtimeGeneration?: string; engines: Map<string, EngineAdapter>; defaultEngine: string | null; idleTimeoutMs?: number; onIdle?: () => void; onRetire?: () => void; spine?: SpineRuntimeOptions; dispatchAuthority?: ResolveDispatchAuthority; verifyDispatchResources?: VerifyDispatchResources }) {
   const connections = new Set<GatewayConnection & { socket: net.Socket }>();
   const desktopClients = new Map<GatewayConnection, number>();
   const spineChanged = (kind: string) => { for (const connection of connections) if (connection.initialized && connection.role === "default") { try { connection.send({ method: "diy/spine/changed", params: { kind, at: Date.now(), activeTasks: spine?.activeTasks ?? 0 } }); } catch { connection.socket.destroy(); } } };

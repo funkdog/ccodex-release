@@ -35,7 +35,7 @@ export interface SquadRolePreset {
   id: string;                     // 稳定短标识，如 "dev" | "design" | "reviewer" | 自定义 slug
   handle: string;                 // 人类可读点名标识，如 "开发" | "设计" | "评审"（不含 @，展示与引用时带 @）
   kind: "cli" | "native";
-  model: string;                  // 动态目录中的真实模型 ID（如 "claude-code/claude-sonnet-4-6" 或 "gpt-6.1-sol"）
+  model: string;                  // 动态目录中的真实模型 ID（如 "claude-code/claude-sonnet-4-6" 或 "fixture-codex-a"）
   reasoningEffort?: string | null;
   defaultPromptPrefix?: string;   // 可选角色职责简述（如 "按 ub-mode-lite 只读审查代码风险，不直接改源码"）
   updatedAt: number;

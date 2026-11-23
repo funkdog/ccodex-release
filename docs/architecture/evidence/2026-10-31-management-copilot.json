@@ -22,7 +22,7 @@
     "policiesRetained": true
   },
   "passed": true,
-  "model": "copilot/gpt-6.1-sol",
+  "model": "copilot/fixture-codex-a",
   "reasoningEffort": "low",
   "privateStateRemoved": true
 }

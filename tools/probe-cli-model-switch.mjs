@@ -73,10 +73,9 @@ export async function probeCliModelSwitch(connectionFile) {
       const services = createCliSelectorServices(call);
       const models = (await call("model/list", { limit: 1000 })).data;
       assert.ok(models.length >= 2, "Need two advertised models; never invent a fallback");
-      const a = models.find(m => /(?:gpt-6\.1-sol|flash)/.test(m.model)) ?? models[0];
+      const a = models.find(m => /(?:gpt-5\.5|flash)/.test(m.model)) ?? models[0];
       const others = models.filter(m => m.id !== a.id && !m.model.endsWith('/auto'));
-      const b = others.find(m => /(?:gpt-6-astra|argon)/.test(m.model)) ??
-        others.find(m => /(?:flash|haiku|mini|luna)/i.test(m.model)) ?? others[0];
+      const b = others.find(m => /(?:flash|haiku|mini|luna)/i.test(m.model)) ?? others[0];
       assert.ok(b, "Need a second concrete advertised model");
       result.models = [a.model, b.model];
       const common = a.supportedReasoningEfforts.map(e => e.reasoningEffort).filter(e => b.supportedReasoningEfforts.some(v => v.reasoningEffort === e));

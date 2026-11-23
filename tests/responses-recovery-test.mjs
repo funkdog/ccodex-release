@@ -57,7 +57,7 @@ test("context normalization recognizes the actual generic error without treating
     { code: "payload_too_large", message: "GitHub Copilot: Request Entity Too Large" },
     { code: "request_too_large", message: "Payload Too Large" },
     { code: "upstream_error", message: "GitHub Copilot: Request Entity Too Large" },
-    { code: "invalid_request_body", message: "too many images: maximum allowed for model gemini-4-carbon is 10, got 17" },
+    { code: "invalid_request_body", message: "too many images: maximum allowed for model gemini-fixture-pro is 10, got 17" },
   ]) {
     assert.equal(isContextWindowError(payloadError), true);
     assert.equal(normalizeResponsesError(payloadError).code, "context_length_exceeded");
@@ -475,7 +475,7 @@ test("Chat Completions 400 too-many-images keeps the newest N images and all tex
       res.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({
         error: {
           code: "invalid_request_body",
-          message: `too many images: maximum allowed for model gemini-4-carbon is 10, got ${count}`,
+          message: `too many images: maximum allowed for model gemini-fixture-pro is 10, got ${count}`,
         },
       }));
       return;

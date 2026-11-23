@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-2563eb)](LICENSE)
 [![Node.js 24+](https://img.shields.io/badge/Node.js-24%2B-43853d)](https://nodejs.org/)
-[![macOS ARM64 Adapters RC.4](https://img.shields.io/badge/macOS_ARM64-Adapters_RC.4-b45309)](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)
+[![MyCodex 0.2.0-rc.1 for macOS ARM64](https://img.shields.io/badge/macOS_ARM64-MyCodex_0.2.0--rc.1-b45309)](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1)
 
 中文 · [English](README.en.md)
 
@@ -85,15 +85,15 @@ bash tools/Invoke-HeavyTask.sh node --test tests/squad-protocol-test.mjs tests/s
 
 构建完成后，在 macOS 本机可将当前源码目录直接挂载到兼容的官方客户端体验全套网关与 Squad Studio（参见 [`platforms/macos/`](platforms/macos/) 与 [开发维护说明](docs/DEVELOPMENT.zh-CN.md)）。浏览器用例需要 Playwright 和 Chromium 浏览器；开发入口、隔离测试配置与完整门禁见 [贡献指南](CONTRIBUTING.md)。
 
-### 体验 macOS Adapters 预发布包
+### 体验 macOS 预发布包
 
-[下载 MyCodex Adapters 0.1.0-rc.4](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)。这是 **macOS Apple Silicon（ARM64）候选包**，真实桌面验收仍待完成。校验平台包 SHA-256 并解压到长期目录，运行 `Install.command` 和 `Diagnose.command`，正常退出旧窗口后使用 `Start.command`。
+[下载 MyCodex 0.2.0-rc.1](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1)。选择 **macOS Apple Silicon（ARM64）** 平台包，校验 SHA-256 并解压，依次运行 `./Install.command`、`./Diagnose.command`。等现有任务结束并正常退出官方客户端，再运行 `./Start.command`。默认启用原生 Codex、`mycodex` MCP 和右侧 `Squad Studio`。
 
 - [macOS 安装与宿主兼容性](docs/ADAPTERS-MACOS.zh-CN.md)
 - [登录自己的 GitHub Copilot 账号并选择模型](docs/CODEX-COPILOT-SETUP.zh-CN.md)
-- [RC.4 发行与验证记录](docs/releases/mycodex-adapters-0.1.0-rc.4.md) · [RC.3 发行记录](docs/releases/mycodex-adapters-0.1.0.md)
+- [0.2.0-rc.1 发行与验证记录](docs/releases/mycodex-0.2.0-rc.1.md) · [GitHub Copilot 接入](docs/CODEX-COPILOT-SETUP.zh-CN.md)
 
-`main` 包含 Squad V2 源码。RC.4 是此前冻结的 Adapters 快照，其中关闭了 Squad。
+Claude Code 和 Antigravity ACP 1.4.4 可通过配置向导添加。GitHub Copilot 使用上面的专用接入指南。
 
 ## 仓库导航
 

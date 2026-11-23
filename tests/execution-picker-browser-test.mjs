@@ -16,16 +16,16 @@ for (const nativeDefault of [false, true]) test(`native same-source switching ke
   await page.route("http://127.0.0.1/**", route => {
     const file = new URL(route.request().url()).pathname.slice(1);
     if (/^(?:bridge|tools)\/.+\.mjs$/.test(file)) return route.fulfill({ contentType: "text/javascript", body: fs.readFileSync(path.join(root, file), "utf8") });
-    return route.fulfill({ contentType: "text/html; charset=utf-8", body: `<!doctype html><html style="color-scheme:light"><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:Canvas;color:CanvasText;font:14px system-ui}main{min-height:680px;display:flex;align-items:end;padding:24px}.composer{width:100%;padding:16px;border:1px solid #8883;border-radius:22px;box-shadow:0 2px 8px #0001}[data-composer-input]>div{height:80px;outline:none}.footer{display:flex;align-items:center;gap:8px;min-height:32px}.access{white-space:nowrap;flex-shrink:0;color:#a86a35}.controls{display:flex;align-items:center;justify-content:end;flex:1;min-width:0}.send{border:0;border-radius:50%;background:#326fc5;color:white;flex:none;width:32px;height:32px}.native{white-space:nowrap;border:0;background:transparent;color:inherit}</style><main><section class="composer" data-composer-surface-variant="default"><div data-composer-input><div role="textbox" contenteditable="true">Draft remains unchanged.</div></div><footer class="footer"><span class="access">＋　完全访问</span><div class="controls"><button class="native" data-composer-navigation-target="reasoning">Codex · Viwo API · gpt-6.2-astra 无</button></div><button class="send" aria-label="发送">↑</button></footer></section></main></html>` });
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: `<!doctype html><html style="color-scheme:light"><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:Canvas;color:CanvasText;font:14px system-ui}main{min-height:680px;display:flex;align-items:end;padding:24px}.composer{width:100%;padding:16px;border:1px solid #8883;border-radius:22px;box-shadow:0 2px 8px #0001}[data-composer-input]>div{height:80px;outline:none}.footer{display:flex;align-items:center;gap:8px;min-height:32px}.access{white-space:nowrap;flex-shrink:0;color:#a86a35}.controls{display:flex;align-items:center;justify-content:end;flex:1;min-width:0}.send{border:0;border-radius:50%;background:#326fc5;color:white;flex:none;width:32px;height:32px}.native{white-space:nowrap;border:0;background:transparent;color:inherit}</style><main><section class="composer" data-composer-surface-variant="default"><div data-composer-input><div role="textbox" contenteditable="true">Draft remains unchanged.</div></div><footer class="footer"><span class="access">＋　完全访问</span><div class="controls"><button class="native" data-composer-navigation-target="reasoning">Codex · Viwo API · fixture-codex-c 无</button></div><button class="send" aria-label="发送">↑</button></footer></section></main></html>` });
   });
   await page.goto("http://127.0.0.1/");
   const originalHeight = await page.locator(".footer").evaluate(node => node.getBoundingClientRect().height);
   await page.evaluate(async ({ contract, nativeDefault }) => {
     const { mountCurrentNativeSessions } = await import("/bridge/desktop-native-composer.mjs");
-    const id = "00000000-0000-0000-0000-000000000001", first = nativeDefault ? "gpt-6.2-astra" : "codex-copilot/api-aaaaaaaaaaaa--gpt-6.2-astra", second = nativeDefault ? "gpt-6.1-sol" : "codex-copilot/api-aaaaaaaaaaaa--gpt-6.1-sol", backup = "codex-copilot/api-bbbbbbbbbbbb--gpt-6.1-sol";
-    const models = [{ id: first, label: "Codex · Viwo API · gpt-6.2-astra", sourceLabel: "Viwo API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
-      { id: second, label: "Codex · Viwo API · gpt-6.1-sol", sourceLabel: "Viwo API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
-      { id: backup, label: "Codex · Backup API · gpt-6.1-sol", sourceLabel: "Backup API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
+    const id = "00000000-0000-0000-0000-000000000001", first = nativeDefault ? "fixture-codex-c" : "codex-copilot/api-aaaaaaaaaaaa--fixture-codex-c", second = nativeDefault ? "fixture-codex-a" : "codex-copilot/api-aaaaaaaaaaaa--fixture-codex-a", backup = "codex-copilot/api-bbbbbbbbbbbb--fixture-codex-a";
+    const models = [{ id: first, label: "Codex · Viwo API · fixture-codex-c", sourceLabel: "Viwo API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
+      { id: second, label: "Codex · Viwo API · fixture-codex-a", sourceLabel: "Viwo API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
+      { id: backup, label: "Codex · Backup API · fixture-codex-a", sourceLabel: "Backup API", nativeCopilot: true, efforts: ["none"], canSwitchModel: true },
       { id: "copilot/other", label: "Copilot CLI · Other", canSwitchModel: true },
       { id: "codex-copilot/api-aaaaaaaaaaaa--fixed", label: "Codex · Viwo API · Fixed", nativeCopilot: true, canSwitchModel: false }];
     globalThis.hostModel = nativeDefault ? first : "mycodex/" + first; globalThis.hostCalls = []; globalThis.handoffs = []; globalThis.speedCalls = [];
@@ -64,12 +64,12 @@ for (const nativeDefault of [false, true]) test(`native same-source switching ke
   assert.equal(await page.locator('[data-mycodex-native-engine]').count(), 1);
   assert.equal(await page.getByRole("combobox", { name: "推理强度" }).count(), 0, "Unknown reasoning must not add another inline control");
   await trigger.click();
-  await page.getByRole("combobox", { name: "模型", exact: true }).selectOption(nativeDefault ? "gpt-6.1-sol" : "mycodex/codex-copilot/api-aaaaaaaaaaaa--gpt-6.1-sol");
+  await page.getByRole("combobox", { name: "模型", exact: true }).selectOption(nativeDefault ? "fixture-codex-a" : "mycodex/codex-copilot/api-aaaaaaaaaaaa--fixture-codex-a");
   assert.equal(await page.evaluate(() => hostCalls.length + handoffs.length), 0);
   await page.getByRole("button", { name: "应用切换" }).click();
-  await page.waitForFunction(() => hostModel.endsWith("gpt-6.1-sol") && document.querySelector('[data-mycodex-native-engine]').shadowRoot.querySelector('.trigger').getAttribute('aria-expanded') === 'false');
+  await page.waitForFunction(() => hostModel.endsWith("fixture-codex-a") && document.querySelector('[data-mycodex-native-engine]').shadowRoot.querySelector('.trigger').getAttribute('aria-expanded') === 'false');
   assert.equal(await page.evaluate(() => hostCalls.length), 1); assert.equal(await page.evaluate(() => handoffs.length), 0);
-  assert.ok((await trigger.innerText()).includes("gpt-6.1-sol"));
+  assert.ok((await trigger.innerText()).includes("fixture-codex-a"));
   await trigger.click();
   assert.equal(await page.getByRole("combobox", { name: "执行引擎", exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole("combobox", { name: "执行引擎", exact: true }).locator("option").count(), 1);
@@ -91,7 +91,7 @@ for (const nativeDefault of [false, true]) test(`native same-source switching ke
     assert.equal(await page.getByRole("combobox", { name: "执行引擎", exact: true }).isDisabled(), true);
   } else assert.equal(await speed.isVisible(), false, "External engines must not inherit the native speed action");
   assert.equal(await page.evaluate(() => hostCalls.length), 1); assert.equal(await page.evaluate(() => handoffs.length), 0);
-  assert.ok((await trigger.innerText()).includes(nativeDefault ? "gpt-6.1-sol" : "Viwo API")); assert.equal(await page.locator('[contenteditable]').innerText(), "Draft remains unchanged.");
+  assert.ok((await trigger.innerText()).includes(nativeDefault ? "fixture-codex-a" : "Viwo API")); assert.equal(await page.locator('[contenteditable]').innerText(), "Draft remains unchanged.");
   await page.keyboard.press("Escape");
   for (const width of [1080, 480, 360]) {
     await page.setViewportSize({ width, height: 680 });

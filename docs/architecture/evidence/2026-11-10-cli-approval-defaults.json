@@ -104,7 +104,7 @@
       "adapter": "github-copilot",
       "passed": true,
       "permissionPrompts": 0,
-      "model": "copilot/gpt-6.1-sol",
+      "model": "copilot/fixture-codex-a",
       "inheritedOnCreate": true,
       "inheritedAfterRestart": true,
       "status": "completed",
@@ -181,7 +181,7 @@
     "desktopVersion": "26.1103.60933",
     "uiContractAvailable": false,
     "defaults": {
-      "copilot/gpt-6.1-sol": "auto",
+      "copilot/fixture-codex-a": "auto",
       "antigravity/gemini-4-argon": "auto"
     },
     "preferenceFilePrivate": true

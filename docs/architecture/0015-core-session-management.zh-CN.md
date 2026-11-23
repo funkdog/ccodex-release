@@ -72,7 +72,7 @@ Codex + Copilot 的分支复用原生 core，限定模型 ID 由 router 转回�
 
 ## 原窗口置顶缺陷与修复
 
-专门测试聊天 `MYCODEX-MGMT-COPILOT-1031` 使用 Copilot CLI 的 `gpt-6.1-sol`，发送与原生改名已获用户确认。置顶请求也确实写入网关的内置 pin section，但官方 App 工具返回的置顶列表中没有它。
+专门测试聊天 `MYCODEX-MGMT-COPILOT-1031` 使用 Copilot CLI 的 `fixture-codex-a`，发送与原生改名已获用户确认。置顶请求也确实写入网关的内置 pin section，但官方 App 工具返回的置顶列表中没有它。
 
 静态追踪当前已验证宿主的 pin service 发现，它使用 `thread/list` 的 `sortKey: "section_position"`、空 provider 筛选、内置 section ID 及 `useStateDbOnly: true` 查询。安装 CLI 的 `ThreadSortKey` 也包含该值；原网关只接受三个时间排序值，导致查询失败。router 的可选目录回退随后仅返回原生结果，CLI 已保存的置顶状态便无法进入侧栏列表。先前测试只查询 section ID，未覆盖真实宿主使用的排序参数；后台通过不能代表此链路已验收。
 

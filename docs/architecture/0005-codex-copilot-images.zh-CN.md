@@ -58,7 +58,7 @@ flowchart TD
 
 [脱敏调用证据](evidence/2026-10-29-codex-copilot-images.json) 记录：
 
-- 固定本机原生 Codex 在隔离 HOME/CODEX_HOME 下调用真实 API：`gpt-6.1-sol` 使用 `xhigh`，两个 Gemini 使用各自目录默认推理；均识别合成红图，原生进程重启后恢复同一历史，CLI 网关推理计数为 0。
+- 固定本机原生 Codex 在隔离 HOME/CODEX_HOME 下调用真实 API：`fixture-codex-a` 使用 `xhigh`，两个 Gemini 使用各自目录默认推理；均识别合成红图，原生进程重启后恢复同一历史，CLI 网关推理计数为 0。
 - 原生协议确定性测试实际启动固定 native app-server，检查 HTTP Responses 中的 `input_image`、`reasoning.effort: xhigh`、原生 `thread/settings/update` 后的 `low`，以及冷启动恢复；不依赖真实模型或 Desktop。
 - 真实 Copilot CLI 图片轮次成功，历史保存，native 推理计数为 0，无工具调用。
 - 隔离浏览器 fixture 覆盖新标签、Gemini 选项、图片草稿、原生权限保留、CLI 策略显隐和原生控件恢复；没有操作用户当前 Desktop。

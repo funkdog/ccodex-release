@@ -5,6 +5,7 @@ import { assertTypeScriptBuild } from "./typescript-state.mjs";
 const root = path.resolve(import.meta.dirname, ".."), mode = process.argv[2];
 const tests = ["spine-sources", "desktop-acceptance", "gateway-media", "spine-p2", "spine-native-tap", "spine-compressor", "spine-registry", "spine-mcp", "desktop-protected-start", "gateway-session-management", "session-contract", "typescript-build", "antigravity", "gemini-cli", "google-provider", "desktop-mode", "desktop-native-session", "desktop-cli-selector", "gateway-engines", "gateway-router", "gateway-protocol", "gateway-routed-stdio", "gateway-backend-stage", "copilot-provider", "copilot-provider-native", "desktop-current-host", "desktop-shortcut", "desktop-extension-files", "source-publication", "desktop-launch", "desktop-process"].map(name => `tests/${name}-test.mjs`);
 tests.push("tests/desktop-status-test.mjs");
+tests.push("tests/configure-adapters-test.mjs", "tests/adapter-connection-test.mjs", "tests/mycodex-rc1-package-test.mjs");
 tests.push("tests/desktop-upgrade-continuity-test.mjs");
 tests.push("tests/desktop-repair-session-test.mjs", "tests/desktop-repair-exec-live-test.mjs");
 tests.push("tests/desktop-host-draft-test.mjs");

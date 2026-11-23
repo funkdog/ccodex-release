@@ -41,7 +41,7 @@ const publicResult = (thread: StoredThread) => ({ thread: publicThread(thread), 
   reasoningEffort: thread.reasoningEffort ?? null });
 
 export class GatewayProtocol {
-  store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string; home: string;
+  store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string | null; home: string;
   notify: (method: string, params: unknown) => void;
   active: Map<string, { controller: AbortController; turnId: string; done?: Promise<void> }>;
   catalogPromise: Promise<GatewayModel[]> | null; catalogWarnings: string[] = [];
@@ -51,7 +51,7 @@ export class GatewayProtocol {
   closing = false;
   media: MediaStore;
   approvalPreferences: ApprovalPreferences;
-  constructor({ store, engines, defaultEngine, home, notify, onThreadDeleted = async () => {} }: { store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string; home: string; notify: (method: string, params: unknown) => void; onThreadDeleted?: (id: string) => Promise<void> }) {
+  constructor({ store, engines, defaultEngine, home, notify, onThreadDeleted = async () => {} }: { store: ThreadStore; engines: Map<string, EngineAdapter>; defaultEngine: string | null; home: string; notify: (method: string, params: unknown) => void; onThreadDeleted?: (id: string) => Promise<void> }) {
     this.store = store; this.engines = engines; this.defaultEngine = defaultEngine; this.home = home; this.notify = notify;
     this.active = new Map();
     this.media = new MediaStore(home);
@@ -88,7 +88,7 @@ export class GatewayProtocol {
           }
         } catch (cause) { const error = cause instanceof Error ? cause : new Error(String(cause)); errors.push(`${engineId}: ${error.message}`); }
       }
-      if (!models.length) throw new Error(`No CLI models are available. ${errors.join("; ")}`);
+      if (!models.length && this.engines.size) throw new Error(`No CLI models are available. ${errors.join("; ")}`);
       return models;
     })().catch(error => { this.catalogPromise = null; throw error; });
     return (await this.catalogPromise).map(model => {

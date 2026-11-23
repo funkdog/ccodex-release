@@ -19,10 +19,10 @@ test('Gemini pending calls and completed tool returns retain protocol order', ()
   assert.equal(buildChatRequest(request, {}).body.messages.at(-1).role, 'user');
 });
 test('Gemini Responses sanitization appends continuation only after settled assistant commentary', () => {
-  const commentary = { model: 'api-source--gemini-4-carbon', input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Work' }] }, { type: 'message', role: 'assistant', phase: 'commentary', content: [{ type: 'output_text', text: 'Checking' }] }] };
+  const commentary = { model: 'api-source--gemini-fixture-pro', input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Work' }] }, { type: 'message', role: 'assistant', phase: 'commentary', content: [{ type: 'output_text', text: 'Checking' }] }] };
   const sanitized = sanitizeResponsesBody(commentary);
   assert.deepEqual(sanitized.input.at(-1), { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Continue.' }] });
-  const withCall = { model: 'api-source--gemini-4-carbon', input: [...commentary.input, { type: 'function_call', call_id: 'c1', name: 'read', arguments: '{}' }] };
+  const withCall = { model: 'api-source--gemini-fixture-pro', input: [...commentary.input, { type: 'function_call', call_id: 'c1', name: 'read', arguments: '{}' }] };
   assert.equal(sanitizeResponsesBody(withCall).input.at(-1).type, 'function_call');
-  assert.equal(sanitizeResponsesBody({ ...commentary, model: 'gpt-6.1-sol' }).input.at(-1).role, 'assistant');
+  assert.equal(sanitizeResponsesBody({ ...commentary, model: 'fixture-codex-a' }).input.at(-1).role, 'assistant');
 });

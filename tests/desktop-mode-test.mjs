@@ -118,3 +118,20 @@ test("Antigravity subscription configuration is independent of native Google and
   agent.sdkPath = "/private/sdk"; f.write(); assert.throws(() => f.resolve(), /Antigravity/); delete agent.sdkPath;
   delete agent.harnessPath; f.write(); assert.throws(() => f.resolve(), /harnessPath/);
 });
+
+test("current Desktop accepts an empty external catalog with a null default and Spine", t => {
+  const f = fixture(t), instance = f.config.instances[1];
+  instance.host = "current";
+  instance.desktopApp = "/Applications/ChatGPT.app";
+  instance.gateway = { defaultEngine: null, engines: [] };
+  f.write();
+  assert.deepEqual(f.resolve().gateway, { defaultEngine: null, engines: [], spine: { mcp: true, eventTap: true } });
+  instance.gateway.defaultEngine = "missing"; f.write();
+  assert.throws(() => f.resolve(), /defaultEngine/);
+  instance.gateway = { defaultEngine: null, engines: [{ id: "claude-main", adapter: "claude-code" }] };
+  f.write();
+  assert.throws(() => f.resolve(), /defaultEngine/);
+  instance.gateway = { defaultEngine: null, engines: [] };
+  instance.host = "isolated"; f.write();
+  assert.throws(() => f.resolve(), /engines/);
+});

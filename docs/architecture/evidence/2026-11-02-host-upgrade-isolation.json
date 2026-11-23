@@ -180,7 +180,7 @@
     "realCopilotNativeProvider": {
       "recordedAt": "2026-11-02T01:26:11.759Z",
       "runtime": "native-codex",
-      "model": "gpt-6.1-sol",
+      "model": "fixture-codex-a",
       "desktopRestarted": false,
       "existingNativeProfileUsed": false,
       "cliGatewayInferenceTurns": 0,
@@ -211,7 +211,7 @@
         "isolatedPath": true,
         "originalUnchanged": true
       },
-      "model": "mycodex/codex-copilot/gpt-6.1-sol",
+      "model": "mycodex/codex-copilot/fixture-codex-a",
       "reasoningEffort": "xhigh",
       "approvalPolicy": "never",
       "turnCount": 31,

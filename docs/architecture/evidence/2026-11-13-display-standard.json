@@ -160,7 +160,7 @@
       {
         "command": "node tools/typescript-task.mjs test",
         "env": {
-          "MYCODEX_TEST_PLAYWRIGHT": "/Users/developer/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs",
+          "MYCODEX_TEST_PLAYWRIGHT": "/workspace/example/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs",
           "MYCODEX_REQUIRE_DISPLAY_SCHEMA": "1"
         },
         "exitCode": 0,
@@ -355,7 +355,7 @@
       "requiredSchema": true
     },
     "limitations": [
-      "Synthetic upstream with the real installed Codex app-server, not paid real-account gemini-4-carbon inference.",
+      "Synthetic upstream with the real installed Codex app-server, not paid real-account gemini-fixture-pro inference.",
       "No active Desktop/Gateway restart, runtime synchronization or formal release.",
       "The separate personality interpolation finding in 2026-11-13-display-standard-rereview.json is not resolved by this P0-only change."
     ],

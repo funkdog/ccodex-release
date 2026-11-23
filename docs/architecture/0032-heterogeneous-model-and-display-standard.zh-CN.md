@@ -333,7 +333,7 @@ Copilot 使用 SDK 明确提供的 reasoningId/deltaContent、shellToolInfo 与�
 | 上游错误 / 翻译预算超限 | 已开始的正文/思考收敛为 incomplete → response.failed | error 采用标准化对象；无输出时仍按既有 HTTP 错误路径。不能再发 response.completed。 |
 
 非流式 `choice.message` 与流式 `choice.delta` 走同一个状态机：只省略 write SSE，最终 JSON 中 output 顺序/可读摘要/phase 相同，均不包含 opaque 状态。`buildChatRequest` 跳过 reasoning 与 web_search_call 元数据，包括旧版桥接产生的带 encrypted_content 的 reasoning；这不会删除相邻已物化的 message、function_call 或 function_call_output，也不会将 opaque token 发送给上游。它与替代历史正文的 compaction 不同：previous_response_id、compaction、item_reference、未提取内容的 input_file 仍在上游调用前返回 HTTP 400 / unsupported_input。该规则不承诺供应商 opaque 模型状态重放，但必须保证明文会话及工具结果能继续往返；0031 的引擎/来源绑定边界继续生效。翻译累计输入 delta 限 4 MiB，避免无限缓冲工具参数/思考。
-- **验收标准**：`codex-copilot` 下运行 `gemini-4-carbon` 产生原生可折叠 `Reasoning` 卡片，工具调用前的说明自动折叠进工作流步骤组。
+- **验收标准**：`codex-copilot` 下运行 `gemini-fixture-pro` 产生原生可折叠 `Reasoning` 卡片，工具调用前的说明自动折叠进工作流步骤组。
 
 ### Phase 1：显示平面核心卡片与存储投影（Claude Code + ACP）
 - **改动文件**：`gateway/contracts.mts`、`gateway/display-contracts.mts`、`gateway/display-projector.mts`、`gateway/protocol.mts`、`gateway/state.mts`、`gateway/engines/tool-display.mts`、`gateway/engines/acp-display.mts`、Claude/Gemini/Antigravity 适配器及对应测试。

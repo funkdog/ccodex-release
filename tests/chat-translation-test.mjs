@@ -101,7 +101,7 @@ test("Gemini can continue after a streamed assistant comment without changing th
   ];
   const original = structuredClone(input);
   const translate = (model, history) => buildChatRequest({ model, input: history }, {}).body.messages;
-  const messages = translate("gemini-4-carbon", input);
+  const messages = translate("gemini-fixture-pro", input);
   assert.deepEqual(messages.slice(0, 2), [
     { role: "user", content: input[0].content },
     { role: "assistant", content: input[1].content },
@@ -112,10 +112,10 @@ test("Gemini can continue after a streamed assistant comment without changing th
   assert.deepEqual(input, original);
   assert.deepEqual(translate("gpt-fixture", input), messages.slice(0, 2));
   const call = { type: "function_call", name: "inspect", call_id: "test", arguments: "{}" };
-  assert.ok(translate("gemini-4-carbon", [...input, call]).at(-1).tool_calls);
-  assert.equal(translate("gemini-4-carbon", [...input, call,
+  assert.ok(translate("gemini-fixture-pro", [...input, call]).at(-1).tool_calls);
+  assert.equal(translate("gemini-fixture-pro", [...input, call,
     { type: "function_call_output", call_id: "test", output: "result" }]).at(-1).role, "tool");
-  assert.deepEqual(translate("gemini-4-carbon", [...input, { role: "user", content: "Wait." }]).at(-1),
+  assert.deepEqual(translate("gemini-fixture-pro", [...input, { role: "user", content: "Wait." }]).at(-1),
     { role: "user", content: "Wait." });
 });
 
@@ -356,7 +356,7 @@ for (const stream of [false, true]) test(`Chat length truncation emits incomplet
 });
 
 test("Chat catalog entries disable Responses-only transport and GPT-only instruction directives", () => {
-  for (const id of ["gemini-4-carbon", "gemini-3.8-flash", "claude-codex-chat", "mai-code-chat"]) {
+  for (const id of ["gemini-fixture-pro", "gemini-3.8-flash", "claude-codex-chat", "mai-code-chat"]) {
     const entry = buildCatalog([{
       id,
       name: `Model ${id}`,

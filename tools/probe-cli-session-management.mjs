@@ -27,7 +27,7 @@ export async function probeSessionManagement(connectionFile) {
     await start();
     const call=(method,params={})=>gateway.protocol.handle(method,params,{initialized:true,send(){},request:async()=>({answers:{permission:{answers:['Deny']}}})});
     const catalog=(await call('model/list',{limit:1000})).data;
-    const model=catalog.find(m=>/gpt-6\.1-sol$/.test(m.model))??catalog.find(m=>m.inputModalities.includes('text'));
+    const model=catalog.find(m=>m.inputModalities.includes('text'));
     if(!model)throw Error('No actual text model is available.');
     const effort=model.supportedReasoningEfforts.some(e=>e.reasoningEffort==='low')?'low':model.defaultReasoningEffort;
     report.model=model.model; report.reasoningEffort=effort;

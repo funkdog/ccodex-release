@@ -10,7 +10,7 @@
     "availableInCurrentApiCatalog": false
   },
   "actualRecovery": {
-    "model": "gpt-6.1-sol",
+    "model": "fixture-codex-a",
     "startedAt": "2026-10-30T01:29:45.016Z",
     "completedAt": "2026-10-30T01:29:52.684Z",
     "httpStatus": 200,

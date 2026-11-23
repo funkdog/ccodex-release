@@ -3,9 +3,9 @@ import test from "node:test";
 import { refreshModels } from "../bridge/model-refresh.mjs";
 
 function fixture({ cached = true, nextLogin = "alice", category = "network_error" } = {}) {
-  const state = { login: "alice", models: cached ? [{ id: "gemini-4-carbon" }] : [], modelsAt: 123 };
+  const state = { login: "alice", models: cached ? [{ id: "gemini-fixture-pro" }] : [], modelsAt: 123 };
   const failure = Object.assign(new Error("Copilot catalogue unavailable"), { diagnostic: { category } });
-  const api = { id: "api-source--gemini-4-carbon" };
+  const api = { id: "api-source--gemini-fixture-pro" };
   return { state, failure, options: {
     state,
     ensureAuth: async ({ force } = {}) => {
@@ -21,7 +21,7 @@ for (const category of ["network_error", "timeout", "tls_error", "rate_limited",
   test(`${category} retains the same account's Copilot model alongside explicit API IDs`, async () => {
     const { state, failure, options } = fixture({ category });
     const result = await refreshModels(options, { force: true });
-    assert.deepEqual(result.map(x => x.id), ["gemini-4-carbon", "api-source--gemini-4-carbon"]);
+    assert.deepEqual(result.map(x => x.id), ["gemini-fixture-pro", "api-source--gemini-fixture-pro"]);
     assert.equal(state.modelsAt, 123);
     assert.equal(state.modelRefreshError, failure);
   });

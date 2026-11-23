@@ -1,26 +1,26 @@
-# MyCodex Adapters：macOS 配置指南
+# MyCodex 0.2.0-rc.1 macOS 安装指南
 
-版本 `0.1.0-rc.4`，当前是待真实桌面验收的预发布候选包，不应标为稳定版。下载与附件见 [RC.4 发布页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-adapters-v0.1.0-rc.4)。
+`0.2.0-rc.1` 是 macOS Apple Silicon 候选版。平台包、SHA-256 和校验回执见 [发行页](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1)。
 
-在现有官方 ChatGPT/Codex 窗口使用自己的 CLI 和模型。默认仅使用原生 Codex，沿用官方已有的账号、Provider 与模型设置。无需配置外部 CLI，也无需向 MyCodex 填 API 地址或 Key。
+首次安装默认使用官方 Codex 的现有账号、Provider、模型设置与原生历史，同时启用 `mycodex` MCP、原生事件采集和右侧 `Squad Studio`。只需已登录的官方客户端和 Node.js 24。点击侧栏的小队入口可打开 Studio，查看成员、轮次、Git diff 和交付物。
 
-外部连接按需添加：Claude Code，或既有 Antigravity ACP 1.4.4（Google 订阅）运行时。此版本只接入已适配的协议，不能将任意 CLI 当作通用聊天接口。每个聊天保留自己的执行器，换 CLI 时新建聊天。RC.4 预打包快照中的工作台、Squad、雷达、日报与跨引擎接续均未启用。当前 `main` 已包含完整的 [MyCodex Squad V2 源码](../gateway/spine/)，使用本页安装步骤仍会得到固定的 RC.4 功能。
+外部模型按需接入 Claude Code、Antigravity ACP 1.4.4 或 GitHub Copilot。每个聊天保留自己的执行器，更换引擎时新建聊天。
 
 ## 安装
 
-1. 首版仅验证 **macOS Apple Silicon（ARM64）**。先安装并登录官方客户端；安装 [Node.js 24 或更新版本](https://nodejs.org/)，确认终端中的 `node --version` 可运行。
-2. 核对 Release 附件提供的 SHA-256，将 `.tar.gz` 解压到长期保留的位置，如 `~/Applications/MyCodex-Adapters/`。不要运行 GitHub 自动生成的源码压缩包来代替平台包。
-3. 在终端进入解压目录，运行 `./Install.command`。选择官方 `.app` 的完整路径；默认选项 **1：使用当前配置**，首次安装只启用原生 Codex，不下载外部 SDK，不填充第三方模型。
+1. 本候选包适用 **macOS Apple Silicon（ARM64）**。先安装并登录官方客户端；安装 [Node.js 24 或更新版本](https://nodejs.org/)，确认终端中的 `node --version` 可运行。
+2. 核对 Release 附件提供的 SHA-256，在下载目录运行 `shasum -a 256 -c mycodex-macos-arm64-0.2.0-rc.1.tar.gz.sha256`，通过后解压 `mycodex-macos-arm64-0.2.0-rc.1.tar.gz` 到长期保留的位置。
+3. 在终端进入解压目录，运行 `./Install.command`。选择官方 `.app` 的完整路径；默认选项 **1：使用当前配置**，首次安装启用原生 Codex 与 Squad Studio，外部模型列表为空。
 4. 运行 `./Diagnose.command`。当前聊天结束后正常退出官方客户端，再运行 `./Start.command`。客户端已经运行时不会强制结束任务或热替换当前会话。
-5. 可选运行 `./Install-Launcher.command`，创建 `~/Applications/MyCodex Adapters.app`。构建图标需 Apple Command Line Tools（Swift / `xcrun`）；不用图标也能运行 `Start.command`。安装后保留解压文件夹的位置。
+5. 可选运行 `./Install-Launcher.command`，创建 `~/Applications/MyCodex Candidate.app`。构建图标需 Apple Command Line Tools（Swift / `xcrun`）；不用图标也能运行 `Start.command`。安装后保留解压文件夹的位置。
 
-界面兼容性按官方客户端的精确版本与文件摘要检查。当前登记的 ARM64 版本包括 `26.1023.50603`、`26.1023.51421`、`26.1027.51404`、`26.1103.60933`、`26.1106.51428`；登记不代表每一版都已完成本候选的真实窗口验收。版本或文件不匹配会停止配置。官方更新后先重新诊断，不跳过检查。
+候选包在官方 ChatGPT `26.1117.41037` 上核验了应用与 CLI 摘要及原生接口。之前登记的版本仍按各自文件摘要匹配。官方更新后先运行诊断，兼容性以实际检查结果为准。
 
 若 macOS 拦截下载内容，请在系统提供的安全界面核对来源后处理。本包不自动关闭系统保护。
 
 ## 接入自己的 CLI 与模型
 
-**GitHub Copilot**：使用自己的 Copilot 账号，按 [专用接入指南](https://github.com/funkdog/ccodex-release/releases/download/mycodex-adapters-v0.1.0-rc.4/CODEX-COPILOT-SETUP.zh-CN.md) 完成独立登录、模型选择和启动。此路径暂未加入简化向导。
+**GitHub Copilot**：使用自己的 Copilot 账号，按 [专用接入指南](CODEX-COPILOT-SETUP.zh-CN.md) 完成独立登录、模型选择和启动。指南提供独立账号目录和带 Spine 的配置。
 
 **原生 Codex**：在官方客户端已有的账号、Provider 和模型设置中配置即可。本向导不重写这些设置、不复制 Codex 凭据、不替换官方执行器。
 
@@ -57,14 +57,12 @@
 | `Start.command` | 准备并打开当前官方客户端，不强制终止现有会话 |
 | `Install-Launcher.command` | 可选创建独立图标，不覆盖原 MyCodex 图标 |
 
-配置位于 `~/.mycodex/adapters/config.json`；网关与 CLI 聊天状态位于同目录的 `instances/adapters/`。配置目录权限 0700，文件 0600。更新配置需明确确认并保留私有备份；模型验证记录只含模型标识、时间和结果，不含账号或 Key。已有未验证连接不会预填菜单，也不会因为缺少 SDK 阻止原生路径。
+配置位于 `~/.mycodex/desktop-candidate/config.json`；网关与 CLI 聊天状态位于同目录的 `instances/adapters/`。配置目录权限为 `0700`，文件权限为 `0600`。从 RC.4 升级时会在这个新目录创建配置，使用新向导重新选择如需保留的外部连接。更新配置需明确确认并保留私有备份；模型验证记录只含模型标识、时间和结果，不含账号或 Key。已有未验证连接不会预填菜单，也不会因为缺少 SDK 阻止原生路径。
 
 暂停增强：正常退出，从官方原图标打开。没有全局 shell 注入或登录项。删除入口或解压目录前先退出；不会自动删除认证、原生聊天或网关历史。不要向他人发送 `~/.mycodex`、`~/.claude`、`~/.codex` 或个人日志。
 
 ## 验收与发布边界
 
-每个拟发布的外部引擎都需在专用测试聊天完成：选模型、真实发送、批准一次精确临时文件写入、拒绝另一次写入、取消生成、正常重开后续聊。还需确认原生 Codex、既有侧栏和插件可用，停用后普通客户端正常。目录读取和设置时的一次短请求不能代替桌面验收。
+候选包随附 `MYCODEX-MANIFEST.json`，记录源码提交、载荷清单和每个文件的 SHA-256。平台包使用官方客户端自带的原生 Codex CLI，外部 SDK 在选择相应适配器后按需安装。发行页的 `RELEASE-0.2.0-RC1.json` 绑定归档、包内清单和源码记录。
 
-维护者在 [RC.4 固定源码标签](https://github.com/funkdog/ccodex-release/tree/mycodex-adapters-source-v0.1.0-rc.4) 运行 `npm run test:adapters`，复用项目 TypeScript、协议、审批、恢复、浏览器和源码门禁。打包通过 `bash tools/Invoke-HeavyTask.sh node tools/package-adapters.mjs /完整路径/候选包.tar.gz`，包内包含已编译模块、文件摘要与候选状态，不含 Node、CLI、账号或依赖缓存。当前 `main` 的开发与回归门禁见 [贡献指南](../CONTRIBUTING.md)。
-
-候选包内的冻结清单保留 `rc`、`published: false` 与 `liveDesktopAcceptance: pending`；`published: false` 表示打包时的状态，实际公开状态以 GitHub Release 为准，不能将公开发布当作桌面验收通过。本渠道不覆盖旧 `v1.2.36` 的完整平台发行包。
+带账号的真实桌面验证包括原生聊天、右侧 Squad Studio，以及选择外部模型、发送、权限确认、取消和重开续聊。实际范围见 [候选版验证记录](https://github.com/funkdog/ccodex-release/releases/tag/mycodex-v0.2.0-rc.1)。

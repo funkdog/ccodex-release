@@ -403,7 +403,7 @@
     }
   },
   "templates": {
-    "sha256": "2c5b58bd2c9a13ade7797f6986a307cf7e90df570af46cf921e2a03a5b5a1f1a",
+    "sha256": "bafa9f54109ab0e5095f5d9ad1766f338bb42b55761d0603e6e86d5685a2688b",
     "modelFields": [
       "additional_speed_tiers",
       "apply_patch_tool_type",

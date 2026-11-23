@@ -53,7 +53,7 @@ export function claudeCodeEngine({ sdk, executable, env, credentialProfile, envi
       } catch (error) { throw safeError(discovery.signal.aborted ? new Error("Claude Code 模型目录读取超时；没有启动推理。") : error, effective); }
       finally { clearTimeout(timer); release(); try { await close(query, effective); } finally { overlay?.dispose(); } }
     },
-    async run({ prompt, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, display, getApprovalMode = () => "ask" }) {
+    async run({ prompt, model, cwd, nativeSessionId, reasoningEffort, signal, onSession, onText, onTool, onImage, ask, display, getApprovalMode = () => "ask", verification = false }) {
       if (signal.aborted) return;
       const effective = environment();
       const toolNames = new Map<string, string>();
@@ -76,7 +76,8 @@ export function claudeCodeEngine({ sdk, executable, env, credentialProfile, envi
         overlay = credentialProfile ? claudeApiOverlay(credentialProfile, effective) : null;
         query = sdk.query({ prompt, options: { ...options, env: effective, ...(overlay ? { settings: overlay.file } : {}), model, cwd, abortController,
           ...(reasoningEffort != null ? { effort: reasoningEffort } : {}),
-          includePartialMessages: true, persistSession: true,
+          includePartialMessages: true, persistSession: !verification,
+          ...(verification ? { tools: [], maxTurns: 1, settingSources: [], mcpServers: {}, strictMcpConfig: true } : {}),
           ...(nativeSessionId ? { resume: nativeSessionId } : { sessionId }),
           canUseTool: async (name, input, permission) => {
             if (signal.aborted || permission?.signal?.aborted) return { behavior: "deny", message: "CLI request cancelled." };

@@ -52,6 +52,15 @@ test("rejects machine-specific Windows user paths", t => {
   assert.equal(result.findings[0].issue, "machine-specific user path");
 });
 
+test("rejects local Unix user paths and restricted publication terms", t => {
+  const files = { "README.md": "/" + "Users/" + "ExamplePublisher/project",
+    "guide.md": "gemini-4-" + "carbon", "route.mjs": '"/users/SYNTHETIC"' };
+  assert.deepEqual(auditSourceFiles(fixture(t, files), Object.keys(files)).findings, [
+    { file: "README.md", issue: "machine-specific user path" },
+    { file: "guide.md", issue: "private publication term" },
+  ]);
+});
+
 test("rejects path escape before reading it", t => {
   const result = auditSourceFiles(fixture(t, { "README.md": "safe" }), ["../outside"]);
   assert.equal(result.passed, false);

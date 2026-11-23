@@ -85,7 +85,7 @@
             "placement": "native-model-effort-panel",
             "contextControlAttached": true,
             "nativeTriggerPreserved": true,
-            "model": "gpt-6.1-sol",
+            "model": "fixture-codex-a",
             "effort": "max",
             "context": "long_context"
           },
@@ -98,7 +98,7 @@
             "placement": "native-model-effort-panel",
             "contextControlAttached": true,
             "nativeTriggerPreserved": true,
-            "model": "gpt-6.1-sol",
+            "model": "fixture-codex-a",
             "effort": "xhigh",
             "context": "long_context"
           },
@@ -176,7 +176,7 @@
             "placement": "native-model-effort-panel",
             "contextControlAttached": true,
             "nativeTriggerPreserved": true,
-            "model": "gpt-6.1-sol",
+            "model": "fixture-codex-a",
             "effort": "max",
             "context": "long_context"
           },
@@ -189,7 +189,7 @@
             "placement": "native-model-effort-panel",
             "contextControlAttached": true,
             "nativeTriggerPreserved": true,
-            "model": "gpt-6.1-sol",
+            "model": "fixture-codex-a",
             "effort": "xhigh",
             "context": "long_context"
           },
